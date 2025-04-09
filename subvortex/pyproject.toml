@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "subvortex"
-version = "3.0.0"
-description = "SubVortex"
+dynamic = ["version"]
+description = "SubVortex Auto Upgrader"
 authors = [{ name = "Eclipse Vortex", email = "subvortex.bt@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,6 +28,9 @@ classifiers = [
 
 [project.license]
 text = "MIT"
+
+[tool.setuptools.dynamic]
+version = { attr = "subvortex.version.__version__" }
 
 [tool.setuptools]
 include-package-data = true

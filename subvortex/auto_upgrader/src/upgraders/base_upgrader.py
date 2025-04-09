@@ -14,35 +14,55 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import os
-from dotenv import load_dotenv
+import typing
+from abc import ABC, abstractmethod
 
-load_dotenv()
 
-SV_LOGGER_NAME = "Auto Updater"
+class BaseUpgrader(ABC):
+    @abstractmethod
+    def should_skip(self):
+        pass
 
-SV_EXECUTION_DIR = os.path.abspath(os.path.expanduser("~/subvortex"))
-SV_WORKING_DIRECTORY = os.path.expandvars(
-    os.getenv("SUBVORTEX_WORKING_DIRECTORY", "$HOME")
-)
+    @abstractmethod
+    def is_upgrade(self):
+        pass
 
-# Variables about the releases
-SV_PRERELEASE_ENABLED = os.getenv("SUBVORTEX_PRERELEASE_ENABLED", False)
-SV_PRERELEASE_TYPE = os.getenv("SUBVORTEX_PRERELEASE_TYPE", "")
+    @abstractmethod
+    def get_latest_version(self):
+        pass
 
-# Variables about the repository
-SV_GITHUB_REPO_OWNER = os.getenv("SUBVORTEX_GITHUB_REPO_OWNER", "eclipsevortex")
-SV_GITHUB_REPO_NAME = os.getenv("SUBVORTEX_GITHUB_REPO_NAME", "SubVortex")
-SV_GITHUB_TOKEN = os.getenv("SUBVORTEX_GITHUB_TOKEN")
+    @abstractmethod
+    def get_current_version(self):
+        pass
 
-# Variables about assets
-SV_ASSET_DIR = os.getenv("SUBVORTEX_ASSET_DIR", "/var/tmp/subvortex")
+    @abstractmethod
+    def get_latest_components(self) -> typing.Dict[str, str]:
+        pass
 
-# Varilables about execution
-SV_EXECUTION_ROLE = os.getenv("SUBVORTEX_EXECUTION_ROLE", "miner")
-SV_EXECUTION_METHOD = os.getenv("SUBVORTEX_EXECUTION_METHOD", "service")
+    @abstractmethod
+    def get_current_components(self) -> typing.Dict[str, str]:
+        pass
 
-DEFAULT_LAST_RELEASE = {"global": "2.3.3", "neuron": "2.3.3", "redis": "2.2.0"}
+    @abstractmethod
+    def get_latest_component_version(self, name: str, path: str):
+        pass
 
-# Time in seconds to run the check of new release
-SV_CHECK_INTERVAL = os.getenv("SUBVORTEX_CHECK_INTERVAL", 60)
+    @abstractmethod
+    def get_current_component_version(self, name: str, path: str):
+        pass
+
+    @abstractmethod
+    def upgrade(self):
+        pass
+
+    @abstractmethod
+    def downgrade(self):
+        pass
+
+    @abstractmethod
+    def teardown(self):
+        pass
+
+    @abstractmethod
+    def pre_upgrade(self, previous_version: str, version: str):
+        pass
