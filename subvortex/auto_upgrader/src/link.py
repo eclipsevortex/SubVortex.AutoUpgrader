@@ -14,35 +14,36 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import os
-from dotenv import load_dotenv
+import shutil
+from pathlib import Path
 
-load_dotenv()
 
-SV_LOGGER_NAME = "Auto Updater"
+def update_symlink(deploy_source: str, deploy_link: str):  # , temp_link: str):
+    deploy_source: Path = Path(deploy_source).resolve()
+    deploy_link: Path = Path(deploy_link)
+    temp_link: Path = Path(f"{deploy_source}.tmp")
 
-SV_EXECUTION_DIR = os.path.abspath(os.path.expanduser("~/subvortex"))
-SV_WORKING_DIRECTORY = os.path.expandvars(
-    os.getenv("SUBVORTEX_WORKING_DIRECTORY", "$HOME")
-)
+    # Create or update the temporary symlink
+    if temp_link.exists() or temp_link.is_symlink():
+        temp_link.unlink()
+    temp_link.symlink_to(deploy_source)
 
-# Variables about the releases
-SV_PRERELEASE_ENABLED = os.getenv("SUBVORTEX_PRERELEASE_ENABLED", False)
-SV_PRERELEASE_TYPE = os.getenv("SUBVORTEX_PRERELEASE_TYPE", "")
+    # Remove the old link or directory if it exists
+    if deploy_link.exists() or deploy_link.is_symlink():
+        if deploy_link.is_symlink() or deploy_link.is_file():
+            deploy_link.unlink()
+        else:
+            shutil.rmtree(deploy_link)
 
-# Variables about the repository
-SV_GITHUB_REPO_OWNER = os.getenv("SUBVORTEX_GITHUB_REPO_OWNER", "eclipsevortex")
-SV_GITHUB_REPO_NAME = os.getenv("SUBVORTEX_GITHUB_REPO_NAME", "SubVortex")
-SV_GITHUB_TOKEN = os.getenv("SUBVORTEX_GITHUB_TOKEN")
+    # Move temp symlink to final location
+    temp_link.rename(deploy_link)
 
-# Variables about assets
-SV_ASSET_DIR = os.getenv("SUBVORTEX_ASSET_DIR", "/var/tmp/subvortex")
 
-# Varilables about execution
-SV_EXECUTION_ROLE = os.getenv("SUBVORTEX_EXECUTION_ROLE", "miner")
-SV_EXECUTION_METHOD = os.getenv("SUBVORTEX_EXECUTION_METHOD", "service")
+def remove_symlink(link: str):
+    link: Path = Path(link)
 
-DEFAULT_LAST_RELEASE = {"global": "2.3.3", "neuron": "2.3.3", "redis": "2.2.0"}
+    if not link.exists() and not link.is_symlink():
+        return
 
-# Time in seconds to run the check of new release
-SV_CHECK_INTERVAL = os.getenv("SUBVORTEX_CHECK_INTERVAL", 60)
+    # Remove the link
+    link.unlink()

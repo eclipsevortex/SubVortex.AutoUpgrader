@@ -1,14 +1,30 @@
+# The MIT License (MIT)
+# Copyright © 2025 Eclipse Vortex
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+# the Software.
+
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
 import os
 import re
+import base64
 import requests
-import subprocess
-from os import path
+from packaging.version import Version, InvalidVersion
 
 import bittensor.utils.btlogging as btul
 
 import subvortex.auto_upgrader.src.constants as sauc
-
-here = path.abspath(path.dirname(__file__))
+import subvortex.auto_upgrader.src.version as sauv
+import subvortex.auto_upgrader.src.asset as saua
 
 
 class Github:
@@ -16,9 +32,14 @@ class Github:
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.latest_version = None
+        self.published_at = None
 
     def get_version(self) -> str:
-        version_path = os.path.join(here, "../../../VERSION")
+        # Build the path to the current component directory
+        version_path = os.path.expanduser(f"{sauc.SV_EXECUTION_DIR}/VERSION")
+
+        if not os.path.exists(version_path):
+            return None
 
         with open(version_path, encoding="utf-8") as version_file:
             version_string = version_file.read().strip()
@@ -37,15 +58,28 @@ class Github:
         )
 
         response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        if response.status_code != 200:
+            return self.latest_version
 
         releases = response.json()
 
         if not releases:
-            return None  # No releases yet
+            return self.latest_version, self.published_at
+
+        # Get the first release/pre release
+        last_release = next(
+            (x for x in releases if self._is_valid_release_or_prerelease(x["tag_name"]))
+        )
+        if not last_release:
+            return self.latest_version, self.published_at
 
         # Optionally sort by semantic version if needed
-        return releases[0]["tag_name"]
+        self.published_at = last_release["published_at"]
+
+        # Optionally sort by semantic version if needed
+        tag = last_release["tag_name"]
+        self.latest_version = tag[1:] if tag.startswith("v") else tag
+        return self.latest_version, self.published_at
 
     def get_latest_version(self) -> str:
         """
@@ -61,74 +95,150 @@ class Github:
             )
 
             response = requests.get(url, headers=headers)
-            print(response)
             if response.status_code != 200:
-                return self.latest_version
+                return self.latest_version, None
 
-            latest_version = response.json()["tag_name"]
-            self.latest_version = latest_version[1:]
-            return self.latest_version
+            releases = response.json()
+            if not releases:
+                return self.latest_version, self.published_at
+
+            # Optionally sort by semantic version if needed
+            self.published_at = releases[0]["published_at"]
+
+            tag = releases[0]["tag_name"]
+            self.latest_version = tag[1:] if tag.startswith("v") else tag
+            return self.latest_version, self.published_at
         except Exception:
-            return self.latest_version
+            return self.latest_version, self.published_at
 
-    def get_branch(self, branch_name="main"):
-        """
-        Get the expected branch
-        """
-        # Stash if there is any local changes just in case
-        subprocess.run(["git", "stash"], check=True)
+    def download_and_unzip(self, version):
+        # Normalized the version
+        normalized_version = sauv.normalize_version(version=version)
 
-        # Checkout branch
-        subprocess.run(["git", "checkout", "-B", branch_name], check=True)
+        # Build the archive name
+        asset_path = os.path.join(sauc.SV_ASSET_DIR, f"subvortex-{normalized_version}")
+        if os.path.exists(asset_path):
+            return asset_path, None
 
-        # Set tracking
-        subprocess.run(
-            ["git", "branch", f"--set-upstream-to=origin/{branch_name}", branch_name],
-            check=True,
+        # Download the version
+        asset_archive_path, reason = self._download_asset(
+            sauc.SV_EXECUTION_ROLE, version
         )
 
-        # Pull branch
-        subprocess.run(["git", "reset", "--hard", f"origin/{branch_name}"], check=True)
+        if not asset_archive_path:
+            return None, reason
 
-        # Pull the branch
-        subprocess.run(["git", "pull"], check=True)
+        # Unzip the version
+        asset_path = saua.unzip_asset(path=asset_archive_path)
 
-        # Stash if there is any local changes just in case
-        subprocess.run(["git", "stash"], check=True)
+        # Remove the archive
+        os.remove(path=asset_archive_path)
 
-        btul.logging.info(
-            f"Successfully pulled source code for branch '{branch_name}'."
+        return asset_path, None
+
+    def get_docker_versions(self, tag: str):
+        versions = {}
+
+        # Get all the remote images with their digests
+        latest_version, _ = self.get_latest_tag_including_prereleases()
+
+        # Download the version
+        target_path, _ = self.download_and_unzip(version=latest_version)
+
+        # Get the subvortex version
+        versions["version"] = self._find_version(target_path)
+
+        # Build the component directory
+        component_directory = f"{target_path}/subvortex/{sauc.SV_EXECUTION_ROLE}"
+
+        # Get the component version
+        component_version = self._find_version(component_directory)
+
+        for service in os.listdir(component_directory):
+            service_path = os.path.join(component_directory, service)
+            if not os.path.isdir(service_path):
+                continue
+
+            service_version = self._find_version(service_path)
+            if not service_version:
+                # Not a service, it can be share directory for example
+                continue
+
+            versions[service] = {
+                "version": service_version,
+                f"{sauc.SV_EXECUTION_ROLE}.version": component_version,
+            }
+
+        return versions
+
+    def download_docker_compose_from_tag(self, version: str, source_version: str):
+        if version is None:
+            return None, "Version is empty"
+        
+        # Normalized the version
+        normalized_version = sauv.normalize_version(version=version)
+
+        # Build the archive name
+        name = f"subvortex-{normalized_version}"
+
+        # Build the target path
+        target_path = os.path.join(sauc.SV_ASSET_DIR, name)
+
+        # Build the file path
+        file_path = f"{target_path}/docker-compose.yml"
+
+        # Ensure the download directory exists
+        os.makedirs(target_path, exist_ok=True)
+
+        url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/contents/docker-compose.yml?ref=v{source_version}"
+        headers = (
+            {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
+            if sauc.SV_GITHUB_TOKEN
+            else {}
         )
 
-    def get_tag(self, tag):
-        """
-        Get the expected tag
-        """
-        # Stash if there is any local changes just in case
-        subprocess.run(["git", "stash"], check=True)
+        # Download the file
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            return None, response.reason
 
-        # Fetch tags
-        subprocess.run(["git", "fetch", "--tags", "--force"], check=True)
-        btul.logging.info(f"Fetch tags.")
+        data = response.json()
+        if data.get("encoding") == "base64":
+            content = base64.b64decode(data["content"]).decode("utf-8")
 
-        # Checkout tags
-        subprocess.run(["git", "checkout", f"tags/{tag}"], check=True)
-        btul.logging.info(f"Successfully pulled source code for tag '{tag}'.")
+        # Save the archive on disk
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
 
-    def download_neuron(self, role: str, version: str):
+        return file_path, None
+
+    def _download_asset(self, role: str, version: str):
         # Ensure the download directory exists
         os.makedirs(sauc.SV_ASSET_DIR, exist_ok=True)
 
         # Normalized the version
-        normalized_version = self._normalize_version(version)
+        normalized_version = sauv.normalize_version(version=version)
 
+        # Build the archive name
         archive_name = f"subvortex_{role}-{normalized_version}.tar.gz"
-        url = f"https://github.com/eclipsevortex/SubVortex/releases/download/{version}/{archive_name}"
+
+        # Build the target path
         target_path = os.path.join(sauc.SV_ASSET_DIR, archive_name)
+        if os.path.exists(target_path):
+            # The asset has lready been downloaded
+            return target_path, None
+
+        url = f"https://github.com/eclipsevortex/SubVortex/releases/download/v{version}/{archive_name}"
+        headers = (
+            {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
+            if sauc.SV_GITHUB_TOKEN
+            else {}
+        )
 
         # Download the archive
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
+        response = requests.get(url, headers=headers, stream=True)
+        if response.status_code != 200:
+            return None, response.reason
 
         # Save the archive on disk
         with open(target_path, "wb") as f:
@@ -136,15 +246,61 @@ class Github:
                 if chunk:
                     f.write(chunk)
 
-        return target_path
+        return target_path, None
 
-    def _normalize_version(self, version: str) -> str:
-        # Remove leading "v" if present
-        version = version.lstrip("v")
+    # TODO: make some unit tests to validator the set of logic here!
+    def _is_valid_release_or_prerelease(self, tag_name: str) -> bool:
+        try:
+            version = Version(tag_name)
+        except InvalidVersion:
+            return False  # Reject malformed versions safely
 
-        # Replace pre-release suffix
-        return re.sub(
-            r"-(alpha|beta|rc)\.(\d+)",
-            lambda m: {"alpha": "a", "beta": "b", "rc": "rc"}[m.group(1)] + m.group(2),
-            version,
-        )
+        # Final release has no prerelease part
+        if version.is_prerelease is False:
+            return True
+
+        # Accept all prereleases
+        if "all" == sauc.SV_PRERELEASE_TYPE:
+            return True
+
+        prerelease_types = self._get_prerelease_types()
+
+        # Check allowed prerelease types like "alpha", "rc", etc.
+        prerelease = version.pre  # Tuple like ("rc", 1) or ("alpha", 2)
+        if prerelease:
+            pre_type = prerelease[0].lower()
+            return pre_type in prerelease_types
+
+        return False
+
+    def _get_prerelease_types(self):
+        if sauc.SV_PRERELEASE_TYPE == "alpha":
+            return ["a", "rc"]
+
+        if sauc.SV_PRERELEASE_TYPE == "rc":
+            return ["rc"]
+
+        return []
+
+    def _find_version(self, path: str):
+        pyproject = os.path.join(path, "pyproject.toml")
+        version_py = os.path.join(path, "version.py")
+        version_txt = os.path.join(path, "VERSION")
+
+        if os.path.isfile(version_py):
+            with open(version_py) as f:
+                content = f.read()
+                match = re.search(r'__version__\s*=\s*[\'"]([^\'"]+)[\'"]', content)
+                if match:
+                    return match.group(1)
+        elif os.path.isfile(version_txt):
+            with open(version_txt) as f:
+                return f.read().strip()
+        elif os.path.isfile(pyproject):
+            with open(pyproject) as f:
+                for line in f:
+                    match = re.match(r'^version\s*=\s*"([^"]+)"', line)
+                    if match:
+                        return match.group(1)
+        else:
+            return None

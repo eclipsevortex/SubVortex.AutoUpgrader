@@ -15,34 +15,41 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import os
-from dotenv import load_dotenv
+import json
 
-load_dotenv()
+import subvortex.auto_upgrader.src.constants as sauc
 
-SV_LOGGER_NAME = "Auto Updater"
+CACHE_PATH = f"{sauc.SV_ASSET_DIR}/.subvortex-cache"
 
-SV_EXECUTION_DIR = os.path.abspath(os.path.expanduser("~/subvortex"))
-SV_WORKING_DIRECTORY = os.path.expandvars(
-    os.getenv("SUBVORTEX_WORKING_DIRECTORY", "$HOME")
-)
 
-# Variables about the releases
-SV_PRERELEASE_ENABLED = os.getenv("SUBVORTEX_PRERELEASE_ENABLED", False)
-SV_PRERELEASE_TYPE = os.getenv("SUBVORTEX_PRERELEASE_TYPE", "")
+def should_skip_version(version: str, release_time: str) -> bool:
+    cache = _load_cache()
+    if version in cache:
+        cached = cache[version]
+        return cached["status"] == "failed" and cached["timestamp"] == release_time
+    return False
 
-# Variables about the repository
-SV_GITHUB_REPO_OWNER = os.getenv("SUBVORTEX_GITHUB_REPO_OWNER", "eclipsevortex")
-SV_GITHUB_REPO_NAME = os.getenv("SUBVORTEX_GITHUB_REPO_NAME", "SubVortex")
-SV_GITHUB_TOKEN = os.getenv("SUBVORTEX_GITHUB_TOKEN")
 
-# Variables about assets
-SV_ASSET_DIR = os.getenv("SUBVORTEX_ASSET_DIR", "/var/tmp/subvortex")
+def mark_version_failed(version: str, release_time: str):
+    cache = _load_cache()
+    cache[version] = {"timestamp": release_time, "status": "failed"}
+    _save_cache(cache)
 
-# Varilables about execution
-SV_EXECUTION_ROLE = os.getenv("SUBVORTEX_EXECUTION_ROLE", "miner")
-SV_EXECUTION_METHOD = os.getenv("SUBVORTEX_EXECUTION_METHOD", "service")
 
-DEFAULT_LAST_RELEASE = {"global": "2.3.3", "neuron": "2.3.3", "redis": "2.2.0"}
+def clear_version_status(version: str):
+    cache = _load_cache()
+    if version in cache:
+        del cache[version]
+        _save_cache(cache)
 
-# Time in seconds to run the check of new release
-SV_CHECK_INTERVAL = os.getenv("SUBVORTEX_CHECK_INTERVAL", 60)
+
+def _load_cache():
+    if os.path.exists(CACHE_PATH):
+        with open(CACHE_PATH, "r") as f:
+            return json.load(f)
+    return {}
+
+
+def _save_cache(data):
+    with open(CACHE_PATH, "w") as f:
+        json.dump(data, f, indent=2)
