@@ -26,11 +26,11 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules"
 ]
 
-[project.license]
-text = "MIT"
-
 [tool.setuptools.dynamic]
 version = { attr = "subvortex.version.__version__" }
+
+[project.license]
+text = "MIT"
 
 [tool.setuptools]
 include-package-data = true

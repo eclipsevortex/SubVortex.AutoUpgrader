@@ -2,6 +2,7 @@
 
 # **SubVortex Auto Upgrader** <!-- omit in toc -->
 
+[![Build & Push](https://github.com/eclipsevortex/SubVortex.AutoUpgrader/actions/workflows/docker-workflow.yml/badge.svg?branch=main)](https://github.com/eclipsevortex/SubVortex.AutoUpgrader/actions/workflows/docker-workflow.yml)
 [![Discord Chat](https://img.shields.io/discord/308323056592486420.svg)](https://discord.gg/bittensor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -9,7 +10,7 @@
 
 ## Effortless Updates for Your Miner & Validator <!-- omit in toc -->
 
-[Discord](https://discord.gg/bittensor) • [Network](https://taostats.io/) • [Research](https://bittensor.com/whitepaper)
+[Github]() [Discord](https://discord.gg/bittensor) • [Network](https://taostats.io/) • [Research](https://bittensor.com/whitepaper)
 
 ---
 
@@ -27,6 +28,7 @@
 - [Prerequisites](#prerequisites)
 - [How It Works](#how-it-works)
 - [Quick Start](#quick-start)
+- [Quick Stop](#quick-stop)
 - [Installation](#installation)
   - [Run as Process](#run-as-process)
   - [Run as Service](#run-as-service)
@@ -53,6 +55,11 @@ Simple to set up. Easy to monitor. Zero stress upgrades.
 
 # ⚙️ Prerequisites <a id="prerequisites"></a>
 
+> ⚠️ **Architecture Notice**  
+> The SubVortex Auto Upgrader currently supports only **x86_64 (amd64)** servers.  
+> `arm64` support is not yet available but is a work in progress.  
+> We’re actively collaborating with OTF to bring full compatibility as soon as possible.
+
 Before you begin, make sure you clone the Auto Upgrader repository:
 
 ```bash
@@ -61,7 +68,7 @@ git clone https://github.com/eclipsevortex/SubVortex.AutoUpgrader.git
 
 Then, configure your environment:
 
-1. Update the environment variables inside the `environment/` folder.
+1. Update the environment variables inside the `subvortex/auto_upgrader/environment/` folder.
 
    - For miners, edit files matching `env.subvortex.miner.*`
    - For validators, edit files matching `env.subvortex.validator.*`
@@ -100,14 +107,16 @@ When setting up the Auto Upgrader, you can choose from three execution modes: `p
 🧩 Process & Service Modes
 
 In these modes, the Auto Upgrader checks GitHub every **SUBVORTEX_CHECK_INTERVAL** seconds for new releases. When a new version is available, it:
+
 1. Downloads and unzips the archive for your neuron type (**SUBVORTEX_EXECUTION_ROLE**) into **SUBVORTEX_WORKING_DIRECTORY**
-2. Installs the new version
+2. Install the new version
 3. Updates the symlink to point to the new version
 4. Cleans up the previous version
 
 🐳 Docker Mode
 
 Here, the Auto Upgrader also checks GitHub every **SUBVORTEX_CHECK_INTERVAL** seconds. When a new release is found:
+
 1. It pulls the floating tag that matches your desired release type (**SUBVORTEX_PRERELEASE_TYPE**)
 2. It starts the updated container
 
@@ -123,7 +132,19 @@ To install the Auto Upgrader in a quick way, you can run
 ./scripts/quick_start.sh
 ```
 
-It will install the Auto Upgrade as service which is the default mode.
+It will install and start the Auto Upgrader as service which is the default mode.
+
+Use `-h` to see the options
+
+# 🛑 Quick Stop <a id="quick-stop"></a>
+
+To stop the Auto Upgrader in a quick way, you can run
+
+```bash
+./scripts/quick_stop.sh
+```
+
+It will stop and teardown the Auto Upgrader.
 
 Use `-h` to see the options
 

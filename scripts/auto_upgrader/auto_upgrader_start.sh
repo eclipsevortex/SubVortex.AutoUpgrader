@@ -2,16 +2,6 @@
 
 set -e
 
-ENV_FILE="subvortex/auto_upgrader/.env"
-
-# Load .env
-if [ ! -f "$ENV_FILE" ]; then
-    echo "❌ .env file not found!"
-    exit 1
-fi
-
-export $(grep -v '^#' "$ENV_FILE" | xargs)
-
 # Help function
 show_help() {
     echo "Usage: $0 [--execution=process|container|service]"
@@ -53,63 +43,63 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-if [[ "$METHOD" == "container" || "${SUBVORTEX_EXECUTION_METHOD,,}" == "container" ]]; then
-    # Check if docker is installed
-    if ! command -v docker &> /dev/null; then
-        echo "❌ Docker is not installed. Installing it now."
-        ./../docker/docker_setup.sh
-    fi
-
-    # Check which compose command is available
-    if docker compose version &> /dev/null; then
-        DOCKER_CMD="docker compose"
-    elif command -v docker-compose &> /dev/null; then
-        DOCKER_CMD="docker-compose"
-    else
-        echo "❌ Neither 'docker compose' nor 'docker-compose' is installed. Please install Docker Compose."
-        exit 1
-    fi
-fi
+# Parse arguments
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -e |--execution)
+            METHOD="$2"
+            shift 2
+            ;;
+        -h | --help)
+            show_help
+            exit 0
+        ;;
+        *)
+            echo "Unrecognized option '$1'"
+            exit 1
+        ;;
+    esac
+done
 
 # 🧠 Function: Setup for process mode
 setup_process() {
     echo "⚙️  Setting up for 'process' mode..."
     
-    # Install pm2
-    ./scripts/install_pm2.sh
-    
-    # Setup the auto upgrade as process
-    ./subvortex/auto_upgrader/deployment/proecss/auto_upgrader_process_setup.sh
+    # Start the auto upgrade as process
+    ./subvortex/auto_upgrader/deployment/proecss/auto_upgrader_process_start.sh
     
     # Add any other logic specific to process mode here
-    echo "✅ Process setup complete."
+    echo "✅ Process started."
 }
 
 # 🐳 Function: Setup for container mode
 setup_container() {
     echo "🐳 Setting up for 'container' mode..."
     
-    # Install docker
-    ./scripts/docker/docker_setup.sh
+    # Start the auto upgrade as service
+    ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_start.sh
     
     # Add any other container-specific logic here
-    echo "✅ Container setup complete."
+    echo "✅ Container started."
 }
 
 # 🧩 Function: Setup for service mode
 setup_service() {
     echo "🧩 Setting up for 'service' mode..."
     
-    # Setup the auto upgrade as service
-    ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_setup.sh
+    # Start the auto upgrade as service
+    ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_start.sh
     
     # Add logic for systemd, service checks, etc. if needed
-    echo "✅ Service setup complete."
+    echo "✅ Service started."
 }
 
 # 🚀 Function: Dispatch based on method
 run_setup() {
-    # Install Auto Upgrade
+    if [[ "$SUBVORTEX_EXECUTION_METHOD" == "container" ]]; then
+        ./scripts/watchtower/watchtower_start.sh
+    fi
+
     case "$METHOD" in
         process)
             setup_process

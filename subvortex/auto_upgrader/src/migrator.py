@@ -67,7 +67,7 @@ class Migrator:
         )
 
         btul.logging.info(
-            f"[{component_name}] Migrations {migrations}",
+            f"[{component_name}] Migrations to apply: {migrations}",
             prefix=self._get_log_prefix(),
         )
 
@@ -122,7 +122,7 @@ class Migrator:
 
         # Get the migration(s) matching the specified version, in reverse order
         btul.logging.debug(
-            f"[{component_name}] Searching migrations between {'>=' if same_version else '>'} {release_version} and <= {previous_release_version}",
+            f"[{component_name}] Searching migrations between {'>=' if same_version else '>'} {release_version} and <= {previous_release_version} in {component_name}",
             prefix=self._get_log_prefix(),
         )
         migrations = self._get_migrations(
@@ -189,6 +189,8 @@ class Migrator:
 
                 # Add the version
                 migrations.append((spec_version, version, file))
+
+            btul.logging.debug(f"# of available migrations: {len(migrations)}",  prefix=self._get_log_prefix())
 
             if filter_lambda:
                 migrations = list(filter(filter_lambda, migrations))

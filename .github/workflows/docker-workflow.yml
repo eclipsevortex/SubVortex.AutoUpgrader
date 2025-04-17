@@ -1,6 +1,7 @@
 name: Docker Build & Push All Services
 
 on:
+  delete:
   push:
     tags:
       - "v*.*.*"
@@ -9,6 +10,17 @@ on:
     types: [published]
 
 jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Show event name and action
+        run: |
+          echo "ref ${{ github.ref }}"
+          echo "event_ref ${{ github.event.ref }}"
+          echo "ref_type: ${{ github.event.ref_type }}"
+          echo "event_name: ${{ github.event_name }}"
+          echo "event_action: ${{ github.event.action }}"
+
   discover:
     runs-on: ubuntu-latest
     outputs:
@@ -20,22 +32,6 @@ jobs:
       - name: 🧠 Discover components and services
         id: set-matrix
         run: |
-          # Customize these lists as needed
-          EXCLUDED_COMPONENTS=(core validator)
-          EXCLUDED_SERVICES=()
-
-          should_exclude() {
-            local item=$1
-            shift
-            local list=("$@")
-            for ex in "${list[@]}"; do
-              if [[ "$item" == "$ex" ]]; then
-                return 0
-              fi
-            done
-            return 1
-          }
-
           mkdir -p .build/tmp_matrix
           echo '{ "include": [' > .build/tmp_matrix/matrix.json
           FIRST=true
@@ -44,32 +40,15 @@ jobs:
             [ -d "$comp" ] || continue
             comp_name=$(basename "$comp")
 
-            # 🔥 Skip excluded components
-            if should_exclude "$comp_name" "${EXCLUDED_COMPONENTS[@]}"; then
-              echo "⏭️ Skipping excluded component: $comp_name"
-              continue
+            # ✅ Include only if it has a pyproject or version.py
+            if [[ -f "$comp/pyproject.toml" || -f "$comp/version.py" ]]; then
+              if [ "$FIRST" = true ]; then
+                FIRST=false
+              else
+                echo "," >> .build/tmp_matrix/matrix.json
+              fi
+              echo "  { \"component\": \"$comp_name\" }" >> .build/tmp_matrix/matrix.json
             fi
-
-            for service in "$comp"/*; do
-              [ -d "$service" ] || continue
-              service_name=$(basename "$service")
-
-              # 🔥 Skip excluded services
-              if should_exclude "$service_name" "${EXCLUDED_SERVICES[@]}"; then
-                echo "⏭️ Skipping excluded service: $service_name"
-                continue
-              fi
-
-              # ✅ Include only if it has a pyproject or version.py
-              if [[ -f "$service/pyproject.toml" || -f "$service/version.py" ]]; then
-                if [ "$FIRST" = true ]; then
-                  FIRST=false
-                else
-                  echo "," >> .build/tmp_matrix/matrix.json
-                fi
-                echo "  { \"component\": \"$comp_name\", \"service\": \"$service_name\" }" >> .build/tmp_matrix/matrix.json
-              fi
-            done
           done
 
           echo "] }" >> .build/tmp_matrix/matrix.json
@@ -80,51 +59,9 @@ jobs:
 
           echo "🔍 Final matrix ready."
 
-  wheel-builder:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.meta.outputs.tag }}
-    steps:
-      - name: 🧾 Checkout
-        uses: actions/checkout@v3
-
-      - name: 🛠 Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: 🛠 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        with:
-          driver-opts: network=host
-
-      - name: 🔐 Docker Login
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: 🧠 Generate build tag from hash
-        id: meta
-        run: |
-          HASH=$(sha256sum subvortex/core/Dockerfile.builder | cut -d ' ' -f1)
-          echo "tag=subvortex/subvortex-wheel-builder:3.11-$HASH" >> $GITHUB_OUTPUT
-
-      - name: 🐋 Build & push wheel-builder (only if not exists)
-        run: |
-          if docker pull ${{ steps.meta.outputs.tag }} >/dev/null 2>&1; then
-            echo "✅ Image already exists: ${{ steps.meta.outputs.tag }}"
-          else
-            echo "🚀 Building wheel-builder image"
-            docker buildx build \
-              --platform linux/amd64,linux/arm64 \
-              --tag ${{ steps.meta.outputs.tag }} \
-              --file subvortex/core/Dockerfile.builder \
-              --push \
-              .
-          fi
-
   build:
-    needs: [discover, wheel-builder]
+    if: github.event_name == 'push' || github.event_name == 'delete'
+    needs: [discover]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -149,6 +86,34 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: 🧠 Generate build tag from hash
+        id: meta
+        run: |
+          HASH=$(sha256sum subvortex/core/Dockerfile.builder | cut -d ' ' -f1)
+          echo "tag=subvortex/subvortex-wheel-builder:3.11-$HASH" >> $GITHUB_OUTPUT
+
+      - name: 🐋 Build & push wheel-builder (only if not exists)
+        if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+        id: wheelbuilder
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          LATEST_TAG="subvortex/subvortex-wheel-builder:latest"
+
+          if docker pull "$TAG" >/dev/null 2>&1; then
+            echo "✅ Image already exists: $TAG"
+          else
+            echo "🚀 Building wheel-builder image"
+            docker buildx build \
+              --platform linux/amd64 \
+              --tag "$TAG" \
+              --tag "$LATEST_TAG" \
+              --file subvortex/core/Dockerfile.builder \
+              --push \
+              .
+          fi
+
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
       - name: 🧠 Determine tag and floating tags
         id: taginfo
         run: |
@@ -166,30 +131,21 @@ jobs:
       - name: 🚀 Build and push version-tagged image (on tag push only)
         if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
         run: |
-          COMP=${{ matrix.component }}
-          SERVICE=${{ matrix.service }}
-          IMAGE="subvortex/subvortex-$COMP-$SERVICE"
-          WHEEL_IMAGE="${{ needs.wheel-builder.outputs.tag }}"
-          RAW_VERSION_TAG="${{ steps.taginfo.outputs.version_tag }}"
-          VERSION_TAG="${RAW_VERSION_TAG#v}"
-          DOCKERFILE="subvortex/$COMP/$SERVICE/Dockerfile"
+          .github/scripts/on_tag_pushed.sh \
+            "${{ matrix.component }}" \
+            "${{ steps.meta.outputs.tag }}" \
+            "${{ steps.taginfo.outputs.version_tag }}"
 
-          echo "🚀 Building image $IMAGE:$VERSION_TAG"
-
-          docker buildx build \
-            --squash \
-            --platform linux/amd64,linux/arm64 \
-            --build-context wheelbuilder=docker-image://$WHEEL_IMAGE \
-            --build-arg VERSION=$VERSION_TAG \
-            --build-arg COMPONENT_VERSION=$VERSION_TAG \
-            --cache-from=type=gha,scope=wheels_${COMP}_${SERVICE}_${ARCH} \
-            --cache-to=type=gha,mode=max,scope=wheels_${COMP}_${SERVICE}_${ARCH} \
-            --tag $IMAGE:$VERSION_TAG \
-            --file $DOCKERFILE \
-            --push \
-            .
+      - name: 🧹 Remove version-tagged image (on tag delete)
+        if: github.event_name == 'delete' && github.event.ref_type == 'tag'
+        run: |
+          .github/scripts/on_tag_deleted.sh "${{ matrix.component }}" "${{ matrix.service }}" "${{ github.event.ref }}"
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
   release:
+    if: github.event_name == 'release'
     needs: [discover]
     runs-on: ubuntu-latest
     permissions:
@@ -232,77 +188,10 @@ jobs:
       - name: 🚀 Retag and push floating tags (on release or prerelease)
         if: github.event_name == 'release' && github.event.action != 'deleted'
         run: |
-          COMP=${{ matrix.component }}
-          SERVICE=${{ matrix.service }}
-          IMAGE="subvortex/subvortex-$COMP-$SERVICE"
-          RAW_VERSION_TAG="${{ steps.taginfo.outputs.version_tag }}"
-          VERSION_TAG="${RAW_VERSION_TAG#v}"
-          FLOATING_TAGS="${{ steps.taginfo.outputs.floating_tags }}"
-          IS_PRERELEASE=${{ github.event.release.prerelease }}
-          IS_DRAFT=${{ github.event.release.draft }}
-      
-          echo "📦 Release type: prerelease=$IS_PRERELEASE, draft=$IS_DRAFT"
-          echo "🏷️ Floating tags requested: $FLOATING_TAGS"
-      
-          if [ "$IS_DRAFT" = "true" ]; then
-            echo "⏭️ Skipping draft release"
-            exit 0
-          fi
-      
-          echo "🔍 Getting manifest for $IMAGE:$VERSION_TAG"
-          docker buildx imagetools inspect $IMAGE:$VERSION_TAG
-      
-          for TAG in $FLOATING_TAGS; do
-            # Skip "latest" for prereleases
-            if [ "$IS_PRERELEASE" = "true" ] && [ "$TAG" = "latest" ]; then
-              echo "⏭️ Skipping 'latest' tag for prerelease"
-              continue
-            fi
-      
-            echo "🔁 Creating manifest for $IMAGE:$TAG from $IMAGE:$VERSION_TAG"
-            docker buildx imagetools create \
-              --tag $IMAGE:$TAG \
-              $IMAGE:$VERSION_TAG
-          done
-
-      - name: 🧹 Remove floating tags (on release or prerelease delete)
-        if: github.event_name == 'release' && github.event.action == 'deleted'
-        run: |
-          COMP=${{ matrix.component }}
-          SERVICE=${{ matrix.service }}
-          IMAGE="subvortex/subvortex-$COMP-$SERVICE"
-          RAW_VERSION_TAG="${{ github.event.release.tag_name }}"
-          VERSION_TAG="${RAW_VERSION_TAG#v}"
-          FLOATING_TAGS="${{ steps.taginfo.outputs.floating_tags }}"
-          USERNAME="${{ secrets.DOCKER_USERNAME }}"
-          PASSWORD="${{ secrets.DOCKER_PASSWORD }}"
-          REPO_NAME="subvortex-$COMP-$SERVICE"
-
-          echo "🗑️ Release deleted: $RAW_VERSION_TAG"
-          echo "🔍 Attempting to delete floating tags: $FLOATING_TAGS"
-
-          echo "🔐 Requesting Docker Hub JWT token..."
-          TOKEN=$(curl -s -X POST https://hub.docker.com/v2/users/login/ \
-            -H "Content-Type: application/json" \
-            -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\"}" | jq -r .token)
-
-          if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
-            echo "❌ Failed to authenticate with Docker Hub"
-            exit 1
-          fi
-
-          for TAG in $FLOATING_TAGS; do
-            echo "❌ Deleting tag: $IMAGE:$TAG"
-            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-              "https://hub.docker.com/v2/repositories/$USERNAME/$REPO_NAME/tags/$TAG/" \
-              -H "Authorization: JWT $TOKEN")
-
-            if [ "$RESPONSE" = "204" ]; then
-              echo "✅ Successfully deleted $IMAGE:$TAG"
-            elif [ "$RESPONSE" = "404" ]; then
-              echo "⚠️ Tag $TAG not found (already deleted or never pushed)"
-            else
-              echo "❌ Failed to delete tag $TAG (HTTP $RESPONSE)"
-            fi
-          done
-        
+          .github/scripts/on_release_pushed.sh \
+            "${{ matrix.component }}" \
+            "${{ steps.taginfo.outputs.version_tag }}" \
+            "${{ github.event.release.prerelease }}" \
+            "${{ github.event.release.draft }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

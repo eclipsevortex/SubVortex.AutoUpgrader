@@ -2,16 +2,6 @@
 
 set -e
 
-ENV_FILE=".env"
-
-# Load .env
-if [ ! -f "$ENV_FILE" ]; then
-    echo "❌ .env file not found!"
-    exit 1
-fi
-
-export $(grep -v '^#' "$ENV_FILE" | xargs)
-
 # Help function
 show_help() {
     echo "Usage: $0 [--execution=process|container|service]"
@@ -57,9 +47,6 @@ done
 setup_process() {
     echo "⚙️  Setting up for 'process' mode..."
     
-    # Install pm2
-    ./scripts/install_pm2.sh
-    
     # Stop the auto upgrade as process
     ./subvortex/auto_upgrader/deployment/proecss/auto_upgrader_process_stop.sh
     
@@ -70,9 +57,6 @@ setup_process() {
 # 🐳 Function: Setup for container mode
 setup_container() {
     echo "🐳 Setting up for 'container' mode..."
-    
-    # Install docker
-    ./scripts/docker/docker_setup.sh
     
     # Stop the auto upgrade as service
     ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_stop.sh
@@ -110,9 +94,7 @@ run_setup() {
         ;;
     esac
 
-    # Install watchtower if the SUBVORTEX_EXECUTION_ROLE is container
-    if [[ "$METHOD" == "container" || "${SUBVORTEX_EXECUTION_METHOD,,}" == "container" ]]; then
-        echo $(pwd)
+    if [[ "$SUBVORTEX_EXECUTION_METHOD" == "container" ]]; then
         ./scripts/watchtower/watchtower_stop.sh
     fi
 }

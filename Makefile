@@ -12,7 +12,8 @@ COMPONENTS := auto_upgrader
 CURRENT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
 # Get the version script
-VERSION_SCRIPT = ./scripts/cicd/cicd_bump_version.py
+BUMP_VERSION_SCRIPT = ./scripts/cicd/cicd_bump_version.py
+UNBUMP_VERSION_SCRIPT = ./scripts/cicd/cicd_unbump_version.py
 
 DIST_DIR = ./dist
 
@@ -52,6 +53,7 @@ endef
 # ==================
 # Root-level bump targets
 TARGETS += bump-alpha bump-rc bump-patch bump-minor bump-major
+TARGETS += unbump-alpha unbump-rc unbump-patch unbump-minor unbump-major
 
 define bump_template
 bump-$(1):
@@ -66,8 +68,8 @@ bump-$(1):
 		echo "$(skip)" | grep -q -x "\." && skip_root=true; \
 	fi; \
 	if [ "$$$$only_root" = true ] || { [ -z "$(only)" ] && [ "$$$$skip_root" = false ]; }; then \
-		python3 $(VERSION_SCRIPT) . $(1); \
-		python3 $(VERSION_SCRIPT) ./subvortex $(1); \
+		python3 $(BUMP_VERSION_SCRIPT) . $(1); \
+		python3 $(BUMP_VERSION_SCRIPT) ./subvortex $(1); \
 	fi
 
 	@for comp in $$(COMPONENTS); do \
@@ -76,18 +78,51 @@ bump-$(1):
 		elif echo "$$(skip)" | grep -q -x "$$$$comp"; then \
 			continue; \
 		fi; \
-		python3 $(VERSION_SCRIPT) subvortex/$$$$comp $(1); \
+		python3 $(BUMP_VERSION_SCRIPT) subvortex/$$$$comp $(1); \
 	done
 endef
 
-$(foreach level, patch minor major alpha rc,$(eval $(call bump_template,$(level))))
+define unbump_template
+unbump-$(1):
+	@echo "🔄 unbump-$(1) (skip=$(skip), only=$(only))"
+
+	@only_root=false; \
+	skip_root=false; \
+	if [ -n "$(only)" ]; then \
+		echo "$(only)" | grep -q -x "\." && only_root=true || only_root=false; \
+	else \
+		skip_root=false; \
+		echo "$(skip)" | grep -q -x "\." && skip_root=true; \
+	fi; \
+	if [ "$$$$only_root" = true ] || { [ -z "$(only)" ] && [ "$$$$skip_root" = false ]; }; then \
+		python3 $(UNBUMP_VERSION_SCRIPT) . $(1); \
+		python3 $(UNBUMP_VERSION_SCRIPT) ./subvortex $(1); \
+	fi
+
+	@for comp in $$(COMPONENTS); do \
+		if [ -n "$$(only)" ]; then \
+			echo "$$(only)" | grep -q -x "$$$$comp" || continue; \
+		elif echo "$$(skip)" | grep -q -x "$$$$comp"; then \
+			continue; \
+		fi; \
+		python3 $(UNBUMP_VERSION_SCRIPT) subvortex/$$$$comp $(1); \
+	done
+endef
+
+$(foreach level, patch minor major alpha rc,\
+	$(eval $(call bump_template,$(level)))\
+	$(eval $(call unbump_template,$(level)))\
+)
 
 # Per-component bump shortcuts
 $(foreach comp,$(COMPONENTS),\
   $(foreach action,patch minor major alpha rc,\
-  	$(eval TARGETS += bump-$(comp)-$(action))\
+  	$(eval TARGETS += bump-$(comp)-$(action) unbump-$(comp)-$(action))\
   	$(eval bump-$(comp)-$(action): ; \
-  		python3 $(VERSION_SCRIPT) subvortex/$(comp) $(action) \
+  		python3 $(BUMP_VERSION_SCRIPT) subvortex/$(comp) $(action) \
+  	) \
+	$(eval unbump-$(comp)-$(action): ; \
+  		python3 $(BUMP_VERSION_SCRIPT) subvortex/$(comp) $(action) \
   	) \
   ) \
 )
@@ -106,10 +141,10 @@ define build_github_component
 	@echo "📦 Building GitHub asset for $(1) with pyproject-$(1).toml..."
 	@python3 -m build --sdist --wheel -o dist
 	@for f in dist/subvortex-*; do \
-		[ -f "$$$$f" ] || continue; \
-		newf=$$$${f/subvortex-/subvortex_$(1)-}; \
-		echo "➡️  Renaming: $$$$f -> $$$$newf"; \
-		mv "$$$$f" "$$$$newf"; \
+		[ -f "$$f" ] || continue; \
+		newf=$${f/subvortex-/subvortex_$(1)-}; \
+		echo "➡️  Renaming: $$f -> $$newf"; \
+		mv $$$f" "$$newf"; \
 	done
 	@echo "✅ GitHub asset build done for $(1)"
 endef
@@ -117,8 +152,8 @@ endef
 # Build and clean targets per component and category
 $(foreach comp,$(COMPONENTS), \
 	$(eval TARGETS += build-$(comp) clean-${comp}) \
-	$(eval build-$(comp): ; $(call build_github_component,$(comp))) \
-	$(eval clean-$(comp): ; $(call clean_github_component,$(comp))) \
+	$(eval build-$(comp): ; $$(call build_github_component,$(comp))) \
+	$(eval clean-$(comp): ; $$(call clean_github_component,$(comp))) \
 )
 
 build: build-auto_upgrader
@@ -128,23 +163,23 @@ clean: clean-auto_upgrader
 # 🏷️ Tag/Untag
 # ============
 define create_github_tag
-	@VERSION=$$$$($$(call get_version, .)); \
-	echo "🏷️ Creating GitHub tag v$$$$VERSION"; \
-	git tag -a "v$$$$VERSION" -m "Release version $$$$VERSION"; \
-	git push origin "v$$$$VERSION";
+	@VERSION=$$($(call get_version, .)); \
+	echo "🏷️ Creating GitHub tag v$$VERSION"; \
+	git tag -a "v$$VERSION" -m "Release version $$VERSION"; \
+	git push origin "v$$VERSION";
 endef
 
 define delete_github_tag
-	@VERSION=$$$$($$(call get_version, .)); \
-	echo "🏷️ Creating GitHub tag v$$$$VERSION"; \
-	git tag -d "v$$$$VERSION"; \
-	git push origin ":refs/tags/v$$$$VERSION";
+	@VERSION=$$($(call get_version, .)); \
+	echo "🏷️ Creating GitHub tag v$$VERSION"; \
+	git tag -d "v$$VERSION"; \
+	git push origin ":refs/tags/v$$VERSION";
 endef
 
 $(foreach comp,$(COMPONENTS), \
 	$(eval TARGETS += tag-$(comp) untag-${comp}) \
-	$(eval tag-$(comp): ; $(call create_github_tag,$(comp))) \
-	$(eval untag-$(comp): ; $(call delete_github_tag,$(comp))) \
+	$(eval tag-$(comp): ; $$(call create_github_tag,$(comp))) \
+	$(eval untag-$(comp): ; $$(call delete_github_tag,$(comp))) \
 )
 
 tag: tag-auto_upgrader
@@ -154,53 +189,75 @@ untag: untag-auto_upgrader
 # 🚀 Release/UnRelease
 # ====================
 define github_release
-	@VERSION=$$$$($$(call get_version, .)); \
- 	TAG=v$$$$VERSION; \
- 	echo "🚀 Creating GitHub release $$$$TAG..."; \
- 	gh release create $$$$TAG \
- 		--title "$$$$TAG" \
- 		--notes "Pre-release $$$$TAG" \
+	@VERSION=$$($(call get_version, .)); \
+ 	TAG=v$$VERSION; \
+ 	echo "🚀 Creating GitHub release $$TAG..."; \
+ 	gh release create $$TAG \
+ 		--title "$$TAG" \
+ 		--notes "Pre-release $$TAG" \
  		--target $(CURRENT_BRANCH) \
  		$(DIST_DIR)/*.tar.gz \
  		$(DIST_DIR)/*.whl || true
 endef
 
 define github_unrelease
-	@VERSION=$$$$($$(call get_version, .)); \
- 	TAG=v$$$$VERSION; \
-	echo "🗑️ Deleting GitHub release v$$$$VERSION"; \
-	gh release delete $$$$TAG --yes || true;
+	@VERSION=$$($(call get_version, .)); \
+	TAG=v$$VERSION; \
+	echo "TAG $$TAG"; \
+	\
+	(gh release view "$$TAG" &>/dev/null && \
+	  echo "🗑️  Deleting GitHub release $$TAG..." && \
+	  gh release delete "$$TAG" --yes || \
+	  echo "⚠️ Failed to delete or release not found — continuing..."); \
+	\
+	for comp in subvortex/*; do \
+		[ -d "$$comp" ] || continue; \
+		if [ -f "$$comp/pyproject.toml" ] || [ -f "$$comp/version.py" ]; then \
+			comp_name=$$(basename "$$comp"); \
+			.github/scripts/on_release_deleted.sh "$$comp_name" "$$TAG"; \
+		fi; \
+	done
 endef
 
 define github_prerelease
-	@VERSION=$$$$($$(call get_version, .)); \
- 	TAG=v$$$$VERSION; \
- 	echo "🚀 Creating GitHub prerelease $$$$TAG..."; \
- 	gh release create $$$$TAG \
- 		--title "$$$$TAG" \
- 		--notes "Pre-release $$$$TAG" \
+	@VERSION=$$($(call get_version, .)); \
+ 	TAG=v$$VERSION; \
+ 	echo "🚀 Creating GitHub prerelease $$TAG..."; \
+ 	gh release create $$TAG \
+ 		--title "$$TAG" \
+ 		--notes "Pre-release $$TAG" \
  		--target $(CURRENT_BRANCH) \
  		--prerelease \
  		$(DIST_DIR)/*.tar.gz \
  		$(DIST_DIR)/*.whl || true
 endef
 
-
-
 define github_unprerelease
- 	@VERSION=$$$$($$(call get_version, .)); \
- 	TAG=v$$$$VERSION; \
-	echo "🗑️ Deleting GitHub prerelease v$$$$VERSION"; \
-	gh release delete $$$$TAG --yes || true;
+	@VERSION=$$($(call get_version, .)); \
+	TAG=v$$VERSION; \
+	echo "TAG $$TAG"; \
+	\
+	(gh release view "$$TAG" &>/dev/null && \
+	  echo "🗑️  Deleting GitHub prerelease $$TAG..." && \
+	  gh release delete "$$TAG" --yes || \
+	  echo "⚠️ Failed to delete or prerelease not found — continuing..."); \
+	\
+	for comp in subvortex/*; do \
+		[ -d "$$comp" ] || continue; \
+		if [ -f "$$comp/pyproject.toml" ] || [ -f "$$comp/version.py" ]; then \
+			comp_name=$$(basename "$$comp"); \
+			.github/scripts/on_release_deleted.sh "$$comp_name" "$$TAG"; \
+		fi; \
+	done
 endef
 
 # Auto-generate rules per component
 $(foreach comp,$(COMPONENTS), \
-	$(eval TARGETS += release-$(comp) prerelease-${comp} unrelease-${comp} unprerelease-${comp}) \
-	$(eval release-$(comp): ; $(call github_release,$(comp))) \
-	$(eval prerelease-$(comp): ; $(call github_prerelease,$(comp))) \
-	$(eval unrelease-$(comp): ; $(call github_unrelease,$(comp))) \
-	$(eval unprerelease-$(comp): ; $(call github_unprerelease,$(comp))) \
+  $(eval TARGETS += release-$(comp) prerelease-$(comp) unrelease-$(comp) unprerelease-$(comp)) \
+  $(eval release-$(comp): ; $$(call github_release,$(comp))) \
+  $(eval prerelease-$(comp): ; $$(call github_prerelease,$(comp))) \
+  $(eval unrelease-$(comp): ; $$(call github_unrelease,$(comp))) \
+  $(eval unprerelease-$(comp): ; $$(call github_unprerelease,$(comp))) \
 )
 
 # Global release/unrelease

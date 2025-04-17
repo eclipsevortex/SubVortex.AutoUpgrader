@@ -27,6 +27,8 @@ LABEL auto_upgrader.version=$COMPONENT_VERSION
 
 # ---------- Environment ----------
 ENV PYTHONUNBUFFERED=1
+ARG SUBVORTEX_EXECUTION_ROLE=miner
+ENV SV_EXECUTION_ROLE=${SUBVORTEX_EXECUTION_ROLE}
 
 WORKDIR /app
 
@@ -42,13 +44,14 @@ RUN pip install --no-cache-dir --find-links=/tmp/wheels -r requirements.txt \
 # 📁 Copy source code
 COPY ./pyproject.toml ./pyproject.toml
 COPY ./subvortex/pyproject.toml ./subvortex/pyproject.toml
-COPY ./subvortex/auto_upgrader/version.py ./subvortex/auto_upgrader/version.py
-COPY ./subvortex/miner/auto_upgrader/src ./subvortex/auto_upgrader/src
-COPY ./subvortex/miner/auto_upgrader/entrypoint.sh ./subvortex/auto_upgrader/entrypoint.sh
-COPY ./subvortex/miner/auto_upgrader/pyproject.toml ./subvortex/auto_upgrader/pyproject.toml
+COPY ./subvortex/version.py ./subvortex/version.py
+COPY ./subvortex/auto_upgrader/src ./subvortex/auto_upgrader/src
+COPY ./subvortex/auto_upgrader/entrypoint.sh ./subvortex/auto_upgrader/entrypoint.sh
+COPY ./subvortex/auto_upgrader/pyproject.toml ./subvortex/auto_upgrader/pyproject.toml
 
 # 🧩 Install project (editable)
-RUN pip install -e . \
+RUN pip install "./subvortex/auto_upgrader[${SV_EXECUTION_ROLE}]" \
+    && pip install -e . \
     && rm -rf ~/.cache/pip
 
 ENTRYPOINT ["/bin/bash", "./subvortex/auto_upgrader/entrypoint.sh"]

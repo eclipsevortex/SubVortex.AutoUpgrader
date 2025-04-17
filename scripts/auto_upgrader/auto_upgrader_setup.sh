@@ -2,16 +2,6 @@
 
 set -e
 
-ENV_FILE=".env"
-
-# Load .env
-if [ ! -f "$ENV_FILE" ]; then
-    echo "❌ .env file not found!"
-    exit 1
-fi
-
-export $(grep -v '^#' "$ENV_FILE" | xargs)
-
 # Help function
 show_help() {
     echo "Usage: $0 [--execution=process|container|service]"
@@ -41,7 +31,7 @@ while [ "$#" -gt 0 ]; do
         -e |--execution)
             METHOD="$2"
             shift 2
-            ;;
+        ;;
         -h | --help)
             show_help
             exit 0
@@ -53,41 +43,57 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
+# Load environment variables
+export $(grep -v '^#' ./subvortex/auto_upgrader/.env | xargs)
+
+# Install if needed docker if the auto uprader is managing the upgrade of containers
+if [[ "$SUBVORTEX_EXECUTION_METHOD" == "container" ]]; then
+    # Check if docker is installed
+    if ! command -v docker &> /dev/null; then
+        echo "❌ Docker is not installed. Installing it now."
+        ./scripts/docker/docker_setup.sh
+    fi
+fi
+
 # 🧠 Function: Setup for process mode
 setup_process() {
     echo "⚙️  Setting up for 'process' mode..."
     
-    # Teardown the auto upgrade as process
-    ./subvortex/auto_upgrader/deployment/proecss/auto_upgrader_process_teardown.sh
+    # Install pm2
+    ./scripts/install_pm2.sh
+    
+    # Setup the auto upgrade as process
+    ./subvortex/auto_upgrader/deployment/proecss/auto_upgrader_process_setup.sh
     
     # Add any other logic specific to process mode here
-    echo "✅ Process teardown complete."
+    echo "✅ Process setup complete."
 }
 
 # 🐳 Function: Setup for container mode
 setup_container() {
     echo "🐳 Setting up for 'container' mode..."
     
-    # Teardown the auto upgrade as service
-    ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_teardown.sh
+    # Setup the auto upgrade as container
+    ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_setup.sh
     
     # Add any other container-specific logic here
-    echo "✅ Container teardown complete."
+    echo "✅ Container setup complete."
 }
 
 # 🧩 Function: Setup for service mode
 setup_service() {
     echo "🧩 Setting up for 'service' mode..."
     
-    # Teardown the auto upgrade as service
-    ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_teardown.sh
+    # Setup the auto upgrade as service
+    ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_setup.sh
     
     # Add logic for systemd, service checks, etc. if needed
-    echo "✅ Service teardown complete."
+    echo "✅ Service setup complete."
 }
 
 # 🚀 Function: Dispatch based on method
 run_setup() {
+    # Install Auto Upgrade
     case "$METHOD" in
         process)
             setup_process
@@ -99,16 +105,10 @@ run_setup() {
             setup_service
         ;;
         *)
-            echo "❌ Unknown SUBVORTEX_EXECUTION_METHOD: '$METHOD'"
+            echo "❌ Unknown METHOD: '$METHOD'"
             exit 1
         ;;
     esac
-
-    # Install watchtower if the SUBVORTEX_EXECUTION_ROLE is container
-    if [[ "$METHOD" == "container" || "${SUBVORTEX_EXECUTION_METHOD,,}" == "container" ]]; then
-        echo $(pwd)
-        ./scripts/watchtower/watchtower_teardown.sh
-    fi
 }
 
 # 🔥 Execute

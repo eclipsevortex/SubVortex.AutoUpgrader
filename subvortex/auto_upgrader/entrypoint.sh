@@ -7,7 +7,9 @@ export $(grep -v '^#' .env | xargs)
 ARGS=()
 PREFIX="SUBVORTEX_"
 
-while IFS='=' read -r key value; do
+while IFS= read -r line; do
+  key="${line%%=*}"
+  value="${line#*=}"
   if [[ $key == ${PREFIX}* ]]; then
     key_suffix="${key#$PREFIX}"
     cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"

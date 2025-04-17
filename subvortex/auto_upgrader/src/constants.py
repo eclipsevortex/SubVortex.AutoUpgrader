@@ -42,7 +42,12 @@ SV_ASSET_DIR = os.getenv("SUBVORTEX_ASSET_DIR", "/var/tmp/subvortex")
 SV_EXECUTION_ROLE = os.getenv("SUBVORTEX_EXECUTION_ROLE", "miner")
 SV_EXECUTION_METHOD = os.getenv("SUBVORTEX_EXECUTION_METHOD", "service")
 
-DEFAULT_LAST_RELEASE = {"global": "2.3.3", "neuron": "2.3.3", "redis": "2.2.0"}
+DEFAULT_LAST_RELEASE = {
+    "global": "2.3.3",
+    "miner.neuron": "2.3.3",
+    "validator.neuron": "2.3.3",
+    "validator.redis": "2.2.0",
+}
 
 # Time in seconds to run the check of new release
-SV_CHECK_INTERVAL = os.getenv("SUBVORTEX_CHECK_INTERVAL", 60)
+SV_CHECK_INTERVAL = int(os.getenv("SUBVORTEX_CHECK_INTERVAL", 60))

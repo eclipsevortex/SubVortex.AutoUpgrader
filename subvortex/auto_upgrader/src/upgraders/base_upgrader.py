@@ -28,7 +28,7 @@ class BaseUpgrader(ABC):
         pass
 
     @abstractmethod
-    def get_latest_version(self):
+    async def get_latest_version(self):
         pass
 
     @abstractmethod
@@ -65,4 +65,8 @@ class BaseUpgrader(ABC):
 
     @abstractmethod
     def pre_upgrade(self, previous_version: str, version: str):
+        pass
+
+    @abstractmethod
+    def copy_env_file(self, component_name: str, component_path: str):
         pass

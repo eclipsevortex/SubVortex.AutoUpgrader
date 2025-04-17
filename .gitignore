@@ -172,3 +172,6 @@ ips_blocked.json
 firewall-events.json
 .DS_Store
 DS_Store
+
+.build
+.secrets

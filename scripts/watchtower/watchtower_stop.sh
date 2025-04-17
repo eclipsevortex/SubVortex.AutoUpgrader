@@ -6,6 +6,16 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
+ENV_FILE="subvortex/auto_upgrader/.env"
+
+# Load .env
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ .env file not found!"
+    exit 1
+fi
+
+export $(grep -v '^#' "$ENV_FILE" | xargs)
+
 # Check which command is available
 if command -v docker &> /dev/null && docker compose version &> /dev/null; then
     DOCKER_CMD="docker compose"
@@ -16,6 +26,10 @@ else
     exit 1
 fi
 
-$DOCKER_CMD -f docker-compose.yml stop watchtower
-
-echo "✅ Auto Upgrader stopped successfully"
+# Check if watchtower is running
+if docker ps --format '{{.Names}}' | grep -q '^subvortex-watchtower$'; then
+    $DOCKER_CMD -f docker-compose.yml stop watchtower
+    echo "✅ Auto Upgrader (watchtower) stopped successfully"
+else
+    echo "ℹ️ Watchtower is not running. Nothing to stop."
+fi

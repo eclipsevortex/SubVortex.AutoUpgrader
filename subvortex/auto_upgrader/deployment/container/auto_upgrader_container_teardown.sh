@@ -6,6 +6,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
+# Load environment variables
+export $(grep -v '^#' .env | xargs)
+
 # Check which command is available
 if command -v docker &> /dev/null && docker compose version &> /dev/null; then
     DOCKER_CMD="docker compose"
@@ -16,6 +19,10 @@ else
     exit 1
 fi
 
+# Teardown watchtower
+./../../scripts/watchtower/watchtower_teardown.sh
+
+# Teardown Auto Upgarder
 $DOCKER_CMD -f ../../docker-compose.yml down auto_upgrader --rmi all
 
 echo "✅ Auto Upgrader teardown completed successfully."

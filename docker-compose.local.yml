@@ -1,6 +1,10 @@
 services:
   auto_upgrader:
-    image: subvortex/subvortex-auto-upgrader:latest
+    build:
+      context: ../../
+      dockerfile: ./subvortex/auto_upgrader/Dockerfile
+      additional_contexts:
+        wheelbuilder: docker-image://subvortex/subvortex-wheel-builder:latest
     container_name: subvortex-auto-upgrader
     restart: unless-stopped
     env_file:

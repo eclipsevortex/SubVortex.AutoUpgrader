@@ -48,6 +48,7 @@ include = ["subvortex", "subvortex.auto_upgrader"]
     "**/requirements.txt",
     "**/README.md",
     "**/env.template",
+    "**/docker-compose.yml",
 ]
 
 [tool.setuptools.exclude-package-data]

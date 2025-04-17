@@ -31,6 +31,7 @@ import subvortex.auto_upgrader.src.exception as saue
 import subvortex.auto_upgrader.src.docker as saud
 import subvortex.auto_upgrader.src.github as saug
 import subvortex.auto_upgrader.src.version as sauv
+import subvortex.auto_upgrader.src.link as saul
 
 
 here = path.abspath(path.dirname(__file__))
@@ -53,17 +54,37 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
     def is_upgrade(self, current_version: str, latest_version: str):
         return Version(current_version) < Version(latest_version)
 
-    def get_latest_version(self):
+    async def get_latest_version(self):
         # Get the tag configured
         tag = self._get_tag()
 
-        # Get all the remote images with their digests
-        self.latest_versions = self.github.get_docker_versions(tag=tag)
+        # Get all the components
+        components = self.github.get_components()
 
-        # return f"latest-{tag}" if self._has_changed() else tag
-        return (
-            self.latest_versions.get("version") or sauc.DEFAULT_LAST_RELEASE["global"]
+        # Get all the remote images with their digests
+        # self.latest_versions = self.github.get_docker_versions(tag=tag)
+        latest_versions = await self.docker.get_remote_versions(
+            tag=tag,
+            components=components,
+            previous_version=self.latest_versions.get("version"),
         )
+
+        # Set the latest version
+        version = latest_versions.get("version") or sauc.DEFAULT_LAST_RELEASE["global"]
+
+        if self.latest_versions == latest_versions:
+            return version
+
+        self.latest_versions = latest_versions
+
+        if version == sauc.DEFAULT_LAST_RELEASE.get("global"):
+            # Remove the previous version sym link
+            self._remove_symlink()
+        else:
+            # Update the link to the new version
+            self._update_symlink(version=version)
+
+        return version
 
     def get_current_version(self):
         # Get the tag configured
@@ -111,14 +132,36 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
 
     def get_latest_component_version(self, name: str, path: str):
         component_versions = self.latest_versions.get(name, {})
-        return component_versions.get("version") or sauc.DEFAULT_LAST_RELEASE[name]
+        return (
+            component_versions.get("version")
+            or sauc.DEFAULT_LAST_RELEASE[f"{sauc.SV_EXECUTION_ROLE}.{name}"]
+        )
 
     def get_current_component_version(self, name: str, path: str):
         component_versions = self.current_versions.get(name, {})
-        return component_versions.get("version") or sauc.DEFAULT_LAST_RELEASE[name]
+        return (
+            component_versions.get("version")
+            or sauc.DEFAULT_LAST_RELEASE[f"{sauc.SV_EXECUTION_ROLE}.{name}"]
+        )
 
     async def upgrade(self, path: str, name: str, previous_version: str, version: str):
+        # Rollout the migration
+        result, reason = await self.migrator.rollout(
+            component_name=name,
+            component_path=path,
+            version=version,
+            previous_version=previous_version,
+        )
+        if not result:
+            raise saue.ComponentException(
+                component=name,
+                message=f"Could not migrate the component {version}: {reason}",
+            )
+
         target_path = self._get_target_path(version=version)
+
+        if self.should_skip():
+            return
 
         # Start the component
         result, reason = self._start_container(path=target_path, name=name)
@@ -131,9 +174,23 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
     async def downgrade(
         self, path: str, name: str, previous_version: str, version: str
     ):
-        btul.logging.info(
-            f"[{name}] Downgrading component {previous_version} -> {version}"
+        # Get the previous version path
+        normalized_version = sauv.normalize_version(version)
+        normalized_previous_version = sauv.normalize_version(previous_version)
+        previous_path = path.replace(normalized_version, normalized_previous_version)
+
+        # Rollout the migration
+        result, reason = await self.migrator.rollback(
+            component_name=name,
+            component_path=previous_path,
+            version=version,
+            previous_version=previous_version,
         )
+        if not result:
+            raise saue.ComponentException(
+                component=name,
+                message=f"Could not migrate the component {version}: {reason}",
+            )
 
     def teardown(self, path: str, name: str):
         try:
@@ -147,7 +204,9 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
             service_name = f"{sauc.SV_EXECUTION_ROLE}-{name}"
 
             # Set the docker compose file
-            file = f"{target_path}/docker-compose.yml"
+            file = (
+                f"{target_path}/subvortex/{sauc.SV_EXECUTION_ROLE}/docker-compose.yml"
+            )
 
             if not self._service_exists_in_compose(path=file, name=service_name):
                 btul.logging.warning(
@@ -177,16 +236,6 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
     def pre_upgrade(self, path: str, name: str):
         btul.logging.info(f"pre_upgrade {name}: {path}")
 
-        # Copy the env var file
-        self._copy_env_file(
-            component_name=name,
-            component_path=path,
-        )
-        btul.logging.debug(
-            f"[{name}] Environment variables copied",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-
         # Get the latest version
         latest_version, _ = self.github.get_latest_tag_including_prereleases()
         btul.logging.info(f"Docker compose from version: {latest_version}")
@@ -207,6 +256,22 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
 
     def post_upgrade(self, previous_version: str, version: str):
         pass
+
+    def copy_env_file(self, component_name: str, component_path: str):
+        # Build the source
+        source_env_file = os.path.join(
+            here,
+            f"../../environment/env.subvortex.{sauc.SV_EXECUTION_ROLE}.{component_name}",
+        )
+
+        # Ensure the download directory exists
+        os.makedirs(component_path, exist_ok=True)
+
+        # Build the target
+        target_env_file = f"{component_path}/.env"
+
+        # Copy the env file to its destination
+        shutil.copy2(source_env_file, target_env_file)
 
     def _has_changed(self, name: str = None):
         if name:
@@ -244,24 +309,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
 
         return target_path
 
-    def _copy_env_file(self, component_name: str, component_path: str):
-        # Build the source
-        source_env_file = os.path.join(
-            here,
-            f"../../environment/env.subvortex.{sauc.SV_EXECUTION_ROLE}.{component_name}",
-        )
-
-        # Ensure the download directory exists
-        os.makedirs(component_path, exist_ok=True)
-
-        # Build the target
-        target_env_file = f"{component_path}/.env"
-
-        # Copy the env file to its destination
-        shutil.copy2(source_env_file, target_env_file)
-
     def _detect_docker_command(self):
-        """Returns 'docker compose' or 'docker-compose' depending on availability."""
         if shutil.which("docker") is not None:
             try:
                 subprocess.run(
@@ -283,7 +331,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
 
             service_name = f"{sauc.SV_EXECUTION_ROLE}-{name}"
 
-            file = f"{path}/docker-compose.yml"
+            file = f"{path}/subvortex/{sauc.SV_EXECUTION_ROLE}/docker-compose.yml"
 
             if not self._service_exists_in_compose(path=file, name=service_name):
                 return False, f"service not found in docker compose"
@@ -340,3 +388,30 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
             except yaml.YAMLError as e:
                 print(f"❌ YAML parsing error: {e}")
                 return False
+
+    def _remove_symlink(self):
+        # Remove the link
+        saul.remove_symlink(sauc.SV_EXECUTION_DIR)
+
+        btul.logging.info(
+            f"🔗 Symlink removed: {sauc.SV_EXECUTION_DIR}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+    def _update_symlink(self, version: str):
+        # Normalized the version
+        normalized_version = sauv.normalize_version(version=version)
+
+        # Build the path where to find the new version
+        path = f"{sauc.SV_ASSET_DIR}/subvortex-{normalized_version}"
+
+        # Change the sym link
+        saul.update_symlink(
+            f"{path}",
+            f"{sauc.SV_EXECUTION_DIR}",
+        )
+
+        btul.logging.info(
+            f"🔗 Symlink set: {path} → {sauc.SV_EXECUTION_DIR}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )

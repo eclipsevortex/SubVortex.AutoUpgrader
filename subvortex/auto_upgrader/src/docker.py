@@ -15,20 +15,37 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import re
+import os
 import json
 import base64
 import typing
+import asyncio
 import requests
 import subprocess
-
-import bittensor.utils.btlogging as btul
 
 import subvortex.auto_upgrader.src.constants as sauc
 
 
 class Docker:
-    def __init__(self):
-        self.cache = {}
+    async def get_remote_versions(self, tag: str, components: typing.List[str], previous_version: str):
+        # Get the images/digests of the current floating tag
+        tasks = [
+            self._get_digest_and_label(
+                comp, f"subvortex/subvortex-{sauc.SV_EXECUTION_ROLE}-{comp}:{tag}"
+            )
+            for comp in components
+        ]
+        results = await asyncio.gather(*tasks)
+
+        # Merge the result
+        merged_results = {}
+        for result in results:
+            merged_results.update(result)
+
+        version = next(iter(versions)) if (versions := {v["version"] for v in merged_results.values()}) and len(versions) == 1 else previous_version
+        merged_results['version'] = version
+
+        return merged_results
 
     def get_local_versions(
         self, search_tag: str, namespace: str = "subvortex"
@@ -187,13 +204,15 @@ class Docker:
         versions = {}
 
         try:
+            label = ".".join(repo_name.replace("subvortex-", "").split("-"))
+
             # Step 1: List all local images with their tags
             result = subprocess.run(
                 [
                     "docker",
                     "inspect",
                     "--format",
-                    f'version={{{{ index .Config.Labels "version" }}}} {sauc.SV_EXECUTION_ROLE}.version={{{{ index .Config.Labels "miner.version" }}}}',
+                    f'version={{{{ index .Config.Labels "version" }}}} {sauc.SV_EXECUTION_ROLE}.version={{{{ index .Config.Labels "{label}.version" }}}}',
                     repo_name,
                 ],
                 stdout=subprocess.PIPE,
@@ -217,3 +236,43 @@ class Docker:
             print(e)
 
         return versions
+
+    async def _get_digest_and_label(self, name: str, image: str):
+        component_version = f"{sauc.SV_EXECUTION_ROLE}.version"
+        service_version = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
+
+        # Get image quietly
+        proc_digest = await asyncio.create_subprocess_exec(
+            "docker",
+            "pull",
+            "--quiet",
+            image,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout_digest, _ = await proc_digest.communicate()
+        image_output = stdout_digest.decode()
+
+        # Get labels
+        proc_labels = await asyncio.create_subprocess_exec(
+            "docker",
+            "inspect",
+            image,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout_labels, _ = await proc_labels.communicate()
+
+        labels = {}
+        if stdout_labels:
+            image_output = json.loads(stdout_labels.decode())
+            if len(image_output) != 0:
+                labels = image_output[0].get("Config", {}).get("Labels", {})
+
+        return {
+            name: {
+                "version": labels.get("version"),
+                component_version: labels.get(component_version),
+                service_version: labels.get(service_version),
+            }
+        }

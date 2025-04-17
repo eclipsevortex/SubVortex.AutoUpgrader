@@ -26,6 +26,10 @@ else
     exit 1
 fi
 
-$DOCKER_CMD -f docker-compose.yml up watchtower -d --no-deps
-
-echo "✅ Auto Upgrader started successfully"
+# Check if watchtower is already running
+if docker ps --format '{{.Names}}' | grep -q '^subvortex-watchtower$'; then
+    echo "ℹ️ Watchtower is already running. No action needed."
+else
+    $DOCKER_CMD -f docker-compose.yml up watchtower -d --no-deps
+    echo "✅ Auto Upgrader (watchtower) started successfully"
+fi

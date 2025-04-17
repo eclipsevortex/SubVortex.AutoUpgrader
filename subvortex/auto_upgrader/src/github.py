@@ -142,8 +142,16 @@ class Github:
         # Get all the remote images with their digests
         latest_version, _ = self.get_latest_tag_including_prereleases()
 
+        # If it is the last tag before releasing Auto Upgrader we do nothing
+        if latest_version == sauc.DEFAULT_LAST_RELEASE["global"]:
+            return versions
+
         # Download the version
         target_path, _ = self.download_and_unzip(version=latest_version)
+        if not target_path:
+            raise Exception(
+                f"Could not download the assets for the version {latest_version}: {target_path}"
+            )
 
         # Get the subvortex version
         versions["version"] = self._find_version(target_path)
@@ -174,7 +182,7 @@ class Github:
     def download_docker_compose_from_tag(self, version: str, source_version: str):
         if version is None:
             return None, "Version is empty"
-        
+
         # Normalized the version
         normalized_version = sauv.normalize_version(version=version)
 
@@ -190,7 +198,7 @@ class Github:
         # Ensure the download directory exists
         os.makedirs(target_path, exist_ok=True)
 
-        url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/contents/docker-compose.yml?ref=v{source_version}"
+        url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/contents/subvortex/{sauc.SV_EXECUTION_ROLE}/docker-compose.yml?ref=v{source_version}"
         headers = (
             {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
             if sauc.SV_GITHUB_TOKEN
@@ -248,6 +256,26 @@ class Github:
 
         return target_path, None
 
+    def get_latest_versions2(self):
+        latest_version, _ = (
+            self.get_latest_tag_including_prereleases()
+            if sauc.SV_PRERELEASE_ENABLED
+            else self.get_latest_version()
+        )
+
+        url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/git/trees/v{latest_version}?recursive=1"
+        resp = requests.get(url)
+        resp.raise_for_status()
+        items = resp.json().get("tree", [])
+
+        return sorted(
+            {
+                path.split("/")[1]
+                for path in [i["path"] for i in items if i["type"] == "tree"]
+                if path.startswith("subvortex/") and len(path.split("/")) > 1
+            }
+        )
+
     # TODO: make some unit tests to validator the set of logic here!
     def _is_valid_release_or_prerelease(self, tag_name: str) -> bool:
         try:
@@ -304,3 +332,132 @@ class Github:
                         return match.group(1)
         else:
             return None
+
+    def _get_release_tree_sha(self, tag):
+        components = []
+
+        url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/git/trees/{tag}?recursive=1"
+
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            return components
+
+        base_path = f"subvortex/{sauc.SV_EXECUTION_ROLE}"
+
+        seen = set()
+        for item in resp.json()["tree"]:
+            if item["type"] == "tree" and item["path"].startswith(base_path + "/"):
+                parts = item["path"].split("/")
+                if len(parts) == 3:
+                    component_name = parts[2]
+                    if component_name not in seen:
+                        components.append(component_name)
+                        seen.add(component_name)
+
+        return components
+
+    def get_components(self):
+        components = []
+
+        # Get the latest version
+        latest_version, _ = (
+            self.get_latest_tag_including_prereleases()
+            if sauc.SV_PRERELEASE_ENABLED
+            else self.get_latest_version()
+        )
+
+        # If it is the last tag before releasing Auto Upgrader we do nothing
+        if latest_version == sauc.DEFAULT_LAST_RELEASE["global"]:
+            return components
+
+        # Download the version
+        target_path, _ = self.download_and_unzip(version=latest_version)
+        if not target_path:
+            raise Exception(
+                f"Could not download the assets for the version {latest_version}: {target_path}"
+            )
+        
+        # Build the component directory
+        component_directory = f"{target_path}/subvortex/{sauc.SV_EXECUTION_ROLE}"
+
+        for service in os.listdir(component_directory):
+            service_path = os.path.join(component_directory, service)
+            if not os.path.isdir(service_path):
+                continue
+
+            if not self._find_version(service_path):
+                continue
+
+            components.append(service)
+
+        return components
+
+
+        # # Build the tag version of it
+        # tag = f"v{latest_version}"
+
+        # # Get the sha for the subvortex directory
+        # components = self._get_release_tree_sha(tag)
+
+        # return components
+        # if not sha:
+        #     return versions
+
+        # Build the url to get the tree of subvortex
+        # url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/git/trees/{sha}"
+
+        # resp = requests.get(url)
+        # if resp.status_code != 200:
+        #     return versions
+
+        # data = resp.json()
+        # print(data)
+
+        # components = []
+
+        # return components
+
+        # components = []
+        # for item in resp.json()["tree"]:
+        #     if item["type"] != "tree":
+        #         continue
+
+        #     sub_url = item["url"]
+        #     sub_resp = requests.get(sub_url)
+        #     if sub_resp.status_code != 200:
+        #         continue
+
+        #     # files = {
+        #     #     f["path"]: f["url"]
+        #     #     for f in sub_resp.json()["tree"]
+        #     #     if f["type"] == "blob"
+        #     # }
+
+        #     # version = None
+        #     # if "version.py" in files:
+        #     #     content = requests.get(files["version.py"]).json()["content"]
+        #     #     content_decoded = base64.b64decode(content).decode()
+        #     #     match = re.search(
+        #     #         r'__version__\s*=\s*[\'"]([^\'"]+)[\'"]', content_decoded
+        #     #     )
+        #     #     if match:
+        #     #         version = match.group(1)
+        #     # elif "VERSION" in files:
+        #     #     content = requests.get(files["VERSION"]).json()["content"]
+        #     #     version = base64.b64decode(content).decode().strip()
+        #     # elif "pyproject.toml" in files:
+        #     #     content = requests.get(files["pyproject.toml"]).json()["content"]
+        #     #     content_decoded = base64.b64decode(content).decode()
+        #     #     for line in content_decoded.splitlines():
+        #     #         match = re.match(r'^version\s*=\s*"([^"]+)"', line)
+        #     #         if match:
+        #     #             version = match.group(1)
+        #     #             break
+
+        #     # if not version:
+        #     #     continue
+
+        #     # versions[item] = {"version": version, "": None}
+
+        # print(components)
+        # return components

@@ -43,7 +43,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 # Setup the auto upgrader
-./scripts/auto_upgrader/auto_upgrader_setup.sh --execution $METHOD
+./scripts/auto_upgrader/auto_upgrader_stop.sh --execution $METHOD
 
 # Start the auo upgrader
-./scripts/auto_upgrader/auto_upgrader_start.sh --execution $METHOD
+./scripts/auto_upgrader/auto_upgrader_teardown.sh --execution $METHOD

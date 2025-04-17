@@ -6,6 +6,16 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
+ENV_FILE="subvortex/auto_upgrader/.env"
+
+# Load .env
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ .env file not found!"
+    exit 1
+fi
+
+export $(grep -v '^#' "$ENV_FILE" | xargs)
+
 # Check which command is available
 if command -v docker &> /dev/null && docker compose version &> /dev/null; then
     DOCKER_CMD="docker compose"

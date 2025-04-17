@@ -58,12 +58,12 @@ class AutoUpgrader:
                     await asyncio.sleep(sauc.SV_CHECK_INTERVAL)
 
                 btul.logging.info(
-                    "Checking for new releases",
+                    f"Checking for new releases for {sauc.SV_EXECUTION_ROLE} running into {sauc.SV_EXECUTION_METHOD}",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
 
                 # Get the latest version
-                latest_version = self.upgrader.get_latest_version()
+                latest_version = await self.upgrader.get_latest_version()
                 btul.logging.debug(
                     f"Latest version: {latest_version}",
                     prefix=sauc.SV_LOGGER_NAME,
@@ -76,16 +76,7 @@ class AutoUpgrader:
                     prefix=sauc.SV_LOGGER_NAME,
                 )
 
-                if self.upgrader.should_skip():
-                    # Mark the upgrade as success
-                    success = True
-
-                    btul.logging.success(
-                        f"🔄 No action needed — upgrades are now handled by Watchtower.",
-                        prefix=sauc.SV_LOGGER_NAME,
-                    )
-
-                    continue
+                # TODO: call a method that return true if you can start the upgrade/downgrade. True if all the version in the tag are built and available especially for docker!
 
                 # Check if there is anew release
                 if current_version == latest_version:
@@ -222,6 +213,18 @@ class AutoUpgrader:
         latest_components: typing.Dict[str, str],
         is_upgrade: bool,
     ):
+        # Copy all the environment variables in the right place
+        for (
+            latest_component_name,
+            latest_component_path,
+        ) in latest_components.items():
+            self.upgrader.copy_env_file(
+                component_name=latest_component_name,
+                component_path=latest_component_path,
+            )
+        btul.logging.info(f"Environement variables copied", prefix=sauc.SV_LOGGER_NAME)
+
+        # Execute the upgrade/downgrade of each components
         for (
             latest_component_name,
             latest_component_path,
@@ -252,7 +255,7 @@ class AutoUpgrader:
                     prefix=sauc.SV_LOGGER_NAME,
                 )
 
-                pass
+                continue
 
             btul.logging.info(
                 f"[{latest_component_name}] {'Upgrading' if is_upgrade else 'Downgrading'} {current_component_version} -> {latest_component_version}",

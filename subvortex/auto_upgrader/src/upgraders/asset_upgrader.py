@@ -47,7 +47,7 @@ class AssetUpgrader(sauubu.BaseUpgrader):
     def is_upgrade(self, current_version: str, latest_version: str):
         return Version(current_version) < Version(latest_version)
 
-    def get_latest_version(self):
+    async def get_latest_version(self):
         version, release_time = (
             self.github.get_latest_tag_including_prereleases()
             if sauc.SV_PRERELEASE_ENABLED
@@ -69,7 +69,7 @@ class AssetUpgrader(sauubu.BaseUpgrader):
         return saufs.get_version(path=path)
 
     def get_current_component_version(self, name: str, path: str):
-        return saufs.get_version(path=path) or sauc.DEFAULT_LAST_RELEASE[name]
+        return saufs.get_version(path=path) or sauc.DEFAULT_LAST_RELEASE[f"{sauc.SV_EXECUTION_ROLE}.{name}"]
 
     async def upgrade(self, path: str, name: str, previous_version: str, version: str):
         # Setup the component
@@ -116,11 +116,16 @@ class AssetUpgrader(sauubu.BaseUpgrader):
                 message=f"Could not setup the component {version}: {reason}",
             )
 
+        # Get the previous version path
+        normalized_version = sauv.normalize_version(version)
+        normalized_previous_version = sauv.normalize_version(previous_version)
+        previous_path = path.replace(normalized_version, normalized_previous_version)
+
         # Rollout the migration
         result, reason = (
             await self.migrator.rollback(
                 component_name=name,
-                component_path=path,
+                component_path=previous_path,
                 version=version,
                 previous_version=previous_version,
             )
@@ -143,9 +148,8 @@ class AssetUpgrader(sauubu.BaseUpgrader):
 
     def teardown(self, path: str, name: str):
         try:
-            deployment_path = self._get_deployment_dir(component_path=path)
-            script_name = f"{name}_{sauc.SV_EXECUTION_METHOD}_teardown.sh"
-            script_path = f"{deployment_path}/{script_name}"
+            # Get the script path
+            script_path = self._get_script_path(path=path, name=name, action="teardown")
 
             # Execute the script
             subprocess.run(
@@ -165,15 +169,7 @@ class AssetUpgrader(sauubu.BaseUpgrader):
         pass
 
     def pre_upgrade(self, path: str, name: str):
-        # Copy the env var file
-        self._copy_env_file(
-            component_name=name,
-            component_path=path,
-        )
-        btul.logging.debug(
-            f"[{name}] Environment variables copied",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
+        pass
 
     def post_upgrade(self, previous_version: str, version: str):
         if version == sauc.DEFAULT_LAST_RELEASE.get("global"):
@@ -186,11 +182,18 @@ class AssetUpgrader(sauubu.BaseUpgrader):
         # Remove the previous version
         self._remove_version(version=previous_version)
 
+    def copy_env_file(self, component_name: str, component_path: str):
+        source_env_file = os.path.join(
+            here,
+            f"../../environment/env.subvortex.{sauc.SV_EXECUTION_ROLE}.{component_name}",
+        )
+        target_env_file = f"{component_path}/.env"
+        shutil.copy2(source_env_file, target_env_file)
+
     def _setup_component(self, path: str, name: str):
         try:
-            deployment_path = self._get_deployment_dir(component_path=path)
-            script_name = f"{name}_{sauc.SV_EXECUTION_METHOD}_setup.sh"
-            script_path = f"{deployment_path}/{script_name}"
+            # Get the script path
+            script_path = self._get_script_path(path=path, name=name, action="setup")
 
             # Execute the script
             subprocess.run(
@@ -207,9 +210,8 @@ class AssetUpgrader(sauubu.BaseUpgrader):
 
     def _start_component(self, path: str, name: str):
         try:
-            deployment_path = self._get_deployment_dir(component_path=path)
-            script_name = f"{name}_{sauc.SV_EXECUTION_METHOD}_start.sh"
-            script_path = f"{deployment_path}/{script_name}"
+            # Get the script path
+            script_path = self._get_script_path(path=path, name=name, action="start")
 
             # Execute the script
             subprocess.run(
@@ -289,10 +291,21 @@ class AssetUpgrader(sauubu.BaseUpgrader):
             prefix=sauc.SV_LOGGER_NAME,
         )
 
-    def _copy_env_file(self, component_name: str, component_path: str):
-        source_env_file = os.path.join(
-            here,
-            f"../environment/env.subvortex.{sauc.SV_EXECUTION_ROLE}.{component_name}",
+    def _get_script_path(self, path: str, name: str, action: str):
+        # Get the deployment path
+        deployment_path = self._get_deployment_dir(component_path=path)
+
+        # Get the script name
+        script_name = f"{name}_{sauc.SV_EXECUTION_METHOD}_{action}.sh"
+
+        # If the method does not exist, we default to service which always exist
+        script_name = (
+            script_name
+            if os.path.exists(f"{deployment_path}/{script_name}")
+            else f"{name}_{sauc.SV_EXECUTION_METHOD}_service.sh"
         )
-        target_env_file = f"{component_path}/.env"
-        shutil.copy2(source_env_file, target_env_file)
+
+        # Get the script path
+        script_path = f"{deployment_path}/{script_name}"
+
+        return script_path
