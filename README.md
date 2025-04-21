@@ -253,6 +253,8 @@ tail -f /var/log/subvortex-auto-upgrader/subvortex-auto-upgrader.log
 
 ## 🐳 Run as Container <a id="run-as-container"></a>
 
+> ⚠️ The Auto Upgrader is not yet available to run inside a Docker container. Please run it via `service` or `process`.
+
 Before installing the Auto Upgrader as a container, be sure you have docker installed. If not, you can run
 
 ```bash
@@ -332,6 +334,8 @@ Unit subvortex-auto-upgrader.service could not be found.
 ```
 
 ## ❌ Remove Container <a id="remove-container"></a>
+
+> ⚠️ The Auto Upgrader is not yet available to run inside a Docker container. Please run it via `service` or `process`.
 
 To tear down the Auto Upgrader container:
 

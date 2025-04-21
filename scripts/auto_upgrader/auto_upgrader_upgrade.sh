@@ -101,7 +101,8 @@ run_setup() {
             setup_process
         ;;
         container)
-            setup_container
+            # setup_container
+            echo "⚠️  Auto Upgrader is not available to be run as container yet!"
         ;;
         service)
             setup_service

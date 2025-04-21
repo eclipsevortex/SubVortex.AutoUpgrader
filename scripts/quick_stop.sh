@@ -3,7 +3,7 @@
 set -e
 
 show_help() {
-    echo "Usage: $0 [--execution=process|container|service]"
+    echo "Usage: $0 [--execution=process|service]"
     echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
