@@ -2,8 +2,7 @@
 
 set -e
 
-SERVICE_NAME=auto-upgrader
-PACKAGE_NAME="subvortex-auto-upgrader"
+SERVICE_NAME=subvortex-auto-upgrader
 
 # Determine script directory dynamically to ensure everything runs in ./scripts/api/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,11 +28,11 @@ if [[ -d "venv" ]]; then
     echo "Activating virtual environment to uninstall dependencies..."
     source "venv/bin/activate"
     
-    if pip list | grep -q "$PACKAGE_NAME"; then
-        echo "Uninstalling editable package: $PACKAGE_NAME..."
-        pip uninstall -y "$PACKAGE_NAME"
+    if pip list | grep -q "$SERVICE_NAME"; then
+        echo "Uninstalling editable package: $SERVICE_NAME..."
+        pip uninstall -y "$SERVICE_NAME"
     else
-        echo "Editable package $PACKAGE_NAME not found. Skipping."
+        echo "Editable package $SERVICE_NAME not found. Skipping."
     fi
     
     # Uninstall dependencies

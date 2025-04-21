@@ -29,10 +29,12 @@
 - [How It Works](#how-it-works)
 - [Quick Start](#quick-start)
 - [Quick Stop](#quick-stop)
+- [Quick Upgrade](#quick-upgrade)
 - [Installation](#installation)
   - [Run as Process](#run-as-process)
   - [Run as Service](#run-as-service)
   - [Run as Container](#run-as-container)
+- [Upgrade](#upgrade)
 - [Uninstallation](#uninstallation)
   - [Remove Process](#remove-process)
   - [Remove Service](#remove-service)
@@ -147,6 +149,16 @@ To stop the Auto Upgrader in a quick way, you can run
 It will stop and teardown the Auto Upgrader.
 
 Use `-h` to see the options
+
+<br />
+
+# 🔄 Quick Upgrade <a id="quick-upgrade"></a>
+
+To upgrade the Auto Upgrade when a new release has been deployed, you can run
+
+```bash
+./scripts/auto_upgrader/auto_upgrader_upgrade.sh
+```
 
 <br />
 

@@ -2,6 +2,8 @@
 
 set -e
 
+SERVICE_NAME=subvortex-auto-upgrader
+
 # Determine script directory dynamically to ensure everything runs in ./scripts/api/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
@@ -36,7 +38,7 @@ done < <(env)
 
 # Start with PM2
 pm2 start src/main.py \
-  --name subvortex-auto-upgrader \
+  --name $SERVICE_NAME \
   --interpreter python3 -- \
   "${ARGS[@]}"
 

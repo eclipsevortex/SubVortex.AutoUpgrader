@@ -66,6 +66,12 @@ for FTAG in dev stable latest; do
     latest) TARGET="$LATEST_TAG" ;;
   esac
 
+  if [[ -z "$TARGET" ]]; then
+    echo "⚠️ No tag found for $FTAG — skipping"
+    continue
+  fi
+
+  TARGET="${TARGET#v}"
   if [[ -n "$TARGET" ]]; then
     echo "🏷️  Re-tagging $IMAGE:$FTAG → $IMAGE:$TARGET"
     docker buildx imagetools create \
