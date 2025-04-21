@@ -15,6 +15,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import re
+import tomllib
 
 
 def to_detailed_version(version_str):
@@ -40,3 +41,12 @@ def normalize_version(version: str) -> str:
         lambda m: {"alpha": "a", "beta": "b", "rc": "rc"}[m.group(1)] + m.group(2),
         tag,
     )
+
+def _get_version():
+    with open("pyproject.toml", "rb") as f:
+        data = tomllib.load(f)
+
+    version = data["project"]["version"]
+    return version
+
+__VERSION__ = _get_version()

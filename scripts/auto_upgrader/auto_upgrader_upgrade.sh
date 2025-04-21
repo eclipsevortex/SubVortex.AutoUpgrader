@@ -4,16 +4,18 @@ set -e
 
 # Help function
 show_help() {
-    echo "Usage: $0 [--execution=process|container|service]"
+    echo "Usage: $0 [--execution=process|container|service --branch=<BRANCH> --tag=<TAG>]"
     echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
+    echo "  --tag         Checkout a specific Git tag before upgrading"
+    echo "  --branch      Checkout a specific Git branch before upgrading (default: main)"
     echo "  --help        Show this help message"
     exit 0
 }
 
-OPTIONS="e:h"
-LONGOPTIONS="execution:,help:"
+OPTIONS="e:t:b:h"
+LONGOPTIONS="execution:,tag:,branch:,help:"
 
 # Parse the options and their arguments
 params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
@@ -24,6 +26,8 @@ if [ $? -ne 0 ]; then
 fi
 
 METHOD=service
+TAG=""
+BRANCH="main"
 
 # Parse arguments
 while [ "$#" -gt 0 ]; do
@@ -32,22 +36,12 @@ while [ "$#" -gt 0 ]; do
             METHOD="$2"
             shift 2
             ;;
-        -h | --help)
-            show_help
-            exit 0
-        ;;
-        *)
-            echo "Unrecognized option '$1'"
-            exit 1
-        ;;
-    esac
-done
-
-# Parse arguments
-while [ "$#" -gt 0 ]; do
-    case "$1" in
-        -e |--execution)
-            METHOD="$2"
+        -t |--tag)
+            TAG="$2"
+            shift 2
+            ;;
+        -b |--branch)
+            BRANCH="$2"
             shift 2
             ;;
         -h | --help)
@@ -64,9 +58,9 @@ done
 # 🧠 Function: Setup for process mode
 setup_process() {
     echo "⚙️  Setting up for 'process' mode..."
-    
+
     # Upgrade the auto upgrader as process
-    ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_upgrade.sh
+    ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_upgrade.sh --tag $TAG --branch $BRANCH
     
     # Add any other logic specific to process mode here
     echo "✅ Process started."
@@ -77,7 +71,7 @@ setup_container() {
     echo "🐳 Setting up for 'container' mode..."
     
     # Start the auto upgrader as service
-    ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_upgrade.sh
+    ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_upgrade.sh --tag $TAG --branch $BRANCH
     
     # Add any other container-specific logic here
     echo "✅ Container started."
@@ -88,7 +82,7 @@ setup_service() {
     echo "🧩 Setting up for 'service' mode..."
     
     # Start the auto upgrader as service
-    ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_upgrade.sh
+    ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_upgrade.sh --tag $TAG --branch $BRANCH
     
     # Add logic for systemd, service checks, etc. if needed
     echo "✅ Service started."
