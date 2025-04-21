@@ -1,0 +1,7 @@
+name: cz_conventional_commits
+version: 0.0.2
+version_files:
+  - pyproject.toml
+tag_format: subvortex-auto-upgrader/v$version
+changelog_file: CHANGELOG.md
+update_changelog_on_bump: false
