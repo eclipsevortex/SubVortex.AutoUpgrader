@@ -15,7 +15,10 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import re
-import tomllib
+from pathlib import Path
+from os import path
+
+here = path.abspath(path.dirname(__file__))
 
 
 def to_detailed_version(version_str):
@@ -42,11 +45,15 @@ def normalize_version(version: str) -> str:
         tag,
     )
 
-def _get_version():
-    with open("pyproject.toml", "rb") as f:
-        data = tomllib.load(f)
 
-    version = data["project"]["version"]
-    return version
+def _get_version():
+    pyproject = Path(path.join(here, "../pyproject.toml"))
+    if not pyproject.exists():
+        return "0.0.0"
+    
+    content = pyproject.read_text()
+    match = re.search(r'version\s*=\s*"([^"]+)"', content)
+    return match.group(1) if match else None
+
 
 __VERSION__ = _get_version()
