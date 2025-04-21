@@ -203,7 +203,6 @@ endef
 define github_unrelease
 	@VERSION=$$($(call get_version, .)); \
 	TAG=v$$VERSION; \
-	echo "TAG $$TAG"; \
 	\
 	(gh release view "$$TAG" &>/dev/null && \
 	  echo "🗑️  Deleting GitHub release $$TAG..." && \
