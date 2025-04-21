@@ -66,7 +66,7 @@ setup_process() {
     echo "⚙️  Setting up for 'process' mode..."
     
     # Upgrade the auto upgrader as process
-    ./subvortex/auto_upgrader/deployment/proecss/auto_upgrader_process_upgrade.sh
+    ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_upgrade.sh
     
     # Add any other logic specific to process mode here
     echo "✅ Process started."

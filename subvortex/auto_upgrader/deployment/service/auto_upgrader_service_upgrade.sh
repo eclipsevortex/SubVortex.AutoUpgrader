@@ -8,10 +8,14 @@ SERVICE_NAME=subvortex-auto-upgrader
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
+# Track whether we stashed anything
+STASHED=0
+
 # Check for uncommitted changes
 if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "📦 Stashing local changes..."
     git stash push -u -m "Auto stash before pull"
+    STASHED=1
 fi
 
 # Check if branch is tracking a remote
@@ -25,7 +29,19 @@ fi
 
 # Pull latest changes from upstream
 echo "🔄 Pulling latest changes from $UPSTREAM..."
-git pull --ff-only
+if ! git pull --ff-only; then
+    echo "⚠️ Fast-forward pull failed. Trying forced sync with origin/$BRANCH..."
+    git fetch origin
+    git reset --hard origin/"$BRANCH"
+fi
+
+# Restore stashed changes if we made one
+if [[ "$STASHED" -eq 1 ]]; then
+    echo "🧵 Restoring stashed local changes..."
+    git stash pop || {
+        echo "⚠️ Conflicts while restoring stash. You may need to resolve manually."
+    }
+fi
 
 # Install python if not already done
 if ! command -v python3 &> /dev/null; then

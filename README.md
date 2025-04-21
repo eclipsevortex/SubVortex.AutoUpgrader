@@ -160,6 +160,8 @@ To upgrade the Auto Upgrader when a new release has been deployed, you can run
 ./scripts/auto_upgrader/auto_upgrader_upgrade.sh
 ```
 
+Use `-h` to see the options
+
 <br />
 
 # 🛠️ Installation <a id="installation"></a>
