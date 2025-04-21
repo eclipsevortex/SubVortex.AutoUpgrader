@@ -144,7 +144,7 @@ define build_github_component
 		[ -f "$$f" ] || continue; \
 		newf=$${f/subvortex-/subvortex_$(1)-}; \
 		echo "➡️  Renaming: $$f -> $$newf"; \
-		mv $$$f" "$$newf"; \
+		mv "$$f" "$$newf"; \
 	done
 	@echo "✅ GitHub asset build done for $(1)"
 endef
