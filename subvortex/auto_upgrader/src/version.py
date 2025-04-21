@@ -15,6 +15,10 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import re
+from pathlib import Path
+from os import path
+
+here = path.abspath(path.dirname(__file__))
 
 
 def to_detailed_version(version_str):
@@ -40,3 +44,16 @@ def normalize_version(version: str) -> str:
         lambda m: {"alpha": "a", "beta": "b", "rc": "rc"}[m.group(1)] + m.group(2),
         tag,
     )
+
+
+def _get_version():
+    pyproject = Path(path.join(here, "../pyproject.toml"))
+    if not pyproject.exists():
+        return "0.0.0"
+    
+    content = pyproject.read_text()
+    match = re.search(r'version\s*=\s*"([^"]+)"', content)
+    return match.group(1) if match else None
+
+
+__VERSION__ = _get_version()

@@ -22,6 +22,7 @@ import traceback
 import bittensor.core.config as btcc
 import bittensor.utils.btlogging as btul
 
+import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.constants as sauc
 
 import subvortex.auto_upgrader.src.upgraders.factory_uprader as sauufu
@@ -46,6 +47,12 @@ class AutoUpgrader:
         self.finished = asyncio.Event()
 
     async def run(self):
+        # Display the version
+        btul.logging.info(
+            f"version: {sauv.__VERSION__}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
         first_run = True
         while not self.should_exit.is_set():
             latest_version = None

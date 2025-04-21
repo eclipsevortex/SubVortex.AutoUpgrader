@@ -49,7 +49,7 @@ Keeping your miner and validator up to date shouldn't be a chore.
 
 The **SubVortex Auto Upgrader** automates upgrades for your SubVortex miner and validator. It ensures that your components are always running the latest version—without manual intervention.
 
-Whether you're managing a single node or an entire fleet, the Auto Upgrader provides a reliable and flexible solution. Choose to run it as a standalone process, a system service, or in a Docker container.
+Whether you're managing a single node or an entire fleet, the Auto Upgrader provides a reliable and flexible solution. Choose to run it as a standalone process, a system service, or in a ~~Docker container~~.
 
 Simple to set up. Easy to monitor. Zero stress upgrades.
 
@@ -170,7 +170,7 @@ You can install the Auto Upgrader in one of three ways:
 
 - As a **process** (using PM2)
 - As a **system service** (using systemd)
-- As a **container** (using Docker)
+- ~~As a **container** (using Docker)~~
 
 ## ▶️ Run as Process <a id="run-as-process"></a>
 
@@ -253,6 +253,8 @@ tail -f /var/log/subvortex-auto-upgrader/subvortex-auto-upgrader.log
 
 ## 🐳 Run as Container <a id="run-as-container"></a>
 
+> ⚠️ The Auto Upgrader is not yet available to run inside a Docker container. Please run it via `service` or `process`.
+
 Before installing the Auto Upgrader as a container, be sure you have docker installed. If not, you can run
 
 ```bash
@@ -332,6 +334,8 @@ Unit subvortex-auto-upgrader.service could not be found.
 ```
 
 ## ❌ Remove Container <a id="remove-container"></a>
+
+> ⚠️ The Auto Upgrader is not yet available to run inside a Docker container. Please run it via `service` or `process`.
 
 To tear down the Auto Upgrader container:
 

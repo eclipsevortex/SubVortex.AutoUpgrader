@@ -2,6 +2,11 @@
 
 set -e
 
+source ${BASH_SOURCE%/*}/../../../../scripts/utils/tools.sh
+
+# Install pm2 if needed
+install_pm2
+
 # Determine script directory dynamically to ensure everything runs in ./scripts/api/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."

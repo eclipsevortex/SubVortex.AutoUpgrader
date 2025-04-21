@@ -76,7 +76,7 @@ if pm2 list | grep -qw "$SERVICE_NAME"; then
     echo "🔄 Restarting PM2 service: $SERVICE_NAME"
     pm2 restart "$SERVICE_NAME"
 else
-    ./deployment/process/auto_upgrader_process.start.sh
+    ./deployment/process/auto_upgrader_process_start.sh
 fi
 
 echo "✅ Auto Upgrader upgraded successfully"
