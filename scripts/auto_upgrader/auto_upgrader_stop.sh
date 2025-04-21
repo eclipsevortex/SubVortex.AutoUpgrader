@@ -48,7 +48,7 @@ setup_process() {
     echo "⚙️  Setting up for 'process' mode..."
     
     # Stop the auto upgrade as process
-    ./subvortex/auto_upgrader/deployment/proecss/auto_upgrader_process_stop.sh
+    ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_stop.sh
     
     # Add any other logic specific to process mode here
     echo "✅ Process stopped."

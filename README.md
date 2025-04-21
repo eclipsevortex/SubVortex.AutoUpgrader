@@ -73,10 +73,13 @@ Then, configure your environment:
    - For miners, edit files matching `env.subvortex.miner.*`
    - For validators, edit files matching `env.subvortex.validator.*`
 
-2. Update the main Auto Upgrader `.env` file at:
-   ```
-   subvortex/auto_upgrader/.env
-   ```
+2. Set up `.env` file.
+
+```bash
+cp subvortex/auto_upgrader/env.template subvortex/auto_upgrader/.env
+```
+
+3. Customise `.env` file by adjusting the values as needed.
 
 Here's a breakdown of the key variables:
 

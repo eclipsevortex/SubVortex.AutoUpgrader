@@ -48,7 +48,7 @@ setup_process() {
     echo "⚙️  Setting up for 'process' mode..."
     
     # Teardown the auto upgrade as process
-    ./subvortex/auto_upgrader/deployment/proecss/auto_upgrader_process_teardown.sh
+    ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_teardown.sh
     
     # Add any other logic specific to process mode here
     echo "✅ Process teardown complete."

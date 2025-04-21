@@ -22,7 +22,10 @@ fi
 # Install watchtower
 ./../../scripts/watchtower/watchtower_start.sh
 
-# Install the auto upgrader
-$DOCKER_CMD -f ../../docker-compose.yml up auto_upgrader -d --no-deps
+if [ -n "$SUBVORTEX_LOCAL" ]; then
+    $DOCKER_CMD -f ../../docker-compose.local.yml up auto_upgrader -d --no-deps
+else
+    $DOCKER_CMD -f ../../docker-compose.yml up auto_upgrader -d --no-deps
+fi
 
 echo "✅ Auto Upgrader started successfully"

@@ -1,7 +1,7 @@
 services:
   auto_upgrader:
     build:
-      context: ../../
+      context: .
       dockerfile: ./subvortex/auto_upgrader/Dockerfile
       additional_contexts:
         wheelbuilder: docker-image://subvortex/subvortex-wheel-builder:latest

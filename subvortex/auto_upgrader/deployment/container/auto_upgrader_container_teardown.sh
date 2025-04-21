@@ -22,7 +22,10 @@ fi
 # Teardown watchtower
 ./../../scripts/watchtower/watchtower_teardown.sh
 
-# Teardown Auto Upgarder
-$DOCKER_CMD -f ../../docker-compose.yml down auto_upgrader --rmi all
+if [ -n "$SUBVORTEX_LOCAL" ]; then
+    $DOCKER_CMD -f ../../docker-compose.local.yml down auto_upgrader --rmi all
+else
+    $DOCKER_CMD -f ../../docker-compose.yml down auto_upgrader --rmi all
+fi
 
 echo "✅ Auto Upgrader teardown completed successfully."

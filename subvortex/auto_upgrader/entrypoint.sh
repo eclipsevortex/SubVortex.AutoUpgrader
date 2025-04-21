@@ -22,7 +22,7 @@ while IFS= read -r line; do
 done < <(env)
 
 if [ $# -eq 0 ]; then
-    python ./subvortex/auto_upgrade/src/main.py \
+    python ./subvortex/auto_upgrader/src/main.py \
     "${ARGS[@]}"
 else
     exec "$@"

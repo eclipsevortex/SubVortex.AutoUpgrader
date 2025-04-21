@@ -1,6 +1,6 @@
 services:
   auto_upgrader:
-    image: subvortex/subvortex-auto-upgrader:latest
+    image: subvortex/subvortex-auto-upgrader:${SUBVORTEX_AUTO_UPGRADER_FLOATING_TAG}
     container_name: subvortex-auto-upgrader
     restart: unless-stopped
     env_file:
