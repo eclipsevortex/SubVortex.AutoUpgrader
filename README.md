@@ -89,7 +89,7 @@ Here's a breakdown of the key variables:
   Defines how the Auto Upgrader runs. Options are `process`, `service`, or `docker`. Default is `service`.
 
 - **SUBVORTEX_PRERELEASE_TYPE**:  
-  Specifies a single prerelease identifier you want to be notified about. Options are `alpha` or `rc` (**use ONLY in TESTNET**). Remove this variable to receive notifications from `latest` (**use in MAINNET**) prerelease types. Default is an empty string, which disables prerelease notifications.
+  Specifies a single prerelease identifier you want to be notified about. Options are `alpha` (**use ONLY in DEVNET**) or `rc` (**use ONLY in TESTNET**). Remove this variable to receive notifications from `latest` (**use in MAINNET**) prerelease types. Default is an empty string, which disables prerelease notifications.
 
 - **SUBVORTEX_EXECUTION_ROLE**:  
   Specifies the type of neuron running on this machine. Options are `miner` and `validator`. Default value is `miner`. The Auto Upgrader uses this to decide how the machine should upgrade.
@@ -154,7 +154,7 @@ Use `-h` to see the options
 
 # 🔄 Quick Upgrade <a id="quick-upgrade"></a>
 
-To upgrade the Auto Upgrade when a new release has been deployed, you can run
+To upgrade the Auto Upgrader when a new release has been deployed, you can run
 
 ```bash
 ./scripts/auto_upgrader/auto_upgrader_upgrade.sh
