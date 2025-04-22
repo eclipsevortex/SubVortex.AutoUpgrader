@@ -2,18 +2,18 @@
 
 set -e
 
-SHOW_HELP=false
 REMOVE_LATEST=false
 
-# --- Usage function ---
 usage() {
 cat <<EOF
-Usage: $(basename "$0") [OPTIONS] <directory>
+Usage: $(basename "$0") [OPTIONS]
 
-Clean all contents of a directory except the latest versioned "subvortex-X.Y.Z-[alpha|rc].W" subdirectory.
+Clean all contents under /var/tmp/subvortex,
+preserving only the latest versioned directory and all non-versioned ones.
+With --remove, remove everything.
 
 Options:
-  -r, --remove       Remove the latest version directory as well
+  -r, --remove       Remove all versioned and non-versioned directories
   -h, --help         Show this help message and exit
 
 Examples:
@@ -22,8 +22,20 @@ Examples:
 EOF
 }
 
-# --- Parse arguments ---
-ARGS=()
+# Determine compatible version sort command
+version_sort() {
+  if command -v sort >/dev/null && sort -V </dev/null &>/dev/null; then
+    sort -V
+  elif command -v gsort >/dev/null; then
+    gsort -V
+  else
+    echo "❌ Error: version sort (sort -V or gsort -V) not supported on this system." >&2
+    echo "👉 On macOS, run: brew install coreutils" >&2
+    exit 1
+  fi
+}
+
+# Parse arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -r|--remove)
@@ -40,64 +52,65 @@ while [[ $# -gt 0 ]]; do
       exit 1
       ;;
     *)
-      ARGS+=("$1")
-      shift
+      echo "❌ Unexpected argument: $1"
+      usage
+      exit 1
       ;;
   esac
 done
 
-# Restore positional parameters
-set -- "${POSITIONAL[@]}"
+TARGET_BASE="/var/tmp/subvortex"
 
-# Show help if requested
-if [ "$SHOW_HELP" = true ]; then
-  exit 0
-fi
-
-# Check directory argument
-TARGET_DIR=/var/tmp/subvortex
-
-if [ -z "$TARGET_DIR" ]; then
-  echo "❌ Error: No directory provided."
+if [ ! -d "$TARGET_BASE" ]; then
+  echo "❌ Error: Directory '$TARGET_BASE' does not exist."
   exit 1
 fi
 
-if [ ! -d "$TARGET_DIR" ]; then
-  echo "❌ Error: Directory '$TARGET_DIR' does not exist."
-  exit 1
+cd "$TARGET_BASE"
+all_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -exec basename {} \;))
+
+versioned_dirs=()
+non_versioned_dirs=()
+
+# Classify directories
+for dir in "${all_dirs[@]}"; do
+  if [[ "$dir" =~ ^subvortex-[0-9]+\.[0-9]+\.[0-9]+([^/]+)?$ ]]; then
+    versioned_dirs+=("$dir")
+  else
+    non_versioned_dirs+=("$dir")
+  fi
+done
+
+# Identify latest versioned directory
+latest_version=""
+if [ ${#versioned_dirs[@]} -gt 0 ]; then
+  latest_version=$(printf "%s\n" "${versioned_dirs[@]}" | version_sort | tail -n 1)
 fi
 
-# --- Find and preserve the latest subvortex version ---
-cd "$TARGET_DIR"
-version_dirs=($(find . -maxdepth 1 -type d -name "subvortex-*" -exec basename {} \; | grep -E '^subvortex-[0-9]+\.[0-9]+\.[0-9]+([a-z]+\d+)?$'))
+echo "🧹 Cleaning up: $TARGET_BASE"
 
-if [ ${#version_dirs[@]} -eq 0 ]; then
-  echo "⚠️ No matching subvortex version directories found."
-  exit 0
-fi
+for dir in "${all_dirs[@]}"; do
+  keep=false
 
-latest_version=$(printf "%s\n" "${version_dirs[@]}" | sort -V | tail -n 1)
+  if [ "$REMOVE_LATEST" = false ]; then
+    for nvd in "${non_versioned_dirs[@]}"; do
+      if [ "$dir" == "$nvd" ]; then
+        keep=true
+        break
+      fi
+    done
 
-if [ "$REMOVE_LATEST" = false ]; then
-  echo "🛡️ Preserving latest version: $latest_version"
-else
-  echo "🧨 '--remove' provided — deleting everything, including: $latest_version"
-fi
-
-# --- Remove content ---
-for entry in "$TARGET_DIR"/* "$TARGET_DIR"/.*; do
-  base=$(basename "$entry")
-
-  if [ "$base" == "." ] || [ "$base" == ".." ]; then
-    continue
+    if [ "$dir" == "$latest_version" ]; then
+      keep=true
+    fi
   fi
 
-  if [ "$REMOVE_LATEST" = false ] && [ "$base" == "$latest_version" ]; then
-    continue
+  if [ "$keep" = true ]; then
+    echo "🛡️  Preserving: $dir"
+  else
+    echo "🔥 Removing: $dir"
+    rm -rf "$dir"
   fi
-
-  echo "🧹 Removing: $entry"
-  rm -rf "$entry"
 done
 
 echo "✅ Cleanup complete."
