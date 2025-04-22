@@ -21,9 +21,14 @@ envsubst < "./deployment/templates/${SERVICE_NAME}.service" | tee "/etc/systemd/
 sudo mkdir -p /var/log/$SERVICE_NAME
 sudo chown root:root /var/log/$SERVICE_NAME
 
-## Start the service
+# Reload and (re)start the service
+systemctl daemon-reexec
 systemctl daemon-reload
-systemctl restart $SERVICE_NAME.service
-systemctl enable $SERVICE_NAME.service
+
+if systemctl is-active --quiet $SERVICE_NAME; then
+  systemctl restart $SERVICE_NAME
+else
+  systemctl start $SERVICE_NAME
+fi
 
 echo "✅ Auto Upgrader started successfully"

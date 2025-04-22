@@ -36,10 +36,17 @@ while IFS='=' read -r key value; do
   fi
 done < <(env)
 
-# Start with PM2
-pm2 start src/main.py \
-  --name $SERVICE_NAME \
-  --interpreter python3 -- \
-  "${ARGS[@]}"
+
+# Start or reload PM2
+if pm2 list | grep -q "$SERVICE_NAME"; then
+  echo "🔁 Reloading $SERVICE_NAME"
+  pm2 reload "$SERVICE_NAME" --update-env
+else
+  echo "🚀 Starting $SERVICE_NAME"
+  pm2 start src/main.py \
+    --name "$SERVICE_NAME" \
+    --interpreter python3 -- \
+    "${ARGS[@]}"
+fi
 
 echo "✅ Auto Upgrader started successfully"

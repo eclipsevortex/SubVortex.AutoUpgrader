@@ -5,10 +5,15 @@ set -e
 show_help() {
     echo "Usage: $0 [--execution=process|service] [--role=miner|validator] [--remove]"
     echo
+    echo "Description:"
+    echo "  This script clean the working directory of the Auto Uprader"
+    echo "  without removing the lastest version."
+    echo "  If you remove the latest version, the components will be stopped and teardown"
+    echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: taken from .env)"
     echo "  --role        Role of the Auto Upgrader between miner or validator (default: taken from .env)"
-    echo "  --remove      Clean the work directory (default: /var/tmp/subvortex)"
+    echo "  --remove      True if you want to remove the latest version, false otherwise (default: false)"
     echo "  --help        Show this help message"
     exit 0
 }

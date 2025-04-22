@@ -22,7 +22,23 @@ fi
 # Install watchtower
 ./../../scripts/watchtower/watchtower_start.sh
 
-# Install the auto upgrader
-$DOCKER_CMD -f ../../docker-compose.yml up auto_upgrader -d --no-deps
+# Choose appropriate compose file
+if [ -n "$SUBVORTEX_LOCAL" ]; then
+    COMPOSE_FILE="../docker-compose.local.yml"
+else
+    COMPOSE_FILE="../docker-compose.yml"
+fi
+
+# Check if auto_upgrader container is running
+IS_RUNNING=$($DOCKER_CMD -f "$COMPOSE_FILE" ps -q auto_upgrader | xargs docker inspect -f '{{.State.Running}}' 2>/dev/null || echo "false")
+
+# Build and run command
+if [ "$IS_RUNNING" != "true" ]; then
+    echo "🔄 Container not running — forcing recreate..."
+    $DOCKER_CMD -f "$COMPOSE_FILE" up auto_upgrader -d --no-deps --force-recreate
+else
+    echo "⚙️  Container already running — starting without recreate..."
+    $DOCKER_CMD -f "$COMPOSE_FILE" up auto_upgrader -d --no-deps
+fi
 
 echo "✅ Auto Upgrader started successfully"

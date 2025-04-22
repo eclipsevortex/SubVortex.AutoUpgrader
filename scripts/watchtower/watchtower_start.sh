@@ -26,10 +26,21 @@ else
     exit 1
 fi
 
-# Check if watchtower is already running
-if docker ps --format '{{.Names}}' | grep -q '^subvortex-watchtower$'; then
-    echo "ℹ️ Watchtower is already running. No action needed."
+# Choose appropriate compose file
+if [ -n "$SUBVORTEX_LOCAL" ]; then
+    COMPOSE_FILE="./docker-compose.local.yml"
 else
-    $DOCKER_CMD -f docker-compose.yml up watchtower -d --no-deps
-    echo "✅ Auto Upgrader (watchtower) started successfully"
+    COMPOSE_FILE="./docker-compose.yml"
+fi
+
+# Check if watchtower container is running
+IS_RUNNING=$($DOCKER_CMD -f "$COMPOSE_FILE" ps -q watchtower | xargs docker inspect -f '{{.State.Running}}' 2>/dev/null || echo "false")
+
+# Build and run command
+if [ "$IS_RUNNING" != "true" ]; then
+    echo "🔄 Container not running — forcing recreate..."
+    $DOCKER_CMD -f "$COMPOSE_FILE" up watchtower -d --no-deps --force-recreate
+else
+    echo "⚙️  Container already running — starting without recreate..."
+    $DOCKER_CMD -f "$COMPOSE_FILE" up auto_upgrader -d --no-deps
 fi
