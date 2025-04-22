@@ -60,7 +60,7 @@ setup_process() {
     echo "⚙️  Setting up for 'process' mode..."
 
     # Upgrade the auto upgrader as process
-    ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_upgrade.sh --tag $TAG --branch $BRANCH
+    ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_upgrade.sh --tag "$TAG" --branch "$BRANCH"
     
     # Add any other logic specific to process mode here
     echo "✅ Process started."
@@ -71,7 +71,7 @@ setup_container() {
     echo "🐳 Setting up for 'container' mode..."
     
     # Start the auto upgrader as service
-    ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_upgrade.sh --tag $TAG --branch $BRANCH
+    ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_upgrade.sh --tag "$TAG" --branch "$BRANCH"
     
     # Add any other container-specific logic here
     echo "✅ Container started."
@@ -82,7 +82,7 @@ setup_service() {
     echo "🧩 Setting up for 'service' mode..."
     
     # Start the auto upgrader as service
-    ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_upgrade.sh --tag $TAG --branch $BRANCH
+    ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_upgrade.sh --tag "$TAG" --branch "$BRANCH"
     
     # Add logic for systemd, service checks, etc. if needed
     echo "✅ Service started."
