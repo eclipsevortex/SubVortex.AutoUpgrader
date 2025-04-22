@@ -56,4 +56,4 @@ if [ ! -d "$execution_dir" ]; then
 fi
 
 # Run quick start script
-"$execution_dir/deployment/scripts/scripts/quick_stop.sh" --execution EXECUTION
+"$execution_dir/deployment/scripts/quick_stop.sh" --execution EXECUTION
