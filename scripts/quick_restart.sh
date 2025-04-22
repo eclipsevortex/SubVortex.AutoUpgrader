@@ -15,20 +15,19 @@ OPTIONS="e:h"
 LONGOPTIONS="execution:,help:"
 
 # Parse the options and their arguments
-params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-
-# Check for getopt errors
+PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
-METHOD=service
+# Set defaults from env (can be overridden by arguments)
+EXECUTION="service"
 
 # Parse arguments
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -e |--execution)
-            METHOD="$2"
+            EXECUTION="$2"
             shift 2
             ;;
         -h | --help)
@@ -43,7 +42,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 # Stop the auto upgrader
-./scripts/auto_upgrader/auto_upgrader_stop.sh --execution $METHOD
+./scripts/auto_upgrader/auto_upgrader_stop.sh --execution $EXECUTION
 
 # Start the auo upgrader
-./scripts/auto_upgrader/auto_upgrader_start.sh --execution $METHOD
+./scripts/auto_upgrader/auto_upgrader_start.sh --execution $EXECUTION

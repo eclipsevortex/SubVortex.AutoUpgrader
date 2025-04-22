@@ -196,7 +196,7 @@ For each of them, the same structure applies:
 **Solution:** Clean the working directory
 
 ```bash
-./scripts/clean_workspace.sh
+./scripts/quick_clean.sh
 ```
 
 The script will clean all the existing version and keep only the last one which can be removed by adding `--remove`

@@ -15,20 +15,19 @@ OPTIONS="e:h"
 LONGOPTIONS="execution:,help:"
 
 # Parse the options and their arguments
-params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-
-# Check for getopt errors
+PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
-METHOD=service
+# Set defaults from env (can be overridden by arguments)
+EXECUTION="service"
 
 # Parse arguments
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -e |--execution)
-            METHOD="$2"
+            EXECUTION="$2"
             shift 2
         ;;
         -h | --help)
@@ -52,4 +51,4 @@ if [ ! -d "$execution_dir" ]; then
 fi
 
 # Run quick start script
-"$execution_dir/deployment/scripts/scripts/quick_stop.sh"
+"$execution_dir/deployment/scripts/scripts/quick_stop.sh" --execution EXECUTION

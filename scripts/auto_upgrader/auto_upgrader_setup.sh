@@ -16,20 +16,19 @@ OPTIONS="e:h"
 LONGOPTIONS="execution:,help:"
 
 # Parse the options and their arguments
-params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-
-# Check for getopt errors
+PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
-METHOD=service
+# Set defaults from env (can be overridden by arguments)
+EXECUTION="service"
 
 # Parse arguments
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -e |--execution)
-            METHOD="$2"
+            EXECUTION="$2"
             shift 2
         ;;
         -h | --help)
@@ -91,7 +90,7 @@ setup_service() {
 # 🚀 Function: Dispatch based on method
 run_setup() {
     # Install Auto Upgrade
-    case "$METHOD" in
+    case "$EXECUTION" in
         process)
             setup_process
         ;;
@@ -103,7 +102,7 @@ run_setup() {
             setup_service
         ;;
         *)
-            echo "❌ Unknown METHOD: '$METHOD'"
+            echo "❌ Unknown EXECUTION: '$EXECUTION'"
             exit 1
         ;;
     esac

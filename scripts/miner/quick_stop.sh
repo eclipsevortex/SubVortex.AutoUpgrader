@@ -15,16 +15,14 @@ OPTIONS="e:h"
 LONGOPTIONS="execution:,help:"
 
 # Parse the options and their arguments
-params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-
-# Check for getopt errors
+PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
 # Load from .env if exists
-if [ -f .env ]; then
-    export $(grep -v '^#' ../subvortex/auto_upgrader/.env | xargs)
+if [ -f ./subvortex/auto_upgrader/.env ]; then
+    export $(grep -v '^#' ./subvortex/auto_upgrader/.env | xargs)
 fi
 
 # Set defaults from env (can be overridden by arguments)

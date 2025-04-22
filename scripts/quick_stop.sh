@@ -15,14 +15,13 @@ OPTIONS="e:h"
 LONGOPTIONS="execution:,help:"
 
 # Parse the options and their arguments
-params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-
-# Check for getopt errors
+PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
-METHOD=service
+# Set defaults from env (can be overridden by arguments)
+EXECUTION="service"
 
 # Parse arguments
 while [ "$#" -gt 0 ]; do

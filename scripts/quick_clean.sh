@@ -23,14 +23,9 @@ if [ $? -ne 0 ]; then
 fi
 eval set -- "$PARSED"
 
-# Load from .env if exists
-if [ -f .env ]; then
-    export $(grep -v '^#' ../subvortex/auto_upgrader/.env | xargs)
-fi
-
 # Set defaults from env (can be overridden by arguments)
-EXECUTION="${SUBVORTEX_EXECUTION_METHOD:-}"
-ROLE="${SUBVORTEX_EXECUTION_ROLE:-}"
+EXECUTION="service"
+ROLE="miner"
 REMOVE_LATEST=false
 
 # Parse command-line arguments
