@@ -210,3 +210,25 @@ Once clean, restart the auto upgrader by running
 ```
 
 Use `-h` to see the options
+
+
+### 🐛 Issue: Environment variable changes aren't applied after upgrade/downgrade in container
+
+**Cause:** Watchtower does not refresh the var env when upgrading/downgrading 
+**Solution:** Force to recreate (not rebuild) the image
+
+```bash
+./scripts/quick_clean.sh
+```
+
+The script will clean all the existing version and keep only the last one which can be removed by adding `--remove`
+
+Use option `-h` to see the different options.
+
+Once clean, restart the auto upgrader by running
+
+```bash
+./scripts/auto_upgrader/auto_upgrader_restart.sh
+```
+
+Use `-h` to see the options

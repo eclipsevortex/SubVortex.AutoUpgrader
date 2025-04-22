@@ -349,6 +349,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
                 "-d",
                 "--pull",
                 "always",
+                "--force-recreate"
             ]
 
             # Execute the script
