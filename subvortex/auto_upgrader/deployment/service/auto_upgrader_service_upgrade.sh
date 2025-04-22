@@ -8,6 +8,53 @@ SERVICE_NAME=subvortex-auto-upgrader
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
+# Help function
+show_help() {
+    echo "Usage: $0 [--branch=<BRANCH> --tag=<TAG>]"
+    echo
+    echo "Options:"
+    echo "  --tag         Checkout a specific Git tag before upgrading"
+    echo "  --branch      Checkout a specific Git branch before upgrading (default: main)"
+    echo "  --help        Show this help message"
+    exit 0
+}
+
+OPTIONS="t:b:h"
+LONGOPTIONS="tag:,branch:,help:"
+
+# Parse the options and their arguments
+params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
+
+# Check for getopt errors
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+TAG=""
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Parse arguments
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -t |--tag)
+            TAG="$2"
+            shift 2
+            ;;
+        -b |--branch)
+            BRANCH="$2"
+            shift 2
+            ;;
+        -h | --help)
+            show_help
+            exit 0
+        ;;
+        *)
+            echo "Unrecognized option '$1'"
+            exit 1
+        ;;
+    esac
+done
+
 # Track whether we stashed anything
 STASHED=0
 
@@ -19,7 +66,6 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 
 # Check if branch is tracking a remote
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
 UPSTREAM=$(git rev-parse --abbrev-ref "$BRANCH@{upstream}" 2>/dev/null || true)
 
 if [[ -z "$UPSTREAM" ]]; then
