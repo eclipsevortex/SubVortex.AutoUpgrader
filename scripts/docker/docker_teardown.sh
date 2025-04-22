@@ -11,7 +11,7 @@ function uninstall_on_linux() {
     fi
 
     # Remove Docker packages
-    sudo apt-get purge docker-ce docker-ce-cli containerd.io
+    sudo apt-get purge -y docker-ce docker-ce-cli containerd.io
     echo -e '\033[32mRemove docker package\033[0m'
 
     # Remove Docker images, containers, volumes, and networks
@@ -19,15 +19,15 @@ function uninstall_on_linux() {
     echo -e '\033[32mUninstall docker\033[0m'
 
     # Remove the user to the docker group
-    sudo gpasswd -d $USER docker
+    sudo gpasswd -d $USER docker || true
     echo -e '\033[32mDocker user removed\033[0m'
 
     # Remove the docker group
-    sudo groupdel docker
+    sudo groupdel docker || true
     echo -e '\033[32mDocker group removed\033[0m'
 
     # Uninstall docker compose
-    sudo apt-get remove docker-compose
+    sudo apt-get remove -y docker-compose
     echo -e '\033[32mUninstall docker compose\033[0m'
 
     # Remove docker binary

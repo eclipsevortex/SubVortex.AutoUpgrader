@@ -43,23 +43,8 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-# Parse arguments
-while [ "$#" -gt 0 ]; do
-    case "$1" in
-        -e |--execution)
-            METHOD="$2"
-            shift 2
-            ;;
-        -h | --help)
-            show_help
-            exit 0
-        ;;
-        *)
-            echo "Unrecognized option '$1'"
-            exit 1
-        ;;
-    esac
-done
+# Load environment variables
+export $(grep -v '^#' ./subvortex/auto_upgrader/.env | xargs)
 
 # 🧠 Function: Setup for process mode
 setup_process() {

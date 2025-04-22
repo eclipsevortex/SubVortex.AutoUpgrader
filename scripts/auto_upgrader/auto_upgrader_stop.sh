@@ -43,6 +43,9 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
+# Load environment variables
+export $(grep -v '^#' ./subvortex/auto_upgrader/.env | xargs)
+
 # 🧠 Function: Setup for process mode
 setup_process() {
     echo "⚙️  Setting up for 'process' mode..."

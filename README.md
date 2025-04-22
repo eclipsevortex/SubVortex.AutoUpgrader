@@ -22,7 +22,12 @@
 
 </div>
 
+<br />
+<br />
+
 ---
+
+<br />
 
 - [Introduction](#introduction)
 - [Prerequisites](#prerequisites)
@@ -31,14 +36,10 @@
 - [Quick Stop](#quick-stop)
 - [Quick Upgrade](#quick-upgrade)
 - [Installation](#installation)
-  - [Run as Process](#run-as-process)
-  - [Run as Service](#run-as-service)
-  - [Run as Container](#run-as-container)
-- [Upgrade](#upgrade)
-- [Uninstallation](#uninstallation)
-  - [Remove Process](#remove-process)
-  - [Remove Service](#remove-service)
-  - [Remove Container](#remove-container)
+  - [Auto Upgrader](#installation-auto-upgrader)
+  - [Watchtower](#installation-watchtower)
+  - [Other](#installation-other)
+- [Troubleshooting](#troubleshooting)
 
 <br />
 <br />
@@ -166,192 +167,46 @@ Use `-h` to see the options
 
 # 🛠️ Installation <a id="installation"></a>
 
-You can install the Auto Upgrader in one of three ways:
+> ⚠️ **Important:** Use this section only if you’re experiencing issues with the quick setup.
 
-- As a **process** (using PM2)
-- As a **system service** (using systemd)
-- ~~As a **container** (using Docker)~~
+## Auto Upgarder <a id="installation-auto-upgrader"></a>
 
-## ▶️ Run as Process <a id="run-as-process"></a>
+To manage the Auto Upgrader, refer to the [user guide](./scripts/auto_upgrader/README.md)
 
-1. Set the execution method in `.env`:
+## Watchtower <a id="installation-watchtower"></a>
 
-```env
-SUBVORTEX_EXECUTION_METHOD=process
-```
+To manage the Watchtower, refer to the [user guide](./scripts/watchtower/README.md)
 
-2. Run the setup script:
+## Other <a id="installation-other"></a>
 
-```bash
-./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_setup.sh
-```
+To manage anything else, refer to the `scripts` folder and check each subdirectory—each one represents a different tool or service required for the Auto Upgrader.
 
-3. Start the Auto Upgrader:
+For each of them, the same structure applies:
 
-```bash
-./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_start.sh
-```
+- **`<tool|service>_setup.sh`** – prepares and configures the tool or service
+- **`<tool|service>_start.sh`** – launches the tool or service
+- **`<tool|service>_stop.sh`** – stops the tool or service gracefully
+- **`<tool|service>_teardown.sh`** – fully removes and cleans up the tool or service
 
-4. Verify it's running:
+# 🔧 Troubleshooting <a id="troubleshooting"></a>
 
-```bash
-pm2 list
-```
+### 🐛 Issue: Auto Upgrader is mixing the versions or can not upgrade
 
-You should see a process named `subvortex-auto-upgrade`.
-
-To check logs:
+**Cause:** The work directory may have some existing version causing an issue for the Auto Upgrader  
+**Solution:** Clean the working directory
 
 ```bash
-pm2 log subvortex-auto-upgrade
+./scripts/clean_workspace.sh
 ```
 
-## 🛡️ Run as Service <a id="run-as-service"></a>
+The script will clean all the existing version and keep only the last one which can be removed by adding `--remove`
 
-1. Set the execution method in `.env`:
+Use option `-h` to see the different options.
 
-```env
-SUBVORTEX_EXECUTION_METHOD=service
-```
-
-2. Run the setup script:
+Once clean, restart the auto upgrader by running
 
 ```bash
-./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_setup.sh
+./scripts/auto_upgrader/auto_upgrader_restart.sh
 ```
 
-3. Start the Auto Upgrader:
-
-```bash
-./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_start.sh
-```
-
-4. Check the service status:
-
-```bash
-systemctl status subvortex-auto-upgrader
-```
-
-You should see something like
-
-```bash
-Loaded: loaded (/etc/systemd/system/subvortex-auto-upgrader.service; enabled; vendor preset: enabled)
-     Active: active (running) since Thu 2025-04-10 11:51:27 BST; 6s ago
-   Main PID: 2229560 (python3)
-      Tasks: 10 (limit: 28765)
-     Memory: 57.9M
-        CPU: 1.592s
-     CGroup: /system.slice/subvortex-auto-upgrader.service
-             └─2229560 /root/SubVortex.AutoUpgrader/subvortex/auto_upgrader/venv/bin/python3 -m subvortex.auto_upgrader.src.main
-```
-
-To view logs:
-
-```bash
-tail -f /var/log/subvortex-auto-upgrader/subvortex-auto-upgrader.log
-```
-
-## 🐳 Run as Container <a id="run-as-container"></a>
-
-> ⚠️ The Auto Upgrader is not yet available to run inside a Docker container. Please run it via `service` or `process`.
-
-Before installing the Auto Upgrader as a container, be sure you have docker installed. If not, you can run
-
-```bash
-./scripts/docker/docker_setup.sh
-```
-
-1. Set the execution method in `.env`:
-
-```env
-SUBVORTEX_EXECUTION_METHOD=docker
-```
-
-2. Run the setup script:
-
-```bash
-./subvortex/auto_upgrader/deployment/docker/auto_upgrader_docker_setup.sh
-```
-
-3. Start the Auto Upgrader:
-
-```bash
-./subvortex/auto_upgrader/deployment/docker/auto_upgrader_docker_start.sh
-```
-
-4. Confirm it's running:
-
-```bash
-docker ps
-```
-
-Look for a container named `subvortex-auto-upgrade`.
-
-To follow logs:
-
-```bash
-docker logs -f subvortex-auto-upgrade
-```
-
-<br />
-
-# 🧹 Uninstallation <a id="uninstallation"></a>
-
-## ❌ Remove Process <a id="remove-process"></a>
-
-To stop and remove the Auto Upgrader running as a process:
-
-```bash
-./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_teardown.sh
-```
-
-Confirm it's removed:
-
-```bash
-pm2 list
-```
-
-The `subvortex-auto-upgrade` process should no longer appear.
-
-## ❌ Remove Service <a id="remove-service"></a>
-
-To uninstall the Auto Upgrader running as a system service:
-
-```bash
-./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_teardown.sh
-```
-
-Check that the service is removed:
-
-```bash
-systemctl status subvortex-auto-upgrader
-```
-
-You should see:
-
-```
-Unit subvortex-auto-upgrader.service could not be found.
-```
-
-## ❌ Remove Container <a id="remove-container"></a>
-
-> ⚠️ The Auto Upgrader is not yet available to run inside a Docker container. Please run it via `service` or `process`.
-
-To tear down the Auto Upgrader container:
-
-```bash
-./subvortex/auto_upgrader/deployment/docker/auto_upgrader_docker_teardown.sh
-```
-
-Verify it's gone:
-
-```bash
-docker ps
-```
-
-The `subvortex-auto-upgrade` container should no longer be listed.
-
----
-
-Need help or want to chat with other SubVortex users?  
-Join us on [Discord](https://discord.gg/bittensor)!
+Use `-h` to see the options
