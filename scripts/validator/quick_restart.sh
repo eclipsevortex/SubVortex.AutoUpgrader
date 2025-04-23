@@ -22,31 +22,15 @@ show_help() {
 }
 
 OPTIONS="e:rh"
-LONGOPTIONS="execution:recreate,help"
-
-# Parse the options and their arguments
-params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-
-# Parse the options and their arguments
-PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
-# Load from .env if exists
-if [ -f ./subvortex/auto_upgrader/.env ]; then
-    export $(grep -v '^#' ./subvortex/auto_upgrader/.env | xargs)
-fi
-
-# Determinate flag and expose it as env var
-export SUBVORTEX_FLOATTING_FLAG=$(get_tag)
+LONGOPTIONS="execution:,recreate,help"
 
 # Set defaults from env (can be overridden by arguments)
-EXECUTION="${SUBVORTEX_EXECUTION_METHOD:-}"
+EXECUTION="${SUBVORTEX_EXECUTION_METHOD:-service}"
 RECREATE=false
 
 # Parse arguments
-while [ "$#" -gt 0 ]; do
+while [ "$#" -ge 1 ]; do
+    echo "ARG $1"
     case "$1" in
         -e |--execution)
             EXECUTION="$2"
@@ -60,12 +44,19 @@ while [ "$#" -gt 0 ]; do
             show_help
             exit 0
         ;;
+        --)
+            shift
+            break
+            ;;
         *)
-            echo "Unrecognized option '$1'"
+            echo "❌ Unrecognized option '$1'"
             exit 1
         ;;
     esac
 done
+
+# Check maandatory args
+check_required_args EXECUTION
 
 # Expand ~ and assign directory
 execution_dir="$HOME/subvortex/subvortex/validator"

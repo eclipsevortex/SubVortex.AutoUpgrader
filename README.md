@@ -139,6 +139,8 @@ It will install and start the Auto Upgrader as service which is the default mode
 
 Use `-h` to see the options
 
+<br />
+
 # 🛑 Quick Stop <a id="quick-stop"></a>
 
 To stop the Auto Upgrader in a quick way, you can run
@@ -187,6 +189,8 @@ For each of them, the same structure applies:
 - **`<tool|service>_start.sh`** – launches the tool or service
 - **`<tool|service>_stop.sh`** – stops the tool or service gracefully
 - **`<tool|service>_teardown.sh`** – fully removes and cleans up the tool or service
+
+<br />
 
 # 🔧 Troubleshooting <a id="troubleshooting"></a>
 

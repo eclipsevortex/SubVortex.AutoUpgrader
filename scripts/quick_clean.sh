@@ -2,6 +2,12 @@
 
 set -e
 
+# Determine script directory dynamically to ensure everything runs in ./scripts/api/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+source ./scripts/utils/utils.sh
+
 show_help() {
     echo "Usage: $0 [--execution=process|service] [--role=miner|validator] [--remove]"
     echo
@@ -20,13 +26,6 @@ show_help() {
 
 OPTIONS="e:o:rh"
 LONGOPTIONS="execution:,role:,remove,help"
-
-# Parse the options and their arguments
-PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTIONS --name "$0" -- "$@")
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-eval set -- "$PARSED"
 
 # Set defaults from env (can be overridden by arguments)
 EXECUTION="service"
@@ -62,16 +61,8 @@ while true; do
     esac
 done
 
-# Validate EXECUTION and ROLE
-if [ -z "$EXECUTION" ]; then
-    echo "❌ Error: --execution not provided and EXECUTION not set in .env"
-    exit 1
-fi
-
-if [ -z "$ROLE" ]; then
-    echo "❌ Error: --role not provided and ROLE not set in .env"
-    exit 1
-fi
+# Check maandatory args
+check_required_args EXECUTION ROLE
 
 # Stop the neuron if requested
 if [[ "$REMOVE_LATEST" == "true" ]]; then

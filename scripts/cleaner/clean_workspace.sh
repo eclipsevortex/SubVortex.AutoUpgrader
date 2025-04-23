@@ -35,8 +35,22 @@ version_sort() {
   fi
 }
 
+OPTIONS="e:rh"
+LONGOPTIONS="execute:,remove,help"
+
+# Parse the options and their arguments
+PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
+# PARSED=$(getopt -o "$OPTIONS" -l "$LONGOPTIONS" --name "$0" -- "$@")
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+# Evaluate the parsed result to reset positional parameters
+eval set -- "$PARSED"
+
 # Parse arguments
-while [[ $# -gt 0 ]]; do
+while true; do
+echo "ARG $1"
   case "$1" in
     -r|--remove)
       REMOVE_LATEST=true
@@ -45,6 +59,10 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       usage
       exit 0
+      ;;
+    --)
+      shift
+      break
       ;;
     -*)
       echo "❌ Unknown option: $1"
@@ -58,6 +76,8 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+echo "REMOVE $REMOVE_LATEST"
 
 TARGET_BASE="/var/tmp/subvortex"
 
@@ -109,7 +129,7 @@ for dir in "${all_dirs[@]}"; do
     echo "🛡️  Preserving: $dir"
   else
     echo "🔥 Removing: $dir"
-    rm -rf "$dir"
+    # rm -rf "$dir"
   fi
 done
 

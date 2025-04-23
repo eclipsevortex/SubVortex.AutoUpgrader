@@ -2,6 +2,12 @@
 
 set -e
 
+# Determine script directory dynamically to ensure everything runs in ./scripts/api/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+source ./scripts/utils/utils.sh
+
 show_help() {
     echo "Usage: $0 [--execution=process|service]"
     echo
@@ -17,35 +23,35 @@ show_help() {
 OPTIONS="e:h"
 LONGOPTIONS="execution:,help:"
 
-# Parse the options and their arguments
-PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-
 # Set defaults from env (can be overridden by arguments)
 EXECUTION="service"
 
-# Parse arguments
-while [ "$#" -gt 0 ]; do
+# Parse command-line arguments
+while true; do
     case "$1" in
-        -e |--execution)
-            METHOD="$2"
+        -e|--execution)
+            EXECUTION="$2"
             shift 2
-            ;;
-        -h | --help)
+        ;;
+        -h|--help)
             show_help
-            exit 0
+        ;;
+        --)
+            shift
+            break
         ;;
         *)
-            echo "Unrecognized option '$1'"
+            echo "❌ Unrecognized option '$1'"
             exit 1
         ;;
     esac
 done
 
+# Check maandatory args
+check_required_args EXECUTION
+
 # Setup the auto upgrader
-./scripts/auto_upgrader/auto_upgrader_stop.sh --execution $METHOD
+./scripts/auto_upgrader/auto_upgrader_stop.sh --execution $EXECUTION
 
 # Start the auo upgrader
-./scripts/auto_upgrader/auto_upgrader_teardown.sh --execution $METHOD
+./scripts/auto_upgrader/auto_upgrader_teardown.sh --execution $EXECUTION

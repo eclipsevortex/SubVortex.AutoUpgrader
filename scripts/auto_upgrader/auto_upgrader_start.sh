@@ -24,6 +24,9 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Evaluate the parsed result to reset positional parameters
+eval set -- "$PARSED"
+
 # Set defaults from env (can be overridden by arguments)
 EXECUTION="service"
 
@@ -38,6 +41,10 @@ while [ "$#" -gt 0 ]; do
             show_help
             exit 0
         ;;
+        --)
+            shift
+            break
+            ;;
         *)
             echo "Unrecognized option '$1'"
             exit 1
