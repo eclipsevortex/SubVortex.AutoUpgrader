@@ -59,7 +59,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
         tag = self._get_tag()
 
         # Get all the components
-        components = self.github.get_components()
+        githu_latest_version, components = self.github.get_components()
 
         # Get all the remote images with their digests
         # self.latest_versions = self.github.get_docker_versions(tag=tag)
@@ -72,7 +72,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
         # Set the latest version
         version = latest_versions.get("version") or sauc.DEFAULT_LAST_RELEASE["global"]
 
-        if self.latest_versions == latest_versions:
+        if self.latest_versions == latest_versions or githu_latest_version != version:
             return version
 
         self.latest_versions = latest_versions
