@@ -2,6 +2,12 @@
 
 set -e
 
+# Determine script directory dynamically to ensure everything runs in ./scripts/api/
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/../.."
+
+source ./scripts/utils/utils.sh
+
 show_help() {
     echo "Usage: $0 [--execution=process|service]"
     echo
@@ -24,6 +30,9 @@ fi
 if [ -f ./subvortex/auto_upgrader/.env ]; then
     export $(grep -v '^#' ./subvortex/auto_upgrader/.env | xargs)
 fi
+
+# Determinate flag and expose it as env var
+export SUBVORTEX_FLOATTING_FLAG=$(get_tag)
 
 # Set defaults from env (can be overridden by arguments)
 EXECUTION="${SUBVORTEX_EXECUTION_METHOD:-}"

@@ -206,7 +206,7 @@ Use option `-h` to see the different options.
 Once clean, restart the auto upgrader by running
 
 ```bash
-./scripts/auto_upgrader/auto_upgrader_restart.sh
+./scripts/quick_restart.sh
 ```
 
 Use `-h` to see the options
