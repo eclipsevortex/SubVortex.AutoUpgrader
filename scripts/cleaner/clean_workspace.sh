@@ -19,6 +19,7 @@ show_help() {
     echo "Options:"
     echo "  -v, --version      Remove the version (e.g x.x.x, x.x.x-alpha.x or x.x.x-rc.x)"
     echo "  -r, --remove       Remove all versioned and non-versioned directories"
+    echo "  -d, --dry-run      Preview the actions without actually deleting anything"
     echo "  -h, --help         Show this help message and exit"
     exit 0
 }
@@ -36,11 +37,12 @@ version_sort() {
     fi
 }
 
-OPTIONS="e:v:rh"
-LONGOPTIONS="execute:version:,remove,help"
+OPTIONS="e:v:rdh"
+LONGOPTIONS="execute:version:,remove,dry-run,help"
 
 REMOVE_LATEST=false
 VERSION=""
+DRY_RUN=false
 
 # Parse arguments
 while [ "$#" -ge 1 ]; do
@@ -51,6 +53,10 @@ while [ "$#" -ge 1 ]; do
         ;;
         -r|--remove)
             REMOVE_LATEST=true
+            shift
+        ;;
+        -d|--dry-run)
+            DRY_RUN=true
             shift
         ;;
         -h|--help)
@@ -110,8 +116,12 @@ for dir in "${all_dirs[@]}"; do
     if [ -n "$VERSION" ]; then
         # Remove only the versioned directory that matches the normalized target
         if [ "$dir" == "$target_normalized" ]; then
-            echo "🔥 Removing: $dir"
-            rm -rf "$dir"
+            if [[ "$DRY_RUN" == "false" ]]; then
+                echo "🔥 Removing: $dir"
+                rm -rf "$dir"
+            else
+                echo "💡 Simulating removal: $dir"
+            fi
         else
             echo "🛡️  Preserving: $dir"
         fi
@@ -134,8 +144,12 @@ for dir in "${all_dirs[@]}"; do
     if [ "$keep" = true ]; then
         echo "🛡️  Preserving: $dir"
     else
-        echo "🔥 Removing: $dir"
-        rm -rf "$dir"
+        if [[ "$DRY_RUN" == "false" ]]; then
+            echo "🔥 Removing: $dir"
+            rm -rf "$dir"
+        else
+            echo "💡 Simulating removal: $dir"
+        fi
     fi
 done
 
