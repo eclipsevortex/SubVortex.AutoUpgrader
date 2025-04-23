@@ -330,6 +330,66 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
             docker_cmd = self._detect_docker_command()
 
             service_name = f"{sauc.SV_EXECUTION_ROLE}-{name}"
+            compose_file = f"{path}/subvortex/{sauc.SV_EXECUTION_ROLE}/docker-compose.yml"
+            container_name = service_name  # Assumes container name is same as service_name
+
+            # Check if service exists in docker-compose file
+            if not self._service_exists_in_compose(path=compose_file, name=service_name):
+                return False, "Service not found in docker compose"
+
+            # Check if container already exists
+            container_exists_cmd = ["docker", "ps", "-a", "--format", "{{.Names}}"]
+            result = subprocess.run(container_exists_cmd, capture_output=True, text=True)
+
+            if result.returncode != 0:
+                return False, f"Error checking existing containers: {result.stderr.strip()}"
+
+            container_names = result.stdout.strip().splitlines()
+            container_exists = container_name in container_names
+
+            tag = self._get_tag()
+            env = os.environ.copy()
+            env["SUBVORTEX_FLOATTING_FLAG"] = tag
+
+            if container_exists:
+                restart_cmd = ["docker", "restart", container_name]
+                restart_result = subprocess.run(restart_cmd, capture_output=True, text=True, env=env)
+                if restart_result.returncode != 0:
+                    return False, f"Failed to restart container {container_name}: {restart_result.stderr.strip()}"
+                return True, None
+
+            # Run docker-compose up with pull and recreate
+            cmd = docker_cmd + [
+                "-f",
+                compose_file,
+                "up",
+                service_name,
+                "-d",
+                "--pull", "always",
+                "--force-recreate"
+            ]
+
+            result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+
+            if result.returncode != 0:
+                stderr = result.stderr
+                if "manifest for" in stderr and "not found" in stderr:
+                    return (
+                        False,
+                        f"⚠️ Docker image for subvortex-{sauc.SV_EXECUTION_ROLE}-{service_name}:{tag} not found: {stderr.strip()}",
+                    )
+                return False, stderr.strip()
+
+            return True, None
+
+        except Exception as e:
+            return False, f"Exception occurred: {str(e)}"
+    
+    def _start_container2(self, path: str, name: str):
+        try:
+            docker_cmd = self._detect_docker_command()
+
+            service_name = f"{sauc.SV_EXECUTION_ROLE}-{name}"
 
             file = f"{path}/subvortex/{sauc.SV_EXECUTION_ROLE}/docker-compose.yml"
 
