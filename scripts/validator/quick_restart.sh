@@ -30,7 +30,6 @@ RECREATE=false
 
 # Parse arguments
 while [ "$#" -ge 1 ]; do
-    echo "ARG $1"
     case "$1" in
         -e |--execution)
             EXECUTION="$2"

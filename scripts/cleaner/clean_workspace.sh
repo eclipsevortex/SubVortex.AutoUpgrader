@@ -50,7 +50,6 @@ eval set -- "$PARSED"
 
 # Parse arguments
 while true; do
-echo "ARG $1"
   case "$1" in
     -r|--remove)
       REMOVE_LATEST=true
