@@ -88,6 +88,10 @@ class AutoUpgrader:
                         f"Can not upgrade yet",
                         prefix=sauc.SV_LOGGER_NAME,
                     )
+                    
+                    # Mark the upgrade as success
+                    success = True
+
                     continue
 
                 # Check if there is anew release
