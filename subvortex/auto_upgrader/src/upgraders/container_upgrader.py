@@ -59,7 +59,11 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
         tag = self._get_tag()
 
         # Get all the components
-        githu_latest_version, components = self.github.get_components()
+        github_latest_version, components = self.github.get_components()
+        btul.logging.debug(
+            f"Latest github version: {github_latest_version}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
         # Get all the remote images with their digests
         # self.latest_versions = self.github.get_docker_versions(tag=tag)
@@ -72,7 +76,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
         # Set the latest version
         version = latest_versions.get("version") or sauc.DEFAULT_LAST_RELEASE["global"]
 
-        if self.latest_versions == latest_versions or githu_latest_version != version:
+        if self.latest_versions == latest_versions or github_latest_version != version:
             return version
 
         self.latest_versions = latest_versions
@@ -210,7 +214,8 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
 
             if not self._service_exists_in_compose(path=file, name=service_name):
                 btul.logging.warning(
-                    f"Service {service_name} not found in docker compose"
+                    f"Service {service_name} not found in docker compose",
+                    prefix=sauc.SV_LOGGER_NAME,
                 )
                 return
 
@@ -234,11 +239,11 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
             )
 
     def pre_upgrade(self, path: str, name: str):
-        btul.logging.info(f"pre_upgrade {name}: {path}")
+        btul.logging.info(f"pre_upgrade {name}: {path}", prefix=sauc.SV_LOGGER_NAME,)
 
         # Get the latest version
         latest_version, _ = self.github.get_latest_tag_including_prereleases()
-        btul.logging.info(f"Docker compose from version: {latest_version}")
+        btul.logging.info(f"Docker compose from version: {latest_version}",prefix=sauc.SV_LOGGER_NAME,)
 
         # Download docker compose to the current version
         version = self.current_versions.get(name, {}).get("version")
@@ -463,7 +468,6 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
 
     def _service_exists_in_compose(self, path: str, name: str) -> bool:
         if not os.path.exists(path):
-            print(f"❌ Compose file not found: {path}")
             return False
 
         with open(path, "r", encoding="utf-8") as f:
@@ -472,7 +476,6 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
                 services = compose.get("services", {})
                 return name in services
             except yaml.YAMLError as e:
-                print(f"❌ YAML parsing error: {e}")
                 return False
 
     def _remove_symlink(self):
