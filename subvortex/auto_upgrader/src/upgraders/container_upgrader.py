@@ -43,8 +43,22 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
         self.docker = saud.Docker()
         self.migrator = saum.Migrator()
 
+        self.github_latest_version = None
         self.latest_versions = {}
         self.current_versions = {}
+
+    def can_upgrade(self):
+        # Get the github latst tag
+        github_latest_version = (
+            self.github_latest_version or sauc.DEFAULT_LAST_RELEASE["global"]
+        )
+
+        # Get the latest version in docker hub
+        version = (
+            self.latest_versions.get("version") or sauc.DEFAULT_LAST_RELEASE["global"]
+        )
+
+        return github_latest_version == version
 
     def should_skip(self):
         return self.latest_versions.get("version") and self.current_versions.get(
@@ -59,14 +73,13 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
         tag = self._get_tag()
 
         # Get all the components
-        github_latest_version, components = self.github.get_components()
+        self.github_latest_version, components = self.github.get_components()
         btul.logging.debug(
-            f"Latest github version: {github_latest_version}",
+            f"Latest github version: {self.github_latest_version}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
         # Get all the remote images with their digests
-        # self.latest_versions = self.github.get_docker_versions(tag=tag)
         latest_versions = await self.docker.get_remote_versions(
             tag=tag,
             components=components,
@@ -76,7 +89,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
         # Set the latest version
         version = latest_versions.get("version") or sauc.DEFAULT_LAST_RELEASE["global"]
 
-        if self.latest_versions == latest_versions or github_latest_version != version:
+        if self.latest_versions == latest_versions:
             return version
 
         self.latest_versions = latest_versions
@@ -239,11 +252,17 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
             )
 
     def pre_upgrade(self, path: str, name: str):
-        btul.logging.info(f"pre_upgrade {name}: {path}", prefix=sauc.SV_LOGGER_NAME,)
+        btul.logging.info(
+            f"pre_upgrade {name}: {path}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
         # Get the latest version
         latest_version, _ = self.github.get_latest_tag_including_prereleases()
-        btul.logging.info(f"Docker compose from version: {latest_version}",prefix=sauc.SV_LOGGER_NAME,)
+        btul.logging.info(
+            f"Docker compose from version: {latest_version}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
         # Download docker compose to the current version
         version = self.current_versions.get(name, {}).get("version")

@@ -84,6 +84,8 @@ class AutoUpgrader:
                 )
 
                 # TODO: call a method that return true if you can start the upgrade/downgrade. True if all the version in the tag are built and available especially for docker!
+                if not self.upgrader.can_upgrade():
+                    continue
 
                 # Check if there is anew release
                 if current_version == latest_version:

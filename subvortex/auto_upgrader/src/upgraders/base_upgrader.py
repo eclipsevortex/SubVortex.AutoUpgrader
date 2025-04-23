@@ -20,6 +20,10 @@ from abc import ABC, abstractmethod
 
 class BaseUpgrader(ABC):
     @abstractmethod
+    def can_upgrade(self):
+        pass
+
+    @abstractmethod
     def should_skip(self):
         pass
 

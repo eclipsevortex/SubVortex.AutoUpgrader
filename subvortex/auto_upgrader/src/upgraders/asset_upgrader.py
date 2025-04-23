@@ -41,6 +41,9 @@ class AssetUpgrader(sauubu.BaseUpgrader):
         self.github = saug.Github(repo_owner="eclipsevortex", repo_name="SubVortex")
         self.migrator = saum.Migrator()
 
+    def can_upgrade():
+        return True
+
     def should_skip(self):
         return False
 
