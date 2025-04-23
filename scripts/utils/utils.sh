@@ -44,3 +44,20 @@ check_required_args() {
     fi
 }
 
+normalize_version() {
+    local version="$1"
+    local tag="$version"
+    
+    # Remove leading 'v' if present
+    if [[ "$tag" == v* ]]; then
+        tag="${tag:1}"
+    fi
+    
+    # Use sed to replace -alpha.N, -beta.N, -rc.N
+    # alpha → a, beta → b, rc → rc
+    tag=$(echo "$tag" | \
+    sed -E 's/-alpha\.([0-9]+)/a\1/g; s/-beta\.([0-9]+)/b\1/g; s/-rc\.([0-9]+)/rc\1/g')
+    
+    echo "$tag"
+}
+

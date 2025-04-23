@@ -338,19 +338,30 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
             docker_cmd = self._detect_docker_command()
 
             service_name = f"{sauc.SV_EXECUTION_ROLE}-{name}"
-            compose_file = f"{path}/subvortex/{sauc.SV_EXECUTION_ROLE}/docker-compose.yml"
-            container_name = service_name  # Assumes container name is same as service_name
+            compose_file = (
+                f"{path}/subvortex/{sauc.SV_EXECUTION_ROLE}/docker-compose.yml"
+            )
+            container_name = (
+                service_name  # Assumes container name is same as service_name
+            )
 
             # Check if service exists in docker-compose file
-            if not self._service_exists_in_compose(path=compose_file, name=service_name):
+            if not self._service_exists_in_compose(
+                path=compose_file, name=service_name
+            ):
                 return False, "Service not found in docker compose"
 
             # Check if container already exists
             container_exists_cmd = ["docker", "ps", "-a", "--format", "{{.Names}}"]
-            result = subprocess.run(container_exists_cmd, capture_output=True, text=True)
+            result = subprocess.run(
+                container_exists_cmd, capture_output=True, text=True
+            )
 
             if result.returncode != 0:
-                return False, f"Error checking existing containers: {result.stderr.strip()}"
+                return (
+                    False,
+                    f"Error checking existing containers: {result.stderr.strip()}",
+                )
 
             container_names = result.stdout.strip().splitlines()
             container_exists = container_name in container_names
@@ -361,9 +372,14 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
 
             if container_exists:
                 restart_cmd = ["docker", "restart", container_name]
-                restart_result = subprocess.run(restart_cmd, capture_output=True, text=True, env=env)
+                restart_result = subprocess.run(
+                    restart_cmd, capture_output=True, text=True, env=env
+                )
                 if restart_result.returncode != 0:
-                    return False, f"Failed to restart container {container_name}: {restart_result.stderr.strip()}"
+                    return (
+                        False,
+                        f"Failed to restart container {container_name}: {restart_result.stderr.strip()}",
+                    )
                 return True, None
 
             # Run docker-compose up with pull and recreate
@@ -373,8 +389,9 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
                 "up",
                 service_name,
                 "-d",
-                "--pull", "always",
-                "--force-recreate"
+                "--pull",
+                "always",
+                "--force-recreate",
             ]
 
             result = subprocess.run(cmd, env=env, capture_output=True, text=True)
@@ -392,7 +409,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
 
         except Exception as e:
             return False, f"Exception occurred: {str(e)}"
-    
+
     def _start_container2(self, path: str, name: str):
         try:
             docker_cmd = self._detect_docker_command()
@@ -417,7 +434,7 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
                 "-d",
                 "--pull",
                 "always",
-                "--force-recreate"
+                "--force-recreate",
             ]
 
             # Execute the script
@@ -496,7 +513,15 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
         if os.path.exists(path):
             shutil.rmtree(path)
 
-        btul.logging.info(
-            f"🧹 Previous version {version} removed",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
+        success = not os.path.exists(path)
+
+        if success:
+            btul.logging.info(
+                f"🧹 Previous version {version} removed",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+        else:
+            btul.logging.warning(
+                f"⚠️ Previous version {version} could not be removed",
+                prefix=sauc.SV_LOGGER_NAME,
+            )

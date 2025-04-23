@@ -69,7 +69,10 @@ class AssetUpgrader(sauubu.BaseUpgrader):
         return saufs.get_version(path=path)
 
     def get_current_component_version(self, name: str, path: str):
-        return saufs.get_version(path=path) or sauc.DEFAULT_LAST_RELEASE[f"{sauc.SV_EXECUTION_ROLE}.{name}"]
+        return (
+            saufs.get_version(path=path)
+            or sauc.DEFAULT_LAST_RELEASE[f"{sauc.SV_EXECUTION_ROLE}.{name}"]
+        )
 
     async def upgrade(self, path: str, name: str, previous_version: str, version: str):
         # Setup the component
@@ -286,10 +289,18 @@ class AssetUpgrader(sauubu.BaseUpgrader):
         if os.path.exists(path):
             shutil.rmtree(path)
 
-        btul.logging.info(
-            f"🧹 Previous version {version} removed",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
+        success = not os.path.exists(path)
+
+        if success:
+            btul.logging.info(
+                f"🧹 Previous version {version} removed",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+        else:
+            btul.logging.warning(
+                f"⚠️ Previous version {version} could not be removed",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
     def _get_script_path(self, path: str, name: str, action: str):
         # Get the deployment path
