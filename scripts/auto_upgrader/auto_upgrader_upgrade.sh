@@ -6,6 +6,9 @@ set -e
 show_help() {
     echo "Usage: $0 [--execution=process|container|service --branch=<BRANCH> --tag=<TAG>]"
     echo
+    echo "Description:"
+    echo "  This script upgrade the auto upgrader"
+    echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
     echo "  --tag         Checkout a specific Git tag before upgrading"

@@ -6,6 +6,9 @@ set -e
 show_help() {
     echo "Usage: $0 [--execution=process|container|service]"
     echo
+    echo "Description:"
+    echo "  This script stop the auto upgrader"
+    echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
     echo "  --help        Show this help message"

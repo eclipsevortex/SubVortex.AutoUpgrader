@@ -11,14 +11,18 @@ source ./scripts/utils/utils.sh
 show_help() {
     echo "Usage: $0 [--execution=process|service]"
     echo
+    echo "Description:"
+    echo "  This script restart the validator's components"
+    echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
+    echo "  --recreate    True if you want to recreate the container when starting it, false otherwise."
     echo "  --help        Show this help message"
     exit 0
 }
 
-OPTIONS="e:h"
-LONGOPTIONS="execution:,help:"
+OPTIONS="e:rh"
+LONGOPTIONS="execution:recreate,help"
 
 # Parse the options and their arguments
 params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
@@ -39,6 +43,7 @@ export SUBVORTEX_FLOATTING_FLAG=$(get_tag)
 
 # Set defaults from env (can be overridden by arguments)
 EXECUTION="${SUBVORTEX_EXECUTION_METHOD:-}"
+RECREATE=false
 
 # Parse arguments
 while [ "$#" -gt 0 ]; do
@@ -46,6 +51,10 @@ while [ "$#" -gt 0 ]; do
         -e |--execution)
             EXECUTION="$2"
             shift 2
+        ;;
+        -r|--recreate)
+            RECREATE=true
+            shift
         ;;
         -h | --help)
             show_help
@@ -67,5 +76,11 @@ if [ ! -d "$execution_dir" ]; then
     exit 1
 fi
 
-# Run quick start script
-"$execution_dir/scripts/quick_restart.sh" --execution $EXECUTION
+# Build the command and arguments
+CMD="$execution_dir/scripts/quick_restart.sh --execution $EXECUTION"
+if [[ "$RECREATE" == "true" || "$RECREATE" == "True" ]]; then
+    CMD+=" --recreate"
+fi
+
+# Setup the auto upgrade as container
+eval "$CMD"

@@ -11,6 +11,9 @@ source ./scripts/utils/utils.sh
 show_help() {
     echo "Usage: $0 [--execution=process|service]"
     echo
+    echo "Description:"
+    echo "  This script stop the validator's components"
+    echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
     echo "  --help        Show this help message"
