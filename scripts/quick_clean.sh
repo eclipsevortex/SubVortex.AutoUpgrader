@@ -33,7 +33,7 @@ ROLE="miner"
 REMOVE_LATEST=false
 
 # Parse command-line arguments
-while true; do
+while [ "$#" -ge 1 ]; do
     case "$1" in
         -e|--execution)
             EXECUTION="$2"

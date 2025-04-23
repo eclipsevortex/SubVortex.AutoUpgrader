@@ -27,7 +27,7 @@ LONGOPTIONS="execution:,help:"
 EXECUTION="service"
 
 # Parse command-line arguments
-while true; do
+while [ "$#" -ge 1 ]; do
     case "$1" in
         -e|--execution)
             EXECUTION="$2"
