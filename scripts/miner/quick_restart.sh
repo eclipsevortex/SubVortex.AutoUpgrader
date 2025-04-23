@@ -30,7 +30,6 @@ RECREATE=false
 
 # Parse arguments
 while [ "$#" -ge 1 ]; do
-    echo "ARG $1"
     case "$1" in
         -e |--execution)
             EXECUTION="$2"
@@ -82,4 +81,4 @@ if [[ "$RECREATE" == "true" || "$RECREATE" == "True" ]]; then
 fi
 
 # Setup the auto upgrade as container
-# eval "$CMD"
+eval "$CMD"
