@@ -254,21 +254,16 @@ class ContainerUpgrader(sauubu.BaseUpgrader):
             version=version, source_version=version
         )
 
-    def post_upgrade(self, version: str):
-        # Normalized the version
-        normalized_version = sauv.normalize_version(version=version)
+    def post_upgrade(self, previous_version: str, version: str):
+        if version == sauc.DEFAULT_LAST_RELEASE.get("global"):
+            # Remove the previous version sym link
+            self._remove_symlink()
+        else:
+            # Update the link to the new version
+            self._update_symlink(version=version)
 
-        # Build the path where to find the new version
-        path = f"{sauc.SV_ASSET_DIR}/subvortex-{normalized_version}"
-
-        # Remove the old version
-        if os.path.exists(path):
-            shutil.rmtree(path)
-
-        btul.logging.info(
-            f"🧹 Previous version {version} removed",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
+        # Remove the previous version
+        self._remove_version(version=previous_version)
 
     def copy_env_file(self, component_name: str, component_path: str):
         # Build the source
