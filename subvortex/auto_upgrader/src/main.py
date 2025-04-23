@@ -85,7 +85,7 @@ class AutoUpgrader:
 
                 if not self.upgrader.can_upgrade():
                     btul.logging.debug(
-                        f"Can not upgrade yet",
+                        f"Upgrade conditions not yet met.",
                         prefix=sauc.SV_LOGGER_NAME,
                     )
                     
