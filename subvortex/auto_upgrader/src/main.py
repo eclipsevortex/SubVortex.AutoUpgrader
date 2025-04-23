@@ -83,8 +83,11 @@ class AutoUpgrader:
                     prefix=sauc.SV_LOGGER_NAME,
                 )
 
-                # TODO: call a method that return true if you can start the upgrade/downgrade. True if all the version in the tag are built and available especially for docker!
                 if not self.upgrader.can_upgrade():
+                    btul.logging.debug(
+                        f"Can not upgrade yet",
+                        prefix=sauc.SV_LOGGER_NAME,
+                    )
                     continue
 
                 # Check if there is anew release
