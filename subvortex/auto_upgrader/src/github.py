@@ -376,7 +376,11 @@ class Github:
             raise Exception(
                 f"Could not download the assets for the version {latest_version}: {target_path}"
             )
-        
+        btul.logging.debug(
+            f"Version {latest_version} has been downloaded and unzipped",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
         # Build the component directory
         component_directory = f"{target_path}/subvortex/{sauc.SV_EXECUTION_ROLE}"
 
@@ -391,7 +395,6 @@ class Github:
             components.append(service)
 
         return components
-
 
         # # Build the tag version of it
         # tag = f"v{latest_version}"

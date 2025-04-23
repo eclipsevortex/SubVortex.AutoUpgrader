@@ -241,6 +241,11 @@ class AssetUpgrader(sauubu.BaseUpgrader):
             raise Exception(
                 f"Could not download the assets for the version {version}: {reason}"
             )
+        
+        btul.logging.debug(
+            f"Version {version} has been downloaded and unzipped",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
         # Build the list of components
         components = saufs.get_components(path=path, role=sauc.SV_EXECUTION_ROLE)
