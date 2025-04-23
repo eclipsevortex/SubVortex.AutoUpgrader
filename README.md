@@ -40,6 +40,7 @@
   - [Watchtower](#installation-watchtower)
   - [Other](#installation-other)
 - [Troubleshooting](#troubleshooting)
+- [License](#license)
 
 <br />
 <br />
@@ -194,7 +195,7 @@ For each of them, the same structure applies:
 
 # 🔧 Troubleshooting <a id="troubleshooting"></a>
 
-### 🐛 Issue: Auto Upgrader is mixing the versions or can not upgrade
+## 🐛 Issue: Auto Upgrader is mixing the versions or can not upgrade
 
 **Cause:** The work directory may have some existing version causing an issue for the Auto Upgrader  
 **Solution:** Clean the working directory
@@ -215,7 +216,7 @@ Once clean, restart the auto upgrader by running
 
 Use `-h` to see the options
 
-### 🐛 Issue: Environment variable changes aren't applied after upgrade/downgrade in miner container
+## 🐛 Issue: Environment variable changes aren't applied after upgrade/downgrade in miner container
 
 **Cause:** Watchtower does not refresh the var env when upgrading/downgrading
 **Solution:** Force to recreate (not rebuild) the image
@@ -226,7 +227,7 @@ Use `-h` to see the options
 
 The script will restart all the miner's components in a way that environment variable will be reloaded
 
-### 🐛 Issue: Environment variable changes aren't applied after upgrade/downgrade in validator container
+## 🐛 Issue: Environment variable changes aren't applied after upgrade/downgrade in validator container
 
 **Cause:** Watchtower does not refresh the var env when upgrading/downgrading
 **Solution:** Force to recreate (not rebuild) the image
@@ -236,3 +237,55 @@ The script will restart all the miner's components in a way that environment var
 ```
 
 The script will restart all the validator's components in a way that environment variable will be reloaded
+
+## 🐛 Issue: Working directory is not synched and I can not install any new version
+
+**Cause:** This is likely caused by a manual change or a bug that needs fixing.
+**Solution:** Clean your working directory entirely with the following command:
+
+```bash
+./scripts/quick_clean.sh --remove
+```
+
+Then, manually remove any miner and/or validator services based on the execution type you previously selected:
+
+- service
+- process
+- container
+
+To understand how each service is cleaned, set up, started, or stopped, refer to the relevant deployment folder for each neuron:
+
+```bash
+subvortex/
+  └── [miner|validator]/
+        └── [neuron|redis]/
+              └── deployment/
+                    └── [process|service|docker]
+```
+
+📘 You can find more details and actions in the [SubVortex Repo](https://github.com/eclipsevortex/SubVortex.git).
+
+<br />
+
+# 🪪 License
+
+This repository is licensed under the MIT License.
+
+```text
+# The MIT License (MIT)
+# Copyright © 2025 Eclipse Vortex
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+# the Software.
+
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+```
