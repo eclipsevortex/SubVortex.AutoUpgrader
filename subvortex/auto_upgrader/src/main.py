@@ -114,18 +114,18 @@ class AutoUpgrader:
                     is_upgrade=is_upgrade,
                 )
 
+                # Complete the upgrader
+                self.upgrader.post_upgrade(
+                    previous_version=current_version,
+                    version=latest_version,
+                )
+
                 # Mark the upgrade as success
                 success = True
 
                 btul.logging.success(
                     f"✅ Successfully {'upgraded' if is_upgrade else 'downgraded'} {current_version} -> {latest_version}",
                     prefix=sauc.SV_LOGGER_NAME,
-                )
-
-                # Complete the upgrader
-                self.upgrader.post_upgrade(
-                    previous_version=current_version,
-                    version=latest_version,
                 )
 
             except KeyboardInterrupt:
@@ -154,6 +154,12 @@ class AutoUpgrader:
                         current_version=latest_version,
                         latest_version=current_version,
                         is_upgrade=not is_upgrade,
+                    )
+
+                    # Complete the upgrader
+                    self.upgrader.post_upgrade(
+                        previous_version=latest_version,
+                        version=current_version,
                     )
 
                     btul.logging.success(
