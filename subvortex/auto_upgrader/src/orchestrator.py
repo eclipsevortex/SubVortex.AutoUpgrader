@@ -143,7 +143,7 @@ class Orchestrator:
             self._finalize_versions,
         )
 
-        btul.logging.success("Plan executed succesfully", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.success(f"{action} {self.current_version} -> {self.latest_version} completed succesfully", prefix=sauc.SV_LOGGER_NAME)
 
         return True
 
