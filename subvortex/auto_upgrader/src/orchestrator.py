@@ -556,8 +556,14 @@ class Orchestrator:
         noramlized_version = sauv.normalize_version(version=service.version)
 
         # Build the setup script path
+        method = (
+            "docker"
+            if sauc.SV_EXECUTION_METHOD == "container"
+            else sauc.SV_EXECUTION_METHOD
+        )
+        _, name = service.id.split("-")
         setup_script = os.path.join(
-            f"{sauc.SV_ASSET_DIR}/subvortex-{noramlized_version}/subvortex/{'/'.join(service.id.split('-'))}",
+            f"{sauc.SV_ASSET_DIR}/subvortex-{noramlized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}/deployment/{method}/{name}_{method}_{action}.sh",
             service.teardown_command if rollback else service.setup_command,
         )
 
