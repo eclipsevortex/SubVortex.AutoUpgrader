@@ -62,14 +62,15 @@ class Orchestrator:
         )
 
         if self.current_version == self.latest_version:
-            btul.logging.warning(
-                "No new release available. All services are up-to-date.",
+            btul.logging.debug(
+                "🟢 No new release available. All services are up-to-date.",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return True
 
         # Set the action
         action = "upgrade" if self.current_version < self.latest_version else "downgrade"
+        emoji = "⬆️" if self.current_version < self.latest_version else "⬇️"
 
         # Load the services of the latest version
         self._step(
@@ -144,7 +145,7 @@ class Orchestrator:
         )
 
         btul.logging.success(
-            f"{action} {self.current_version} -> {self.latest_version} completed succesfully".capitalize(),
+            f"{emoji} {action} {self.current_version} -> {self.latest_version} completed succesfully".capitalize(),
             prefix=sauc.SV_LOGGER_NAME,
         )
 
