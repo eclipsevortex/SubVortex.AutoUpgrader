@@ -41,16 +41,16 @@ class Service:
     @staticmethod
     def create(metadata: dict):
         return Service(
-            id=metadata["id"],
-            name=metadata["name"],
-            version=metadata["version"],
+            id=metadata.get("id"),
+            name=metadata.get("name"),
+            version=metadata.get("version"),
             execution=metadata.get("execution") or sauc.SV_EXECUTION_METHOD,
-            migration=metadata["migration"],
-            setup_command=metadata["setup_command"],
-            start_command=metadata["start_command"],
-            stop_command=metadata["stop_command"],
-            teardown_command=metadata["teardown_command"],
-            depends_on=metadata["depends_on"],
+            migration=metadata.get("migration"),
+            setup_command=metadata.get("setup_command"),
+            start_command=metadata.get("start_command"),
+            stop_command=metadata.get("setup_command"),
+            teardown_command=metadata.get("teardown_command"),
+            depends_on=metadata.get("depends_on"),
         )
 
     def switch_to_version(self, version: str):
