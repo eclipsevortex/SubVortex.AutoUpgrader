@@ -66,7 +66,7 @@ done
 
 # 🧠 Function: Setup for process mode
 setup_process() {
-    echo "⚙️  Setting up for 'process' mode..."
+    echo "⚙️  Upgrading for 'process' mode..."
 
     # Upgrade the auto upgrader as process
     ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_upgrade.sh --tag "$TAG" --branch "$BRANCH"
@@ -77,7 +77,7 @@ setup_process() {
 
 # 🐳 Function: Setup for container mode
 setup_container() {
-    echo "🐳 Setting up for 'container' mode..."
+    echo "🐳 Upgrading for 'container' mode..."
     
     # Start the auto upgrader as service
     ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_upgrade.sh --tag "$TAG" --branch "$BRANCH"
@@ -88,7 +88,7 @@ setup_container() {
 
 # 🧩 Function: Setup for service mode
 setup_service() {
-    echo "🧩 Setting up for 'service' mode..."
+    echo "🧩 Upgrading for 'service' mode..."
     
     # Start the auto upgrader as service
     ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_upgrade.sh --tag "$TAG" --branch "$BRANCH"
