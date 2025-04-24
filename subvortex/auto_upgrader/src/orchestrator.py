@@ -145,6 +145,8 @@ class Orchestrator:
 
         btul.logging.success("Plan executed succesfully", prefix=sauc.SV_LOGGER_NAME)
 
+        return True
+
     def run_rollback_plan(self):
         for desc, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(f"Rolling back: {desc}", prefix=sauc.SV_LOGGER_NAME)
