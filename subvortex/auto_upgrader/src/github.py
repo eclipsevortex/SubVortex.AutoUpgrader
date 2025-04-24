@@ -144,7 +144,7 @@ class Github:
             raise FileNotFoundError(f"Archive not found: {archive_path}")
 
         # Ensure the directory exists
-        os.makedirs(sauc.SV_WORKING_DIRECTORY, exist_ok=True)
+        os.makedirs(sauc.SV_ASSET_DIR, exist_ok=True)
 
         # Extract archive
         with tarfile.open(archive_path, "r:gz") as tar:
@@ -163,13 +163,13 @@ class Github:
             top_level_dir = sorted(top_level_dirs)[0]
 
             # Build the target directory
-            target_dir = os.path.join(sauc.SV_WORKING_DIRECTORY, top_level_dir)
+            target_dir = os.path.join(sauc.SV_ASSET_DIR, top_level_dir)
 
             # If target directory exists, remove it to allow clean overwrite
             if os.path.exists(target_dir):
                 return target_dir
 
             # Extract archive
-            tar.extractall(path=sauc.SV_WORKING_DIRECTORY)
+            tar.extractall(path=sauc.SV_ASSET_DIR)
 
         return target_dir
