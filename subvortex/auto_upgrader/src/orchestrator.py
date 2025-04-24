@@ -608,7 +608,7 @@ class Orchestrator:
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return
-        
+
         # Add the flag as env var to be consumed by the script
         env = os.environ.copy()
         env["SUBVORTEX_FLOATTING_FLAG"] = self._get_tag()
@@ -621,7 +621,7 @@ class Orchestrator:
         try:
             subprocess.run(
                 ["bash", script],
-                env=os.environ.copy(),
+                env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
