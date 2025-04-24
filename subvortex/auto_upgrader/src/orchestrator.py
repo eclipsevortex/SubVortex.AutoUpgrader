@@ -318,7 +318,7 @@ class Orchestrator:
     def _can_rollout_service(self, service: saus.Service):
         if service.execution != "container":
             return True
-        
+
         # Chekc if the container is created
         result = os.system(
             f"docker ps --format '{{{{.Names}}}}' | grep -q '{service.name}'"
@@ -574,9 +574,12 @@ class Orchestrator:
             raise RuntimeError(f"{action}.sh failed for {service}")
 
     def _pull_assets(self, version: str):
+        # Get the denormalized version
+        denormalized_version = sauv.denormalize_version(version=version)
+
         # Download and unzip the latest version
         self.github.download_and_unzip_assets(
-            version=version,
+            version=denormalized_version,
             role=sauc.SV_EXECUTION_ROLE,
         )
 

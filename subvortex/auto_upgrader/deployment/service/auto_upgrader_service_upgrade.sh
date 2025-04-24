@@ -125,16 +125,6 @@ fi
 
 # Check if the service is active
 if systemctl list-units --type=service --all | grep -q "$SERVICE_NAME"; then
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
-        echo "$SERVICE_NAME is active"
-    else
-        echo "$SERVICE_NAME is inactive"
-    fi
-else
-    echo "$SERVICE_NAME is not installed"
-fi
-
-if systemctl list-units --type=service --all | grep -q "$SERVICE_NAME"; then
   if systemctl is-active --quiet "$SERVICE_NAME"; then
     echo "🔄 Restarting $SERVICE_NAME..."
     sudo systemctl restart "$SERVICE_NAME"
