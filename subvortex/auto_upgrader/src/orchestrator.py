@@ -237,7 +237,7 @@ class Orchestrator:
 
     def _copy_env_variables(self):
         # Build the env directory
-        env_dir = path.join(here, "../../environment")
+        env_dir = path.join(here, "../environment")
 
         # Get all the env files
         env_files = [
@@ -250,12 +250,16 @@ class Orchestrator:
         for env_file in env_files:
             # Get the name of the service
             name = env_file.split(".")[-1]
+            role = env_file.split(".")[-2]
+
+            if role != sauc.SV_EXECUTION_ROLE:
+                continue
 
             # Build the target env file
             target = f"{sauc.SV_ASSET_DIR}/subvortex-{normalized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{name}/.env"
 
             # Copy the env file to the service directory
-            shutil.copy2(env_file, target)
+            shutil.copy2(f"{env_dir}/{env_file}", target)
 
     def _rollback_pull_latest_version(self):
         # Remove the latest version
@@ -604,6 +608,10 @@ class Orchestrator:
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return
+        
+        # Add the flag as env var to be consumed by the script
+        env = os.environ.copy()
+        env["SUBVORTEX_FLOATTING_FLAG"] = self._get_tag()
 
         btul.logging.info(
             f"⚙️ Running {action} for {service.name} (version: {service.version})",
@@ -656,3 +664,12 @@ class Orchestrator:
 
         # For now all the execution will be same and come from the auto upgrader env var `SUBVORTEX_EXECUTION_METHOD`
         return executions[0] if len(executions) > 0 else "service"
+
+    def _get_tag(self):
+        if "alpha" == sauc.SV_PRERELEASE_TYPE:
+            return "dev"
+
+        if "rc" == sauc.SV_PRERELEASE_TYPE:
+            return "stable"
+
+        return "latest"
