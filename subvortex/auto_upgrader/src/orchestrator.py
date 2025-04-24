@@ -186,9 +186,10 @@ class Orchestrator:
 
     def _get_current_version(self):
         # Get the latest version
-        self.current_version = (
-            sauv.get_local_version() or sauc.DEFAULT_LAST_RELEASE["global"]
-        )
+        version = sauv.get_local_version() or sauc.DEFAULT_LAST_RELEASE["global"]
+
+        # Set the current version in a denormlized wayt
+        self.current_version = sauv.denormalize_version(version)
 
         btul.logging.debug(
             f"Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
@@ -196,7 +197,10 @@ class Orchestrator:
 
     def _get_latest_version(self):
         # Get the latest version
-        self.latest_version = self.github.get_latest_version()
+        version = self.github.get_latest_version()
+
+        # Set the current version in a denormlized wayt
+        self.latest_version = sauv.denormalize_version(version)
 
         btul.logging.debug(
             f"Latest version: {self.latest_version}", prefix=sauc.SV_LOGGER_NAME
@@ -576,12 +580,9 @@ class Orchestrator:
             raise RuntimeError(f"{action}.sh failed for {service}")
 
     def _pull_assets(self, version: str):
-        # Get the denormalized version
-        denormalized_version = sauv.denormalize_version(version=version)
-
         # Download and unzip the latest version
         self.github.download_and_unzip_assets(
-            version=denormalized_version,
+            version=version,
             role=sauc.SV_EXECUTION_ROLE,
         )
 
