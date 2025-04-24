@@ -567,13 +567,13 @@ class Orchestrator:
         # Check if the script exist
         if not os.path.exists(setup_script):
             btul.logging.warning(
-                f"⚠️ No {action}.sh found for {service}. Skipping.",
+                f"⚠️ No {action}.sh found for {service.name}. Skipping.",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return
 
         btul.logging.info(
-            f"⚙️ Running {action} for {service} (version: {service.version})",
+            f"⚙️ Running {action} for {service.name} (version: {service.version})",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
