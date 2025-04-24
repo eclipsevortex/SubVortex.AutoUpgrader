@@ -74,4 +74,4 @@ class Worker:
 
 
 if __name__ == "__main__":
-    asyncio.run(Worker.run())
+    asyncio.run(Worker().run())
