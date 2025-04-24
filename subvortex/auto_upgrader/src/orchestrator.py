@@ -604,4 +604,4 @@ class Orchestrator:
         executions = [x.execution for x in self.latest_services]
 
         # For now all the execution will be same and come from the auto upgrader env var `SUBVORTEX_EXECUTION_METHOD`
-        return executions[0]
+        return executions[0] if len(executions) > 0 else "service"
