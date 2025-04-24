@@ -267,7 +267,7 @@ class Orchestrator:
                 current.needs_update = False
                 current.upgrade_type = None
                 btul.logging.info(
-                    f"{current} no longer exists in latest release. Marked for removal.",
+                    f"{current.name} no longer exists in latest release. Marked for removal.",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
                 self.services.append(current)
@@ -278,7 +278,7 @@ class Orchestrator:
                 latest.needs_update = True
                 latest.upgrade_type = "install"
                 btul.logging.info(
-                    f"{latest} is a new service in latest version. Marked for installation.",
+                    f"{latest.name} is a new service in latest version. Marked for installation.",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
                 self.services.append(latest)
@@ -294,19 +294,16 @@ class Orchestrator:
                     "upgrade" if latest_version > current_version else "downgrade"
                 )
                 btul.logging.info(
-                    f"{latest} version change detected: {current.version} -> {latest.version} ({latest.upgrade_type})",
+                    f"{latest.name} version change detected: {current.version} -> {latest.version} ({latest.upgrade_type})",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
             else:
                 latest.needs_update = False
                 latest.upgrade_type = None
                 btul.logging.info(
-                    f"{latest} is already up-to-date at version {latest.version}.",
+                    f"{latest.name} is already up-to-date at version {latest.version}.",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
-
-            # Set the previous version for the latest service
-            # latest.previous_version = current.version
 
             self.services.append(latest)
 
@@ -563,7 +560,7 @@ class Orchestrator:
     def _run(self, action: str, service: saus.Service, rollback: bool = False):
         # Build the setup script path
         setup_script = os.path.join(
-            sauc.SV_WORKING_DIRECTORY,
+            f"{sauc.SV_ASSET_DIR}/subvortex-{service.version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{'/'.join(service.id)}",
             service.teardown_command if rollback else service.setup_command,
         )
 
