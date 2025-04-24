@@ -20,6 +20,19 @@ def normalize_version(version: str) -> str:
         version,
     )
 
+def denormalize_version(version: str) -> str:
+    # Revert pre-release suffixes
+    version = re.sub(
+        r"(a|b|rc)(\d+)",
+        lambda m: {
+            "a": "-alpha.",
+            "b": "-beta.",
+            "rc": "-rc."
+        }[m.group(1)] + m.group(2),
+        version,
+    )
+
+    return version
 
 def get_local_version() -> str:
     """
