@@ -65,14 +65,6 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     STASHED=1
 fi
 
-# Check if branch is tracking a remote
-UPSTREAM=$(git rev-parse --abbrev-ref "$BRANCH@{upstream}" 2>/dev/null || true)
-
-if [[ -z "$UPSTREAM" ]]; then
-    echo "❌ Branch '$BRANCH' is not tracking any remote branch. Cannot pull safely."
-    exit 1
-fi
-
 # Pull latest changes from upstream
 echo "🔄 Pulling latest changes from $UPSTREAM..."
 if ! git pull --ff-only; then
@@ -89,26 +81,40 @@ if [[ "$STASHED" -eq 1 ]]; then
     }
 fi
 
+# Install python if not already done
+if ! command -v python3 &> /dev/null; then
+    echo "Python3 not found. Installing..."
+    bash "../../python/python_setup.sh"
+fi
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+if [[ -f "requirements.txt" ]]; then
+    pip install -r requirements.txt
+else
+    echo "⚠️ requirements.txt not found. Skipping dependency installation."
+fi
+
 # Load environment variables
 export $(grep -v '^#' .env | xargs)
 
-# Check which command is available
-if command -v docker &> /dev/null && docker compose version &> /dev/null; then
-    DOCKER_CMD="docker compose"
-    elif command -v docker-compose &> /dev/null; then
-    DOCKER_CMD="docker-compose"
+# Install dependencies specific to the observer
+pip install ".[$SUBVORTEX_EXECUTION_ROLE]"
+
+# Install SubVortex in Editable Mode
+pip install -e ../../
+
+# Start or restart the process
+if pm2 list | grep -qw "$SERVICE_NAME"; then
+    echo "🔄 Restarting PM2 service: $SERVICE_NAME"
+    pm2 restart "$SERVICE_NAME"
 else
-    echo "❌ Neither 'docker compose' nor 'docker-compose' is installed. Please install Docker Compose."
-    exit 1
+    ./deployment/process/auto_upgrader_process_start.sh
 fi
-
-# Install watchtower
-# ./../../scripts/watchtower/watchtower_start.sh
-
-echo "📥 Pulling latest image for $SERVICE_NAME..."
-docker compose pull "$SERVICE_NAME"
-
-echo "🔄 Recreating container with updated image..."
-$DOCKER_CMD -f ../../docker-compose.yml up auto_upgrader -d --no-deps --force-recreate
 
 echo "✅ Auto Upgrader upgraded successfully"

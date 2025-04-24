@@ -20,7 +20,7 @@ else
 fi
 
 # Install watchtower
-# ./../../scripts/watchtower/watchtower_start.sh
+./../../scripts/watchtower/watchtower_start.sh
 
 # Choose appropriate compose file
 if [ -n "$SUBVORTEX_LOCAL" ]; then

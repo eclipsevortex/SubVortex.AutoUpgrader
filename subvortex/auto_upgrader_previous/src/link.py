@@ -14,13 +14,36 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-from subvortex.auto_upgrader.tests.unit_tests.mock.github import mocked_github
+import shutil
+from pathlib import Path
 
 
-def make_async(method):
-    """Wraps a mock's return value in an async function."""
+def update_symlink(deploy_source: str, deploy_link: str):  # , temp_link: str):
+    deploy_source: Path = Path(deploy_source).resolve()
+    deploy_link: Path = Path(deploy_link)
+    temp_link: Path = Path(f"{deploy_source}.tmp")
 
-    async def async_wrapper(*args, **kwargs):
-        return method(*args, **kwargs)
+    # Create or update the temporary symlink
+    if temp_link.exists() or temp_link.is_symlink():
+        temp_link.unlink()
+    temp_link.symlink_to(deploy_source)
 
-    return async_wrapper
+    # Remove the old link or directory if it exists
+    if deploy_link.exists() or deploy_link.is_symlink():
+        if deploy_link.is_symlink() or deploy_link.is_file():
+            deploy_link.unlink()
+        else:
+            shutil.rmtree(deploy_link)
+
+    # Move temp symlink to final location
+    temp_link.rename(deploy_link)
+
+
+def remove_symlink(link: str):
+    link: Path = Path(link)
+
+    if not link.exists() and not link.is_symlink():
+        return
+
+    # Remove the link
+    link.unlink()

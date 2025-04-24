@@ -14,36 +14,46 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import shutil
+import re
 from pathlib import Path
+from os import path
+
+here = path.abspath(path.dirname(__file__))
 
 
-def update_symlink(source: str, target: str):  # , temp_link: str):
-    source: Path = Path(source).resolve()
-    target: Path = Path(target)
-    temp_link: Path = Path(f"{source}.tmp")
+def to_detailed_version(version_str):
+    parts = version_str.split(".")
+    if len(parts) != 3:
+        raise ValueError("Invalid version string format")
 
-    # Create or update the temporary symlink
-    if temp_link.exists() or temp_link.is_symlink():
-        temp_link.unlink()
-    temp_link.symlink_to(source)
-
-    # Remove the old link or directory if it exists
-    if target.exists() or target.is_symlink():
-        if target.is_symlink() or target.is_file():
-            target.unlink()
-        else:
-            shutil.rmtree(target)
-
-    # Move temp symlink to final location
-    temp_link.rename(target)
+    return (int(parts[0]), int(parts[1]), int(parts[2]))
 
 
-def remove_symlink(link: str):
-    link: Path = Path(link)
+def to_spec_version(version: str):
+    details = (version.split("-")[0]).split(".")
+    return (100 * int(details[0])) + (10 * int(details[1])) + (1 * int(details[2]))
 
-    if not link.exists() and not link.is_symlink():
-        return
 
-    # Remove the link
-    link.unlink()
+def normalize_version(version: str) -> str:
+    # Remove leading "v" if present
+    tag = version[1:] if version.startswith("v") else version
+
+    # Replace pre-release suffix
+    return re.sub(
+        r"-(alpha|beta|rc)\.(\d+)",
+        lambda m: {"alpha": "a", "beta": "b", "rc": "rc"}[m.group(1)] + m.group(2),
+        tag,
+    )
+
+
+def _get_version():
+    pyproject = Path(path.join(here, "../pyproject.toml"))
+    if not pyproject.exists():
+        return "0.0.0"
+    
+    content = pyproject.read_text()
+    match = re.search(r'version\s*=\s*"([^"]+)"', content)
+    return match.group(1) if match else None
+
+
+__VERSION__ = _get_version()

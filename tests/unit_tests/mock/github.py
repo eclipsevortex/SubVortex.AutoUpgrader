@@ -14,36 +14,12 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import shutil
-from pathlib import Path
+import pytest 
+from unittest.mock import MagicMock, patch
 
-
-def update_symlink(source: str, target: str):  # , temp_link: str):
-    source: Path = Path(source).resolve()
-    target: Path = Path(target)
-    temp_link: Path = Path(f"{source}.tmp")
-
-    # Create or update the temporary symlink
-    if temp_link.exists() or temp_link.is_symlink():
-        temp_link.unlink()
-    temp_link.symlink_to(source)
-
-    # Remove the old link or directory if it exists
-    if target.exists() or target.is_symlink():
-        if target.is_symlink() or target.is_file():
-            target.unlink()
-        else:
-            shutil.rmtree(target)
-
-    # Move temp symlink to final location
-    temp_link.rename(target)
-
-
-def remove_symlink(link: str):
-    link: Path = Path(link)
-
-    if not link.exists() and not link.is_symlink():
-        return
-
-    # Remove the link
-    link.unlink()
+@pytest.fixture
+def mock_github():
+    with patch("subvortex.auto_upgrader.src.orchestrator.saug.Github") as MockGithub:
+        mock_instance = MagicMock()
+        MockGithub.return_value = mock_instance
+        yield mock_instance

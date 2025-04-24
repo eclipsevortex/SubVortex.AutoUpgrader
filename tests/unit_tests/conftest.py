@@ -14,36 +14,13 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import shutil
-from pathlib import Path
+from tests.unit_tests.mock.github import mock_github
 
 
-def update_symlink(source: str, target: str):  # , temp_link: str):
-    source: Path = Path(source).resolve()
-    target: Path = Path(target)
-    temp_link: Path = Path(f"{source}.tmp")
+def make_async(method):
+    """Wraps a mock's return value in an async function."""
 
-    # Create or update the temporary symlink
-    if temp_link.exists() or temp_link.is_symlink():
-        temp_link.unlink()
-    temp_link.symlink_to(source)
+    async def async_wrapper(*args, **kwargs):
+        return method(*args, **kwargs)
 
-    # Remove the old link or directory if it exists
-    if target.exists() or target.is_symlink():
-        if target.is_symlink() or target.is_file():
-            target.unlink()
-        else:
-            shutil.rmtree(target)
-
-    # Move temp symlink to final location
-    temp_link.rename(target)
-
-
-def remove_symlink(link: str):
-    link: Path = Path(link)
-
-    if not link.exists() and not link.is_symlink():
-        return
-
-    # Remove the link
-    link.unlink()
+    return async_wrapper

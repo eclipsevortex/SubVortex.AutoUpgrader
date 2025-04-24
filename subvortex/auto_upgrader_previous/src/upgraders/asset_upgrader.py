@@ -239,7 +239,7 @@ class AssetUpgrader(sauubu.BaseUpgrader):
             return components
 
         # Download assets
-        path, reason = self.github.download_and_unzip(version=version)
+        path, reason = self.github.download_and_unzip_assets(version=version)
         if not path:
             raise Exception(
                 f"Could not download the assets for the version {version}: {reason}"

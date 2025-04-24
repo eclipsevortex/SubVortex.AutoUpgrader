@@ -89,26 +89,47 @@ if [[ "$STASHED" -eq 1 ]]; then
     }
 fi
 
+# Install python if not already done
+if ! command -v python3 &> /dev/null; then
+    echo "Python3 not found. Installing..."
+    bash "../../python/python_setup.sh"
+fi
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+if [[ -f "requirements.txt" ]]; then
+    pip install -r requirements.txt
+else
+    echo "⚠️ requirements.txt not found. Skipping dependency installation."
+fi
+
 # Load environment variables
 export $(grep -v '^#' .env | xargs)
 
-# Check which command is available
-if command -v docker &> /dev/null && docker compose version &> /dev/null; then
-    DOCKER_CMD="docker compose"
-    elif command -v docker-compose &> /dev/null; then
-    DOCKER_CMD="docker-compose"
-else
-    echo "❌ Neither 'docker compose' nor 'docker-compose' is installed. Please install Docker Compose."
-    exit 1
+# Install dependencies specific to the observer
+pip install ".[$SUBVORTEX_EXECUTION_ROLE]"
+
+# Install SubVortex in Editable Mode
+pip install -e ../../
+
+# Check if the service exists
+if ! systemctl list-units --type=service --all | grep -qw "$SERVICE_NAME"; then
+  echo "❌ Service $SERVICE_NAME not found."
+  exit 1
 fi
 
-# Install watchtower
-# ./../../scripts/watchtower/watchtower_start.sh
+# Check if the service is active
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+  echo "🔄 Restarting $SERVICE_NAME..."
+  sudo systemctl restart "$SERVICE_NAME"
+else
+  echo "🚀 Starting $SERVICE_NAME..."
+  sudo systemctl start "$SERVICE_NAME"
+fi
 
-echo "📥 Pulling latest image for $SERVICE_NAME..."
-docker compose pull "$SERVICE_NAME"
-
-echo "🔄 Recreating container with updated image..."
-$DOCKER_CMD -f ../../docker-compose.yml up auto_upgrader -d --no-deps --force-recreate
-
-echo "✅ Auto Upgrader upgraded successfully"
+echo "✅ Auto Upgrader setup successfully"

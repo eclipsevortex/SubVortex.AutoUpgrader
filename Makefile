@@ -266,6 +266,12 @@ unrelease: unrelease-auto_upgrader
 unprerelease: unprerelease-auto_upgrader
 
 
+# ========
+# 🧪 Tests
+# ========
+test:
+	@PYTHONPATH=. venv/bin/pytest --ignore=subvortex $(ARGS)
+
 # =====================
 # Add the last target
 # =====================

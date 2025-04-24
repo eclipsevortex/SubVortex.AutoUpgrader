@@ -103,7 +103,7 @@ else
 fi
 
 # Install watchtower
-# ./../../scripts/watchtower/watchtower_start.sh
+./../../scripts/watchtower/watchtower_start.sh
 
 echo "📥 Pulling latest image for $SERVICE_NAME..."
 docker compose pull "$SERVICE_NAME"

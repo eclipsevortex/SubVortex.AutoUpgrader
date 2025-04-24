@@ -20,7 +20,7 @@ else
 fi
 
 # Stop watchtower
-# ./../../scripts/watchtower/watchtower_stop.sh
+./../../scripts/watchtower/watchtower_stop.sh
 
 # Stop Auto Upgarder
 $DOCKER_CMD -f ../../docker-compose.yml stop auto_upgrader
