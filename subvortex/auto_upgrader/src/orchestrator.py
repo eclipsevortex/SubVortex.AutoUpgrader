@@ -69,7 +69,9 @@ class Orchestrator:
             return True
 
         # Set the action
-        action = "upgrade" if self.current_version < self.latest_version else "downgrade"
+        action = (
+            "upgrade" if self.current_version < self.latest_version else "downgrade"
+        )
         emoji = "⬆️" if self.current_version < self.latest_version else "⬇️"
 
         # Load the services of the latest version

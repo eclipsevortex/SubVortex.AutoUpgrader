@@ -128,7 +128,7 @@ class Github:
         response = requests.get(url, stream=True)
         if response.status_code == 404:
             return None
-        
+
         response.raise_for_status()
 
         # Save the archive on disk
@@ -136,6 +136,18 @@ class Github:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
+
+        if os.path.exists(target_path):
+            btul.logging.warning(
+                f"Asset paths {target_path} does not exist even if the unzip phase did not throw any exception",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return None
+
+        btul.logging.debug(
+            f"Archive {archive_name} downloaded into {target_path}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
         return target_path
 
@@ -171,5 +183,10 @@ class Github:
 
             # Extract archive
             tar.extractall(path=sauc.SV_ASSET_DIR)
+
+        btul.logging.debug(
+            f"Archive {archive_path} unzipped into {target_dir}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
         return target_dir
