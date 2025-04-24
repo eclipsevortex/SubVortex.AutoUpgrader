@@ -189,4 +189,7 @@ class Github:
             prefix=sauc.SV_LOGGER_NAME,
         )
 
+        if not os.path.exists(target_dir):
+            raise RuntimeError(f"Expected directory {target_dir} does not exist after extraction.")
+
         return target_dir
