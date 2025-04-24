@@ -124,12 +124,26 @@ if ! systemctl list-units --type=service --all | grep -qw "$SERVICE_NAME"; then
 fi
 
 # Check if the service is active
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-  echo "🔄 Restarting $SERVICE_NAME..."
-  sudo systemctl restart "$SERVICE_NAME"
+if systemctl list-units --type=service --all | grep -q "$SERVICE_NAME"; then
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
+        echo "$SERVICE_NAME is active"
+    else
+        echo "$SERVICE_NAME is inactive"
+    fi
 else
-  echo "🚀 Starting $SERVICE_NAME..."
-  sudo systemctl start "$SERVICE_NAME"
+    echo "$SERVICE_NAME is not installed"
+fi
+
+if systemctl list-units --type=service --all | grep -q "$SERVICE_NAME"; then
+  if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "🔄 Restarting $SERVICE_NAME..."
+    sudo systemctl restart "$SERVICE_NAME"
+  else
+    echo "🚀 Starting $SERVICE_NAME..."
+    sudo systemctl start "$SERVICE_NAME"
+  fi
+else
+  echo "⚠️  Service $SERVICE_NAME is not installed or not recognized by systemd."
 fi
 
 echo "✅ Auto Upgrader setup successfully"
