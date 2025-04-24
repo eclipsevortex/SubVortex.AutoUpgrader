@@ -108,7 +108,7 @@ class Github:
 
     def _download_assets(self, version: str, role: str):
         # Ensure the working directory exists
-        os.makedirs(sauc.SV_WORKING_DIRECTORY, exist_ok=True)
+        os.makedirs(sauc.SV_ASSET_DIR, exist_ok=True)
 
         # Normalized the version
         normalized_version = sauv.normalize_version(version)
@@ -117,7 +117,7 @@ class Github:
         archive_name = f"subvortex_{role}-{normalized_version}.tar.gz"
 
         # Build the target path
-        target_path = os.path.join(sauc.SV_WORKING_DIRECTORY, archive_name)
+        target_path = os.path.join(sauc.SV_ASSET_DIR, archive_name)
         if os.path.exists(target_path):
             # The asset has lready been downloaded
             return target_path
