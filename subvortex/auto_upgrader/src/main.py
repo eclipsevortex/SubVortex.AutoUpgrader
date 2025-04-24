@@ -7,6 +7,7 @@ import bittensor.utils.btlogging as btul
 
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.orchestrator as sauo
+import subvortex.auto_upgrader.src.version as sauv
 
 
 class Worker:
@@ -26,7 +27,11 @@ class Worker:
         self.finished = asyncio.Event()
 
     async def run(self):
-        # TODO: Display the version
+        # Display the version
+        btul.logging.info(
+            f"version: {sauv.__VERSION__}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
         first_run = True
         while not self.should_exit.is_set():
