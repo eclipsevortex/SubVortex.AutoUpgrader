@@ -53,7 +53,7 @@ def get_local_version() -> str:
                 continue  # skip malformed versions
 
     if not candidates:
-        raise RuntimeError("No valid local subvortex versions found.")
+        return None
 
     # Sort and return the highest version
     latest_version_dir = sorted(candidates, key=lambda x: x[0], reverse=True)[0][0]

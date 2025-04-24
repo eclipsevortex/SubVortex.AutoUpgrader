@@ -31,6 +31,8 @@ class Orchestrator:
         self.metadata_resolver = saumr.MetadataResolver()
 
     def run_plan(self):
+        btul.logging.info("Runing the plan...", prefix=sauc.SV_LOGGER_NAME)
+
         # Get the current version
         self._step(
             "Get current version",
@@ -59,9 +61,6 @@ class Orchestrator:
             self._pull_latest_version,
         )
 
-        print(f"Current version: {self.current_version}")
-        print(f"Latest version: {self.latest_version}")
-
         if self.current_version == self.latest_version:
             btul.logging.info(
                 "No new release available. All services are up-to-date.",
@@ -89,7 +88,6 @@ class Orchestrator:
         self._step("Check versions", self._rollback_nop, self._check_versions)
 
         # Upgrade the services that have changed
-
         self._step(
             f"{action} services".capitalize(),
             self._rollback_services_changes,
@@ -145,6 +143,8 @@ class Orchestrator:
             self._finalize_versions,
         )
 
+        btul.logging.success("Plan executed succesfully", prefix=sauc.SV_LOGGER_NAME)
+
     def run_rollback_plan(self):
         for desc, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(f"Rolling back: {desc}", prefix=sauc.SV_LOGGER_NAME)
@@ -165,15 +165,13 @@ class Orchestrator:
         condition: Callable[[], bool] = None,
     ):
         if condition and not condition():
-            print(f"⏩ Skipping: {description} (condition not met)")
-            btul.logging.info(
+            btul.logging.debug(
                 f"⏩ Skipping: {description} (condition not met)",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return
 
-        print(f"▶️ Starting: {description}")
-        btul.logging.info(f"▶️ Starting: {description}", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.debug(f"▶️ Starting: {description}", prefix=sauc.SV_LOGGER_NAME)
         self.rollback_steps.append((description, rollback_func))
 
         if service_filter:
@@ -186,7 +184,7 @@ class Orchestrator:
 
     def _get_current_version(self):
         # Get the latest version
-        self.current_version = sauv.get_local_version()
+        self.current_version = sauv.get_local_version() or sauc.DEFAULT_LAST_RELEASE["global"]
 
         btul.logging.debug(
             f"Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
@@ -462,8 +460,6 @@ class Orchestrator:
         for service in sorted_services:
             if not service.must_remove:
                 continue
-
-            print(service)
 
             # Execute the setup
             self._execute_teardown(service=service)

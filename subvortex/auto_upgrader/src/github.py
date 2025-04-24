@@ -3,6 +3,8 @@ import tarfile
 import requests
 from packaging.version import Version, InvalidVersion
 
+import bittensor.utils.btlogging as btul
+
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.version as sauv
 
@@ -22,7 +24,9 @@ class Github:
         # Download the version
         archive_path = self._download_assets(role=role, version=version)
         if not archive_path:
-            # TODO: raise exception
+            btul.logging.warning(
+                f"No assets available for version {version}", prefix=sauc.SV_LOGGER_NAME
+            )
             return None
 
         # Unzip the version
