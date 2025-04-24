@@ -409,12 +409,6 @@ class Orchestrator:
         sorted_services = dependency_resolver.resolve_order()
 
         for service in sorted_services:
-            current_service = next(
-                (x for x in self.current_services if x.id == service.id), None
-            )
-            if not current_service:
-                continue
-
             # Switch to new version
             service.switch_to_version(version=service.version)
 
