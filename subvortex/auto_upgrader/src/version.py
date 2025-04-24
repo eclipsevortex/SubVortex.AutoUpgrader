@@ -42,6 +42,9 @@ def get_local_version() -> str:
     version_pattern = re.compile(r"subvortex-(\d+\.\d+\.\d+(?:[a-z]+\d+)?)")
     candidates = []
 
+    if not os.path.exists(sauc.SV_WORKING_DIRECTORY):
+        return None
+
     for entry in os.listdir(sauc.SV_WORKING_DIRECTORY):
         match = version_pattern.match(entry)
         if match:
