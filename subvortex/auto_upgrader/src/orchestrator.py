@@ -552,9 +552,12 @@ class Orchestrator:
         self._run(action=action, service=service, rollback=rollback)
 
     def _run(self, action: str, service: saus.Service, rollback: bool = False):
+        # Normalized version
+        noramlized_version = sauv.normalize_version(version=service.version)
+
         # Build the setup script path
         setup_script = os.path.join(
-            f"{sauc.SV_ASSET_DIR}/subvortex-{service.version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{'/'.join(service.id.split('-'))}",
+            f"{sauc.SV_ASSET_DIR}/subvortex-{noramlized_version}/subvortex/{'/'.join(service.id.split('-'))}",
             service.teardown_command if rollback else service.setup_command,
         )
 
