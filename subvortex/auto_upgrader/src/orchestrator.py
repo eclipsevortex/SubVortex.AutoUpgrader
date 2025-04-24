@@ -554,7 +554,7 @@ class Orchestrator:
     def _run(self, action: str, service: saus.Service, rollback: bool = False):
         # Build the setup script path
         setup_script = os.path.join(
-            f"{sauc.SV_ASSET_DIR}/subvortex-{service.version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{'/'.join(service.id)}",
+            f"{sauc.SV_ASSET_DIR}/subvortex-{service.version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{'/'.join(service.id.split('-'))}",
             service.teardown_command if rollback else service.setup_command,
         )
 
