@@ -47,7 +47,7 @@ class Orchestrator:
             self._get_latest_version,
         )
 
-        # Pull the assets of the latest version for the neuron
+        # Pull the assets of the current version for the neuron
         self._step(
             "Pull current version",
             self._rollback_nop,
@@ -171,7 +171,7 @@ class Orchestrator:
             )
             return
 
-        btul.logging.debug(f"▶️ Starting: {description}", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.info(f"▶️ Starting: {description}", prefix=sauc.SV_LOGGER_NAME)
         self.rollback_steps.append((description, rollback_func))
 
         if service_filter:

@@ -126,6 +126,9 @@ class Github:
 
         # Download the archive
         response = requests.get(url, stream=True)
+        if response.status_code == 404:
+            return None
+        
         response.raise_for_status()
 
         # Save the archive on disk
