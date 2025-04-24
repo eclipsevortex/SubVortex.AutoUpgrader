@@ -51,7 +51,7 @@ done
 check_required_args EXECUTION
 
 # Stop the auto upgrader
-./scripts/auto_upgrader/auto_upgrader_stop.sh --execution $EXECUTION
+./scripts/auto_upgrader/auto_upgrader_stop.sh --execution "$EXECUTION"
 
 # Start the auo upgrader
-./scripts/auto_upgrader/auto_upgrader_start.sh --execution $EXECUTION
+./scripts/auto_upgrader/auto_upgrader_start.sh --execution "$EXECUTION"

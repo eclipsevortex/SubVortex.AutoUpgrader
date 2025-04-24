@@ -88,7 +88,7 @@ Here's a breakdown of the key variables:
   Set to `true` if you want the Auto Upgrader to apply both releases and pre-releases. Default is `false`.
 
 - **SUBVORTEX_EXECUTION_METHOD**:  
-  Defines how the Auto Upgrader runs. Options are `process`, `service`, or `docker`. Default is `service`.
+  Defines how the Auto Upgrader runs. Options are `process`, `service`, or `container`. Default is `service`.
 
 - **SUBVORTEX_PRERELEASE_TYPE**:  
   Specifies a single prerelease identifier you want to be notified about. Options are `alpha` (**use ONLY in DEVNET**) or `rc` (**use ONLY in TESTNET**). Remove this variable to receive notifications from `latest` (**use in MAINNET**) prerelease types. Default is an empty string, which disables prerelease notifications.
@@ -106,7 +106,7 @@ Here's a breakdown of the key variables:
 
 # 🔧 How It Works <a id="how-it-works"></a>
 
-When setting up the Auto Upgrader, you can choose from three execution modes: `process`, `service`, or `docker`. The default mode is `service`
+When setting up the Auto Upgrader, you can choose from three execution modes: `process`, `service`, or `container`. The default mode is `service`
 
 🧩 Process & Service Modes
 

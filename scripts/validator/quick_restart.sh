@@ -75,7 +75,7 @@ if [ ! -d "$execution_dir" ]; then
 fi
 
 # Build the command and arguments
-CMD="$execution_dir/scripts/quick_restart.sh --execution $EXECUTION"
+CMD="$execution_dir/scripts/quick_restart.sh --execution \"$EXECUTION\""
 if [[ "$RECREATE" == "true" || "$RECREATE" == "True" ]]; then
     CMD+=" --recreate"
 fi

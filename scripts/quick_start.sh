@@ -25,7 +25,6 @@ LONGOPTIONS="execution:,help:"
 
 # Set defaults from env (can be overridden by arguments)
 EXECUTION="service"
-
 # Parse command-line arguments
 while [ "$#" -ge 1 ]; do
     case "$1" in
@@ -51,7 +50,7 @@ done
 check_required_args EXECUTION
 
 # Setup the auto upgrader
-./scripts/auto_upgrader/auto_upgrader_setup.sh --execution $EXECUTION
+./scripts/auto_upgrader/auto_upgrader_setup.sh --execution "$EXECUTION"
 
 # Start the auo upgrader
-./scripts/auto_upgrader/auto_upgrader_start.sh --execution $EXECUTION
+./scripts/auto_upgrader/auto_upgrader_start.sh --execution "$EXECUTION"

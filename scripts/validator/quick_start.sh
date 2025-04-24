@@ -74,4 +74,4 @@ if [ ! -d "$execution_dir" ]; then
 fi
 
 # Run quick start script
-"$execution_dir/scripts/quick_start.sh" --execution $EXECUTION
+"$execution_dir/scripts/quick_start.sh" --execution "$EXECUTION"
