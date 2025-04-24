@@ -57,7 +57,7 @@ export $(grep -v '^#' ./subvortex/auto_upgrader/.env | xargs)
 
 # 🧠 Function: Setup for process mode
 setup_process() {
-    echo "⚙️  Setting up for 'process' mode..."
+    echo "⚙️  Cleaning up for 'process' mode..."
     
     # Teardown the auto upgrade as process
     ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_teardown.sh
@@ -68,7 +68,7 @@ setup_process() {
 
 # 🐳 Function: Setup for container mode
 setup_container() {
-    echo "🐳 Setting up for 'container' mode..."
+    echo "🐳 Cleaning up for 'container' mode..."
     
     # Teardown the auto upgrade as service
     ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_teardown.sh
@@ -79,7 +79,7 @@ setup_container() {
 
 # 🧩 Function: Setup for service mode
 setup_service() {
-    echo "🧩 Setting up for 'service' mode..."
+    echo "🧩 Cleaning up for 'service' mode..."
     
     # Teardown the auto upgrade as service
     ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_teardown.sh

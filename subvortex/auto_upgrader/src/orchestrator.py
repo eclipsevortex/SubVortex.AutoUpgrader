@@ -184,7 +184,9 @@ class Orchestrator:
 
     def _get_current_version(self):
         # Get the latest version
-        self.current_version = sauv.get_local_version() or sauc.DEFAULT_LAST_RELEASE["global"]
+        self.current_version = (
+            sauv.get_local_version() or sauc.DEFAULT_LAST_RELEASE["global"]
+        )
 
         btul.logging.debug(
             f"Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
@@ -497,6 +499,8 @@ class Orchestrator:
 
         # Determine the neuron directory where to find all the services
         path = f"{sauc.SV_WORKING_DIRECTORY}/subvortex-{normalized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}"
+        if not os.path.exists(path):
+            return services
 
         for entry in self.metadata_resolver.list_directory(path=path):
             service_path = os.path.join(path, entry)
