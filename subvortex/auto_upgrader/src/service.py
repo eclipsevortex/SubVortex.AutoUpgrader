@@ -17,6 +17,7 @@ class Service:
         version: str,
         execution: str,
         migration: str,
+        migration_type: str,
         setup_command: str,
         start_command: str,
         stop_command: str,
@@ -28,6 +29,7 @@ class Service:
         self.version = version
         self.execution = execution
         self.migration = migration
+        self.migration_type = migration_type
         self.setup_command = setup_command
         self.start_command = start_command
         self.stop_command = stop_command
@@ -46,6 +48,7 @@ class Service:
             version=metadata.get("version"),
             execution=metadata.get("execution") or sauc.SV_EXECUTION_METHOD,
             migration=metadata.get("migration"),
+            migration_type=metadata.get("migration_type"),
             setup_command=metadata.get("setup_command"),
             start_command=metadata.get("start_command"),
             stop_command=metadata.get("setup_command"),

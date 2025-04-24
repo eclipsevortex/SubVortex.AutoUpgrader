@@ -118,7 +118,6 @@ class Orchestrator:
             "Stop previous services",
             self._rollback_stop_current_services,
             self._stop_current_services,
-            condition=lambda: execution != "container",
         )
 
         # Switch services to new version
@@ -147,7 +146,6 @@ class Orchestrator:
             "Remove previous version",
             self._rollback_remove_services,
             self._remove_services,
-            condition=lambda: execution != "container",
         )
 
         # Finalize service versions
@@ -629,11 +627,6 @@ class Orchestrator:
             )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"{action}.sh failed for {service.name}") from e
-
-        # Execute the script
-        # result = os.system(f"bash {setup_script}")
-        # if result != 0:
-        #     raise RuntimeError(f"{action}.sh failed for {service.name}")
 
     def _pull_assets(self, version: str):
         # Download and unzip the latest version
