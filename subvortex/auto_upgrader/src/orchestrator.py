@@ -1,8 +1,10 @@
 import os
 import shutil
 import traceback
+import subprocess
 from typing import List, Tuple, Callable
 from packaging.version import Version
+from os import path
 
 import bittensor.utils.btlogging as btul
 
@@ -14,6 +16,8 @@ import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.resolvers.metadata_resolver as saumr
 from subvortex.auto_upgrader.src.migrations.base import Migration
 from subvortex.auto_upgrader.src.migration_manager import MigrationManager
+
+here = path.abspath(path.dirname(__file__))
 
 
 class Orchestrator:
@@ -67,6 +71,13 @@ class Orchestrator:
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return True
+
+        # Copy the env var file in the latest version services
+        self._step(
+            "Copying environement variables",
+            self._rollback_nop,
+            self._copy_env_variables,
+        )
 
         # Set the action
         action = (
@@ -223,6 +234,28 @@ class Orchestrator:
         self._pull_assets(version=self.latest_version)
 
         btul.logging.debug("Latest assets pulled", prefix=sauc.SV_LOGGER_NAME)
+
+    def _copy_env_variables(self):
+        # Build the env directory
+        env_dir = path.join(here, "../../environment")
+
+        # Get all the env files
+        env_files = [
+            f for f in os.listdir(env_dir) if os.path.isfile(os.path.join(env_dir, f))
+        ]
+
+        # Get the normalized version
+        normalized_version = sauv.normalize_version(self.latest_version)
+
+        for env_file in env_files:
+            # Get the name of the service
+            name = env_file.split(".")[-1]
+
+            # Build the target env file
+            target = f"{sauc.SV_ASSET_DIR}/subvortex-{normalized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{name}/.env"
+
+            # Copy the env file to the service directory
+            shutil.copy2(env_file, target)
 
     def _rollback_pull_latest_version(self):
         # Remove the latest version
@@ -562,13 +595,10 @@ class Orchestrator:
             else sauc.SV_EXECUTION_METHOD
         )
         _, name = service.id.split("-")
-        setup_script = os.path.join(
-            f"{sauc.SV_ASSET_DIR}/subvortex-{noramlized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}/deployment/{method}/{name}_{method}_{action}.sh",
-            service.teardown_command if rollback else service.setup_command,
-        )
+        script = f"{sauc.SV_ASSET_DIR}/subvortex-{noramlized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{name}/deployment/{method}/{name}_{method}_{action}.sh"
 
         # Check if the script exist
-        if not os.path.exists(setup_script):
+        if not os.path.exists(script):
             btul.logging.warning(
                 f"⚠️ No {action}.sh found for {service.name}. Skipping.",
                 prefix=sauc.SV_LOGGER_NAME,
@@ -580,10 +610,22 @@ class Orchestrator:
             prefix=sauc.SV_LOGGER_NAME,
         )
 
+        try:
+            subprocess.run(
+                ["bash", script],
+                env=os.environ.copy(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"{action}.sh failed for {service.name}") from e
+
         # Execute the script
-        result = os.system(f"bash {setup_script}")
-        if result != 0:
-            raise RuntimeError(f"{action}.sh failed for {service}")
+        # result = os.system(f"bash {setup_script}")
+        # if result != 0:
+        #     raise RuntimeError(f"{action}.sh failed for {service.name}")
 
     def _pull_assets(self, version: str):
         # Download and unzip the latest version
