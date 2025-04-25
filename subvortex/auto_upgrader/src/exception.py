@@ -64,6 +64,14 @@ class InvalidRevisionLinkError(AutoUpgraderError):
             details=f"Revision: {revision}, Down Revision: {down_revision}",
         )
 
+class RuntimeError(AutoUpgraderError):
+    def __init__(self, action: str, details: str):
+        super().__init__(
+            code="AU1007",
+            message="Runtime error",
+            details=f"Action: {action} - {details}",
+        )
+
 
 class UnexpectedError(AutoUpgraderError):
     def __init__(self, reason: str = "An unexpected error occurred"):

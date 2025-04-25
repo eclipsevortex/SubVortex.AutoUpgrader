@@ -250,7 +250,6 @@ class Orchestrator:
 
         # Buid the path of the the version directory
         path = saup.get_version_directory(version=self.latest_version)
-
         if not os.path.exists(path):
             raise saue.MissingDirectoryError(directory_path=path)
 
@@ -620,7 +619,7 @@ class Orchestrator:
                 check=True,
             )
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"{action}.sh failed for {service.name}") from e
+            raise saue.RuntimeError(action=action, details=str(e))
 
     def _pull_assets(self, version: str):
         # Download and unzip the latest version
@@ -628,6 +627,22 @@ class Orchestrator:
             version=version,
             role=sauc.SV_EXECUTION_ROLE,
         )
+
+        # Get the version directory
+        version_dir = saup.get_version_directory(version=self.latest_version)
+
+        # Install the subnet
+        try:
+            subprocess.run(
+                ["pip", "install", "-e", "."],
+                cwd=f"{version_dir}/pyproject.toml",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise saue.RuntimeError(action="install_editable", details=str(e))
 
     def _remove_assets(self, version: str):
         # Build the asset directory

@@ -681,7 +681,7 @@ def test_raise_exception_when_source_env_file_does_not_exist_during_the_copy_env
 
 @patch("subvortex.auto_upgrader.src.orchestrator.saup.get_environment_file")
 @patch("os.path.exists")
-def test_raise_exception_when_target_env_file_does_not_exist_during_the_copy_env_files_step(
+def test_raise_exception_when_target_env_dir_does_not_exist_during_the_copy_env_files_step(
     mock_os_path_exists, mock_get_environment_file, orchestrator
 ):
     # Arrange
@@ -715,11 +715,11 @@ def test_raise_exception_when_target_env_file_does_not_exist_during_the_copy_env
     orchestrator._run = mock.MagicMock()
 
     # Action
-    with pytest.raises(MissingFileError) as exc:
+    with pytest.raises(MissingDirectoryError) as exc:
         orchestrator.run_plan()
 
     # Assert
-    assert "[AU1002] Required file is missing: Path not found: fake-target-file" == str(
+    assert "[AU1001] Required directory is missing: Path not found: /var/tmp/subvortex/subvortex-1.0.1/subvortex/miner/neuron" == str(
         exc.value
     )
     assert orchestrator._get_current_version.called
