@@ -8,6 +8,7 @@ import bittensor.utils.btlogging as btul
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.orchestrator as sauo
 import subvortex.auto_upgrader.src.version as sauv
+import subvortex.auto_upgrader.src.exception as saue
 
 
 class Worker:
@@ -47,6 +48,10 @@ class Worker:
 
             except KeyboardInterrupt:
                 btul.logging.debug("KeyboardInterrupt", prefix=sauc.SV_LOGGER_NAME)
+
+            except saue.AutoUpgraderError as e:
+                btul.logging.error(e, prefix=sauc.SV_LOGGER_NAME)
+                btul.logging.debug(traceback.format_exc())
 
             except Exception as e:
                 btul.logging.error(
