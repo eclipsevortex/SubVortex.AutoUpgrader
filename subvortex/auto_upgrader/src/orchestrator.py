@@ -11,6 +11,7 @@ import bittensor.utils.btlogging as btul
 import subvortex.auto_upgrader.src.service as saus
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.path as saup
+import subvortex.auto_upgrader.src.utils as sauu
 import subvortex.auto_upgrader.src.exception as saue
 import subvortex.auto_upgrader.src.resolvers.dependency_resolver as saudr
 import subvortex.auto_upgrader.src.github as saug
@@ -367,9 +368,6 @@ class Orchestrator:
             if not service.needs_update:
                 continue
 
-            if False and not self._can_rollout_service(service):
-                continue
-
             # Execute the setup
             self._execute_setup(service=service)
 
@@ -599,19 +597,13 @@ class Orchestrator:
 
     def _run(self, action: str, service: saus.Service, rollback: bool = False):
         # Build the setup script path
-        script = saup.get_service_script(service=service, action=action)
-
-        # Check if the script exist
-        if not os.path.exists(script):
-            btul.logging.warning(
-                f"⚠️ No {action}.sh found for {service.name}. Skipping.",
-                prefix=sauc.SV_LOGGER_NAME,
-            )
-            return
+        script_file = saup.get_service_script(service=service, action=action)
+        if not os.path.exists(script_file):
+            raise saue.MissingFileError(file_path=script_file)
 
         # Add the flag as env var to be consumed by the script
         env = os.environ.copy()
-        env["SUBVORTEX_FLOATTING_FLAG"] = self._get_tag()
+        env["SUBVORTEX_FLOATTING_FLAG"] = sauu.get_tag()
 
         btul.logging.info(
             f"⚙️ Running {action} for {service.name} (version: {service.version})",
@@ -620,7 +612,7 @@ class Orchestrator:
 
         try:
             subprocess.run(
-                ["bash", script],
+                ["bash", script_file],
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
