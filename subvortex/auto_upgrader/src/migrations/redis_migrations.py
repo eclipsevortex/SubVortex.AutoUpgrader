@@ -42,13 +42,13 @@ class RedisMigrations(Migration):
                 continue
 
             # Load the migration module
-            mod = self._load_module(path=migration_path, name=fname)
+            module = self._load_module(path=migration_path, name=fname)
 
-            if not hasattr(mod, "rollout") or not hasattr(mod, "rollback"):
+            if not hasattr(module, "rollout") or not hasattr(module, "rollback"):
                 raise saue.MalformedMigrationFileError(file=fname)
 
-            revision = getattr(mod, "revision", None)
-            down_revision = getattr(mod, "down_revision", None)
+            revision = getattr(module, "revision", None)
+            down_revision = getattr(module, "down_revision", None)
 
             if revision is None:
                 raise saue.RevisionNotFoundError()
@@ -58,7 +58,7 @@ class RedisMigrations(Migration):
                     revision=revision, down_revision=down_revision
                 )
 
-            self.modules[revision] = mod
+            self.modules[revision] = module
             self.graph[revision] = down_revision
 
         self.sorted_revisions = self._topological_sort()
@@ -203,7 +203,16 @@ class RedisMigrations(Migration):
     def _load_module(self, path: str, name: str):
         fpath = os.path.join(path, name)
         spec = importlib.util.spec_from_file_location(name[:-3], fpath)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-        return mod
+        # Extract the Migration class
+        migration_class = getattr(module, "Migration", None)
+        if migration_class is None:
+            btul.logging.error(
+                f"No 'Migration' class found in: {path}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return None
+
+        return migration_class
