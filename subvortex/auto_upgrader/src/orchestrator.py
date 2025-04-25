@@ -616,8 +616,8 @@ class Orchestrator:
             subprocess.run(
                 ["bash", script_file],
                 env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.STDOUT,
+                stderr=subprocess.STDOUT,
                 text=True,
                 check=True,
             )
@@ -652,8 +652,8 @@ class Orchestrator:
             subprocess.run(
                 ["pip", "install", "-e", "."],
                 cwd=version_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.STDOUT,
+                stderr=subprocess.STDOUT,
                 text=True,
                 check=True,
             )
