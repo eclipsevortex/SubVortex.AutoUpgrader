@@ -614,12 +614,17 @@ class Orchestrator:
         if not os.path.exists(script_file):
             raise saue.MissingFileError(file_path=script_file)
 
+        btul.logging.info(
+            f"⚙️ Running {action} for {service.name} (version: {service.version})",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
         # Add the flag as env var to be consumed by the script
         env = os.environ.copy()
         env["SUBVORTEX_FLOATTING_FLAG"] = sauu.get_tag()
 
-        btul.logging.info(
-            f"⚙️ Running {action} for {service.name} (version: {service.version})",
+        btul.logging.debug(
+            f"Set `SUBVORTEX_FLOATTING_FLAG` to {env['SUBVORTEX_FLOATTING_FLAG']}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
