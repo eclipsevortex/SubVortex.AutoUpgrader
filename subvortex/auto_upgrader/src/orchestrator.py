@@ -677,8 +677,6 @@ class Orchestrator:
             subprocess.run(
                 ["pip", "install", "-e", "."],
                 cwd=version_dir,
-                stdout=subprocess.STDOUT,
-                stderr=subprocess.STDOUT,
                 capture_output=True,
                 text=True,
                 check=False,
