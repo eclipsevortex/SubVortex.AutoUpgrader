@@ -248,6 +248,9 @@ class Orchestrator:
         # Download and unzip the latest version
         self._pull_assets(version=self.latest_version)
 
+        # Install subvortex as editable
+        self._install_editable()
+
         # Buid the path of the the version directory
         path = saup.get_version_directory(version=self.latest_version)
         if not os.path.exists(path):
@@ -628,6 +631,19 @@ class Orchestrator:
             role=sauc.SV_EXECUTION_ROLE,
         )
 
+    def _remove_assets(self, version: str):
+        # Build the asset directory
+        asset_dir = saup.get_version_directory(version=version)
+        if not os.path.exists(asset_dir):
+            return
+
+        # Remove the directory
+        shutil.rmtree(asset_dir)
+
+        # Notify the success
+        btul.logging.info("Assets removed", prefix=sauc.SV_LOGGER_NAME)
+
+    def _install_editable(self):
         # Get the version directory
         version_dir = saup.get_version_directory(version=self.latest_version)
 
@@ -643,15 +659,3 @@ class Orchestrator:
             )
         except subprocess.CalledProcessError as e:
             raise saue.RuntimeError(action="install_editable", details=str(e))
-
-    def _remove_assets(self, version: str):
-        # Build the asset directory
-        asset_dir = saup.get_version_directory(version=version)
-        if not os.path.exists(asset_dir):
-            return
-
-        # Remove the directory
-        shutil.rmtree(asset_dir)
-
-        # Notify the success
-        btul.logging.info("Assets removed", prefix=sauc.SV_LOGGER_NAME)
