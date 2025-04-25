@@ -1,3 +1,5 @@
+import os
+import asyncio
 from typing import List
 
 from subvortex.auto_upgrader.src.migrations.base import Migration
@@ -27,9 +29,15 @@ class MigrationManager:
             self.migrations.append(migration_class(service))
 
     def apply(self):
-        for migration in self.migrations:
-            migration.apply()
+        asyncio.run(self._apply())
 
     def rollback(self):
+        asyncio.run(self._rollback())
+
+    async def _apply(self):
+        for migration in self.migrations:
+            await migration.apply()
+
+    async def _rollback(self):
         for migration in reversed(self.migrations):
-            migration.rollback()
+            await migration.rollback()

@@ -623,11 +623,6 @@ class Orchestrator:
         env = os.environ.copy()
         env["SUBVORTEX_FLOATTING_FLAG"] = sauu.get_tag()
 
-        btul.logging.debug(
-            f"Set `SUBVORTEX_FLOATTING_FLAG` to {env['SUBVORTEX_FLOATTING_FLAG']}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-
         try:
             subprocess.run(
                 ["bash", script_file],

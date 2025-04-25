@@ -82,7 +82,7 @@ class RedisMigrations(Migration):
 
         return result
 
-    def apply(self):
+    async def apply(self):
         # Load the migrations
         self._load_migrations()
         btul.logging.debug(
@@ -120,13 +120,20 @@ class RedisMigrations(Migration):
                 f"⬆️  Applying migration: {rev}", prefix=sauc.SV_LOGGER_NAME
             )
 
+            # Set mode to dual so app reads/writes both if needed
+            await database.set(f"migration_mode:{self.service.version}", "dual")
+
             # Rollout migration
-            self.modules[rev].rollout(database)
+            await self.modules[rev].rollout(database)
 
             # Set version
             self.service.version = rev
 
-    def rollback(self):
+            # Set mode to dual so app reads/writes both if needed
+            await database.set("version", self.service.version)
+            await database.set(f"migration_mode:{self.service.version}", "new")
+
+    async def rollback(self):
         # Load the migrations
         self._load_migrations()
         btul.logging.debug(
@@ -166,11 +173,21 @@ class RedisMigrations(Migration):
                 f"⬇️  Rolling back migration: {rev}", prefix=sauc.SV_LOGGER_NAME
             )
 
+            # Set mode to dual so app reads/writes both if needed
+            await database.set(f"migration_mode:{self.service.version}", "dual")
+
             # Rollback migration
-            self.modules[rev].rollback(database)
+            await self.modules[rev].rollback(database)
 
             # Update the version
             self.service.version = self.graph[rev]
+
+            # Set mode to dual so app reads/writes both if needed
+            if self.service.version is not None:
+                await database.set("version", self.service.version)
+                await database.set(f"migration_mode:{rev}", "legacy")
+            else:
+                await database.set("version", "0.0.0")
 
     def _create_redis_instance(self):
         # Create the instance of redis
