@@ -632,8 +632,6 @@ class Orchestrator:
             subprocess.run(
                 ["bash", script_file],
                 env=env,
-                stdout=subprocess.STDOUT,
-                stderr=subprocess.STDOUT,
                 capture_output=True,
                 text=True,
                 check=False,
