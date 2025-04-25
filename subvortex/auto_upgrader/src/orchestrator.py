@@ -661,6 +661,10 @@ class Orchestrator:
         btul.logging.info("Assets removed", prefix=sauc.SV_LOGGER_NAME)
 
     def _install_in_editable_mode(self):
+        btul.logging.info(
+            "Installating the subnet in editable mode", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Get the version directory
         version_dir = saup.get_version_directory(version=self.latest_version)
 
@@ -673,10 +677,11 @@ class Orchestrator:
             subprocess.run(
                 ["pip", "install", "-e", "."],
                 cwd=version_dir,
-                # stdout=subprocess.STDOUT,
-                # stderr=subprocess.STDOUT,
+                stdout=subprocess.STDOUT,
+                stderr=subprocess.STDOUT,
+                capture_output=True,
                 text=True,
-                check=True,
+                check=False,
             )
         except subprocess.CalledProcessError as e:
             raise saue.RuntimeError(action="install_editable", details=str(e))
