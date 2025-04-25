@@ -40,7 +40,7 @@ class Orchestrator:
         self.rollback_steps.clear()
 
         # Get version before auto upgrader
-        last_version_before_auo_upgrader = sauc.DEFAULT_LAST_RELEASE.get('global')
+        last_version_before_auo_upgrader = sauc.DEFAULT_LAST_RELEASE.get("global")
 
         # Get the current version
         self._step(
@@ -61,7 +61,7 @@ class Orchestrator:
             "Pull current version",
             self._rollback_nop,
             self._pull_current_version,
-            condition=lambda: self.current_version != last_version_before_auo_upgrader
+            condition=lambda: self.current_version != last_version_before_auo_upgrader,
         )
 
         # Pull the assets of the latest version for the neuron
@@ -93,8 +93,10 @@ class Orchestrator:
 
         # Load the services of the current version
         self._step(
-            "Load current services", self._rollback_nop, self._load_current_services,
-            condition=lambda: self.current_version != last_version_before_auo_upgrader
+            "Load current services",
+            self._rollback_nop,
+            self._load_current_services,
+            condition=lambda: self.current_version != last_version_before_auo_upgrader,
         )
 
         # Load the services of the latest version
@@ -629,10 +631,6 @@ class Orchestrator:
             raise RuntimeError(f"{action}.sh failed for {service.name}") from e
 
     def _pull_assets(self, version: str):
-        if version == sauc.DEFAULT_LAST_RELEASE.get('global'):
-            # Version before auto upgrader => nothing to do
-            return 
-        
         # Download and unzip the latest version
         self.github.download_and_unzip_assets(
             version=version,
