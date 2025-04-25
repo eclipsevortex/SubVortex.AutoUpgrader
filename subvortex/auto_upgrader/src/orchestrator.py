@@ -391,9 +391,6 @@ class Orchestrator:
             # Execute the setup
             self._execute_setup(service=service)
 
-        # Install subvortex as editable
-        # self._install_in_editable_mode()
-
     def _can_rollout_service(self, service: saus.Service):
         if service.execution != "container":
             return True
@@ -431,7 +428,7 @@ class Orchestrator:
                     continue
 
             # Execute the setup
-            self._execute_setup(service=service, rollback=True)
+            self._execute_teardown(service=service)
 
     async def _rollout_migrations(self):
         # Filter out services that do not need any update
@@ -456,7 +453,7 @@ class Orchestrator:
             if service_filter and not service_filter(service):
                 continue
 
-            self._execute_stop(service=service, rollback=True)
+            self._execute_stop(service=service)
 
     def _rollback_stop_current_services(self, service_filter: Callable = None):
         # Create the dependency resolver
@@ -523,7 +520,7 @@ class Orchestrator:
             if service_filter and not service_filter(service):
                 continue
 
-            self._execute_start(service=service, rollback=True)
+            self._execute_stop(service=service)
 
     def _prune_services(self):
         # Create the dependency resolver
@@ -590,34 +587,24 @@ class Orchestrator:
 
         return services
 
-    def _execute_setup(self, service: saus.Service, rollback: bool = False):
-        # Define the action
-        action = "teardown" if rollback else "setup"
-
+    def _execute_setup(self, service: saus.Service):
         # Run the script
-        self._run(action=action, service=service)
+        self._run(action="setup", service=service)
 
-    def _execute_start(self, service: saus.Service, rollback: bool = False):
+    def _execute_start(self, service: saus.Service):
         # Define the action
-        action = "stop" if rollback else "start"
-
-        # Run the script
-        self._run(action=action, service=service)
-
-    def _execute_stop(self, service: saus.Service, rollback: bool = False):
-        # Define the action
-        action = "start" if rollback else "stop"
         args = ["--recreate"] if sauc.SV_EXECUTION_METHOD == "container" else []
 
         # Run the script
-        self._run(action=action, service=service, args=args)
+        self._run(action="start", service=service, args=args)
+
+    def _execute_stop(self, service: saus.Service):
+        # Run the script
+        self._run(action="stop", service=service)
 
     def _execute_teardown(self, service: saus.Service, rollback: bool = False):
-        # Define the action
-        action = "setup" if rollback else "teardown"
-
         # Run the script
-        self._run(action=action, service=service)
+        self._run(action="teardown", service=service)
 
     def _run(self, action: str, service: saus.Service, args: List[str] = []):
         # Build the setup script path
