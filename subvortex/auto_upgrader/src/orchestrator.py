@@ -595,30 +595,31 @@ class Orchestrator:
         action = "teardown" if rollback else "setup"
 
         # Run the script
-        self._run(action=action, service=service, rollback=rollback)
+        self._run(action=action, service=service)
 
     def _execute_start(self, service: saus.Service, rollback: bool = False):
         # Define the action
         action = "stop" if rollback else "start"
 
         # Run the script
-        self._run(action=action, service=service, rollback=rollback)
+        self._run(action=action, service=service)
 
     def _execute_stop(self, service: saus.Service, rollback: bool = False):
         # Define the action
         action = "start" if rollback else "stop"
+        args = ["--recreate"] if sauc.SV_EXECUTION_METHOD == "container" else []
 
         # Run the script
-        self._run(action=action, service=service, rollback=rollback)
+        self._run(action=action, service=service, args=args)
 
     def _execute_teardown(self, service: saus.Service, rollback: bool = False):
         # Define the action
         action = "setup" if rollback else "teardown"
 
         # Run the script
-        self._run(action=action, service=service, rollback=rollback)
+        self._run(action=action, service=service)
 
-    def _run(self, action: str, service: saus.Service, rollback: bool = False):
+    def _run(self, action: str, service: saus.Service, args: List[str] = []):
         # Build the setup script path
         script_file = saup.get_service_script(service=service, action=action)
         if not os.path.exists(script_file):
@@ -635,7 +636,7 @@ class Orchestrator:
 
         try:
             subprocess.run(
-                ["bash", script_file],
+                ["bash", script_file] + args,
                 env=env,
                 capture_output=True,
                 text=True,
