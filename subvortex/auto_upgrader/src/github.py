@@ -147,7 +147,7 @@ class Github:
         for _ in range(5):  # Try for ~500ms
             if os.path.exists(target_path):
                 break
-            time.sleep(0.1)
+            time.sleep(0.5)
         else:
             raise saue.MissingFileError(
                 file_path=target_path,

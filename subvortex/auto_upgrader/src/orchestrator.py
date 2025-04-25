@@ -286,7 +286,7 @@ class Orchestrator:
         # Display the list of services
         services = [x.name for x in self.current_services]
         btul.logging.debug(
-            f"Current services loaded: {', '.join(services)}",
+            f"Current services loaded ({len(self.current_services)}): {', '.join(services)}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
@@ -297,9 +297,10 @@ class Orchestrator:
             raise saue.ServicesLoadError(version=self.latest_version)
 
         # Display the list of services
-        services = [x.name for x in self.current_services]
+        services = [x.name for x in self.latest_services]
         btul.logging.debug(
-            f"Latest services loaded: {', '.join(services)}", prefix=sauc.SV_LOGGER_NAME
+            f"Latest services loaded ({len(self.latest_services)}): {', '.join(services)}",
+            prefix=sauc.SV_LOGGER_NAME,
         )
 
     def _check_versions(self):
