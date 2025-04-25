@@ -249,7 +249,7 @@ class Orchestrator:
         self._pull_assets(version=self.latest_version)
 
         # Install subvortex as editable
-        self._install_in_editable_mode()
+        # self._install_in_editable_mode()
 
         # Buid the path of the the version directory
         path = saup.get_version_directory(version=self.latest_version)
@@ -372,6 +372,9 @@ class Orchestrator:
 
             # Execute the setup
             self._execute_setup(service=service)
+
+        # Install subvortex as editable
+        self._install_in_editable_mode()
 
     def _can_rollout_service(self, service: saus.Service):
         if service.execution != "container":
@@ -653,7 +656,7 @@ class Orchestrator:
 
         # Install the subnet
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["pip", "install", "-e", "."],
                 cwd=version_dir,
                 # stdout=subprocess.STDOUT,
