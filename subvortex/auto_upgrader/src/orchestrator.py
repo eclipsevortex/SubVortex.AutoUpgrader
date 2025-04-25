@@ -624,6 +624,10 @@ class Orchestrator:
             raise RuntimeError(f"{action}.sh failed for {service.name}") from e
 
     def _pull_assets(self, version: str):
+        if version == sauc.DEFAULT_LAST_RELEASE.get('global'):
+            # Version before auto upgrader => nothing to do
+            return 
+        
         # Download and unzip the latest version
         self.github.download_and_unzip_assets(
             version=version,
