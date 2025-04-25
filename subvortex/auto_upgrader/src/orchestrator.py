@@ -250,11 +250,14 @@ class Orchestrator:
 
     def _get_latest_version(self):
         # Get the latest version
-        version = (
-            self.docker.get_latest_version()
-            if sauc.SV_EXECUTION_METHOD == "container"
-            else self.github.get_latest_version()
-        )
+        version = self.github.get_latest_version()
+
+        # Set the current version in a denormlized wayt
+        self.current_version = sauv.denormalize_version(version)
+
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Get the version in docker hub
+            version = self.docker.get_latest_version()
 
         # Set the current version in a denormlized wayt
         self.latest_version = sauv.denormalize_version(version)
