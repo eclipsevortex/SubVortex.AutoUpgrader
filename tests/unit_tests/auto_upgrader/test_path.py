@@ -30,7 +30,7 @@ from subvortex.auto_upgrader.src.service import Service
 def fake_service():
     return Service(
         id="miner-neuron",
-        name="neuron",
+        name="subvortex-miner-neuron",
         version="v3.0.0-alpha.1",
         execution="process",
         migration="migrations",

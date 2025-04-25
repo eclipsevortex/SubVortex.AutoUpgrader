@@ -67,9 +67,6 @@ def orchestrator():
     # Removal
     orch._remove_assets = mock.MagicMock()
 
-    # Default execution to "process", override per test as needed
-    # orch._get_execution = lambda: "process"
-
     return orch
 
 
@@ -322,13 +319,15 @@ def test_run_plan_downgrade_path(orchestrator):
     orchestrator._get_execution = lambda: "process"
     orchestrator._pull_current_version = mock.MagicMock()
     orchestrator._pull_latest_version = mock.MagicMock()
-    orchestrator._rollback_pull_latest_version = mock.MagicMock()
+    orchestrator.get_service_script = mock.MagicMock()
     orchestrator._load_current_services = lambda: setattr(
         orchestrator, "current_services", [create_service("1.0.1")]
     )
     orchestrator._load_latest_services = lambda: setattr(
         orchestrator, "latest_services", [create_service("1.0.0")]
     )
+
+    orchestrator._run = mock.MagicMock()
 
     # Action
     orchestrator.run_plan()

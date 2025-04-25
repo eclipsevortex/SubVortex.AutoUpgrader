@@ -42,7 +42,7 @@ def get_service_directory(service: saus.Service):
     version_path = get_version_directory(version=service.version)
 
     # Build the path of the role (miner/validator) directory
-    path = f"{version_path}/subvortex/{sauc.SV_EXECUTION_ROLE}/{service.name}"
+    path = f"{version_path}/subvortex/{sauc.SV_EXECUTION_ROLE}/{service.key}"
 
     return path
 
