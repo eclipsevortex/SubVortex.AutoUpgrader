@@ -37,6 +37,7 @@ class Orchestrator:
 
     def run_plan(self):
         btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
+        self.rollback_steps.clear()
 
         # Get the current version
         self._step(
@@ -180,9 +181,6 @@ class Orchestrator:
                 "↩️ Rollback completed succesfully",
                 prefix=sauc.SV_LOGGER_NAME,
             )
-
-        # Reset the steps
-        self.rollback_steps = []
 
     def _step(
         self,
