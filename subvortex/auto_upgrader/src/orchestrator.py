@@ -181,6 +181,9 @@ class Orchestrator:
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
+        # Reset the steps
+        self.rollback_steps = []
+
     def _step(
         self,
         description: str,
