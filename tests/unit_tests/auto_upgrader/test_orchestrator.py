@@ -16,9 +16,15 @@
 # DEALINGS IN THE SOFTWARE.
 import pytest
 from unittest import mock
+from unittest.mock import patch
 
 from subvortex.auto_upgrader.src.orchestrator import Orchestrator
 from subvortex.auto_upgrader.src.service import Service
+from subvortex.auto_upgrader.src.exception import (
+    MissingDirectoryError,
+    MissingFileError,
+    ServicesLoadError,
+)
 
 from tests.unit_tests.utils import get_call_arg
 
@@ -31,6 +37,9 @@ def orchestrator():
     orch.current_version = None
     orch.latest_version = None
     orch.services = []
+
+    # Checks
+    orch.check_version_assets_exists = mock.MagicMock()
 
     # GitHub and metadata mocking
     orch.github.get_latest_version = mock.MagicMock()
@@ -55,8 +64,11 @@ def orchestrator():
     orch._load_current_services = mock.MagicMock()
     orch._load_latest_services = mock.MagicMock()
 
+    # Removal
+    orch._remove_assets = mock.MagicMock()
+
     # Default execution to "process", override per test as needed
-    orch._get_execution = lambda: "process"
+    # orch._get_execution = lambda: "process"
 
     return orch
 
@@ -81,6 +93,7 @@ def mock_all_steps(orch):
     orch._pull_current_version = mock.MagicMock()
     orch._pull_latest_version = mock.MagicMock()
     orch._rollback_pull_latest_version = mock.MagicMock()
+    orch._copy_env_files = mock.MagicMock()
     orch._load_current_services = mock.MagicMock()
     orch._load_latest_services = mock.MagicMock()
     orch._check_versions = mock.MagicMock()
@@ -190,7 +203,7 @@ def test_run_plan_handles_failed_setup(orchestrator):
         orchestrator.run_plan()
 
 
-def test_run_plan_skips_steps_for_container_execution(orchestrator):
+def test_run_plan_execute_all_steps_for_container_execution(orchestrator):
     # Arrange
     mock_all_steps(orchestrator)
 
@@ -208,7 +221,7 @@ def test_run_plan_skips_steps_for_container_execution(orchestrator):
     orchestrator.run_plan()
 
     # Assert
-    assert 13 == len(orchestrator.rollback_steps)
+    assert 16 == len(orchestrator.rollback_steps)
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
     assert orchestrator._pull_current_version.called
@@ -218,11 +231,11 @@ def test_run_plan_skips_steps_for_container_execution(orchestrator):
     assert orchestrator._check_versions.called
     assert orchestrator._rollout_service.called
     assert orchestrator._rollout_migrations.called
-    assert not orchestrator._stop_current_services.called
+    assert orchestrator._stop_current_services.called
     assert orchestrator._switch_services.called
     assert orchestrator._start_latest_services.called
     assert orchestrator._prune_services.called
-    assert not orchestrator._remove_services.called
+    assert orchestrator._remove_services.called
     assert orchestrator._finalize_versions.called
 
 
@@ -244,7 +257,7 @@ def test_run_plan_executes_all_steps_for_process_execution(orchestrator):
     orchestrator.run_plan()
 
     # Assert
-    assert 15 == len(orchestrator.rollback_steps)
+    assert 16 == len(orchestrator.rollback_steps)
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
     assert orchestrator._pull_current_version.called
@@ -280,7 +293,7 @@ def test_run_plan_executes_all_steps_for_service_execution(orchestrator):
     orchestrator.run_plan()
 
     # Assert
-    assert 15 == len(orchestrator.rollback_steps)
+    assert 16 == len(orchestrator.rollback_steps)
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
     assert orchestrator._pull_current_version.called
@@ -424,10 +437,11 @@ def test_run_plan_execute_scripts_for_container_execution(orchestrator):
     # Assert
     setup_call = orchestrator._execute_setup.call_args_list[0]
     start_call = orchestrator._execute_start.call_args_list[0]
+    stop_call = orchestrator._execute_stop.call_args_list[0]
 
     assert get_call_arg(setup_call, "service") == latest_service
     assert get_call_arg(start_call, "service") == latest_service
-    assert not orchestrator._execute_stop.called
+    assert get_call_arg(stop_call, "service") == current_service
     assert not orchestrator._execute_teardown.called
 
 
@@ -549,3 +563,397 @@ def test_run_plan_execute_scripts_for_process_execution(orchestrator):
     assert get_call_arg(start_call, "service") == latest_service
     assert get_call_arg(stop_call, "service") == current_service
     assert not orchestrator._execute_teardown.called
+
+
+@patch("subvortex.auto_upgrader.src.orchestrator.saup.get_version_directory")
+@patch("os.path.exists")
+def test_raise_exception_when_version_asset_directory_does_not_exist_after_pulling_the_latest_version(
+    mock_os_path_exists, mock_get_version_directory, orchestrator
+):
+    # Arrange
+    mock_all_steps(orchestrator)
+
+    orchestrator._pull_latest_version = Orchestrator._pull_latest_version.__get__(
+        orchestrator
+    )
+
+    # orchestrator.check_version_assets_exists = (
+    #     Orchestrator.check_version_assets_exists.__get__(orchestrator)
+    # )
+
+    orchestrator._get_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_version", "1.0.0"
+    )
+    orchestrator._get_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_version", "1.0.1"
+    )
+
+    orchestrator._pull_assets = mock.MagicMock()
+
+    mock_get_version_directory.return_value = "fake-path"
+    mock_os_path_exists.return_value = False
+
+    orchestrator._run = mock.MagicMock()
+
+    # Action
+    with pytest.raises(MissingDirectoryError) as exc:
+        orchestrator.run_plan()
+
+    # Assert
+    assert "[AU1001] Required directory is missing: Path not found: fake-path" == str(
+        exc.value
+    )
+    assert orchestrator._get_current_version.called
+    assert orchestrator._get_latest_version.called
+    assert orchestrator._pull_current_version.called
+    assert not orchestrator._copy_env_files.called
+    assert not orchestrator._load_current_services.called
+    assert not orchestrator._load_latest_services.called
+    assert not orchestrator._check_versions.called
+    assert not orchestrator._rollout_service.called
+    assert not orchestrator._rollout_migrations.called
+    assert not orchestrator._stop_current_services.called
+    assert not orchestrator._switch_services.called
+    assert not orchestrator._start_latest_services.called
+    assert not orchestrator._prune_services.called
+    assert not orchestrator._remove_services.called
+    assert not orchestrator._finalize_versions.called
+
+
+@patch("subvortex.auto_upgrader.src.orchestrator.saup.get_au_environment_file")
+@patch("os.path.exists")
+def test_raise_exception_when_source_env_file_does_not_exist_during_the_copy_env_files_step(
+    mock_os_path_exists, mock_get_au_environment_file, orchestrator
+):
+    # Arrange
+    mock_all_steps(orchestrator)
+
+    orchestrator._copy_env_files = Orchestrator._copy_env_files.__get__(
+        orchestrator
+    )
+
+    orchestrator._get_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_version", "1.0.0"
+    )
+    orchestrator._get_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_version", "1.0.1"
+    )
+
+    # Simulate loaded services
+    current_service = create_service("1.0.0")
+    latest_service = create_service("1.0.1")
+
+    orchestrator._pull_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_services", [current_service]
+    )
+    orchestrator._pull_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_services", [latest_service]
+    )
+
+    mock_get_au_environment_file.return_value = "fake-source-file"
+    mock_os_path_exists.side_effect = [False, True]
+
+    orchestrator._run = mock.MagicMock()
+
+    # Action
+    with pytest.raises(MissingFileError) as exc:
+        orchestrator.run_plan()
+
+    # Assert
+    assert "[AU1002] Required file is missing: Path not found: fake-source-file" == str(
+        exc.value
+    )
+    assert orchestrator._get_current_version.called
+    assert orchestrator._get_latest_version.called
+    assert orchestrator._pull_current_version.called
+    assert orchestrator._pull_latest_version.called
+    assert not orchestrator._load_current_services.called
+    assert not orchestrator._load_latest_services.called
+    assert not orchestrator._check_versions.called
+    assert not orchestrator._rollout_service.called
+    assert not orchestrator._rollout_migrations.called
+    assert not orchestrator._stop_current_services.called
+    assert not orchestrator._switch_services.called
+    assert not orchestrator._start_latest_services.called
+    assert not orchestrator._prune_services.called
+    assert not orchestrator._remove_services.called
+    assert not orchestrator._finalize_versions.called
+
+
+@patch("subvortex.auto_upgrader.src.orchestrator.saup.get_environment_file")
+@patch("os.path.exists")
+def test_raise_exception_when_target_env_file_does_not_exist_during_the_copy_env_files_step(
+    mock_os_path_exists, mock_get_environment_file, orchestrator
+):
+    # Arrange
+    mock_all_steps(orchestrator)
+
+    orchestrator._copy_env_files = Orchestrator._copy_env_files.__get__(
+        orchestrator
+    )
+
+    orchestrator._get_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_version", "1.0.0"
+    )
+    orchestrator._get_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_version", "1.0.1"
+    )
+
+    # Simulate loaded services
+    current_service = create_service("1.0.0")
+    latest_service = create_service("1.0.1")
+
+    orchestrator._pull_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_services", [current_service]
+    )
+    orchestrator._pull_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_services", [latest_service]
+    )
+
+    mock_get_environment_file.return_value = "fake-target-file"
+    mock_os_path_exists.side_effect = [True, False]
+
+    orchestrator._run = mock.MagicMock()
+
+    # Action
+    with pytest.raises(MissingFileError) as exc:
+        orchestrator.run_plan()
+
+    # Assert
+    assert "[AU1002] Required file is missing: Path not found: fake-target-file" == str(
+        exc.value
+    )
+    assert orchestrator._get_current_version.called
+    assert orchestrator._get_latest_version.called
+    assert orchestrator._pull_current_version.called
+    assert orchestrator._pull_latest_version.called
+    assert not orchestrator._load_current_services.called
+    assert not orchestrator._load_latest_services.called
+    assert not orchestrator._check_versions.called
+    assert not orchestrator._rollout_service.called
+    assert not orchestrator._rollout_migrations.called
+    assert not orchestrator._stop_current_services.called
+    assert not orchestrator._switch_services.called
+    assert not orchestrator._start_latest_services.called
+    assert not orchestrator._prune_services.called
+    assert not orchestrator._remove_services.called
+    assert not orchestrator._finalize_versions.called
+
+
+@patch("subvortex.auto_upgrader.src.orchestrator.saup.get_role_directory")
+@patch("os.path.exists")
+def test_raise_exception_when_role_directory_does_not_exist_while_pulling_current_services(
+    mock_os_path_exists, mock_get_role_directory, orchestrator
+):
+    # Arrange
+    mock_all_steps(orchestrator)
+
+    orchestrator._load_current_services = Orchestrator._load_current_services.__get__(
+        orchestrator
+    )
+
+    orchestrator._get_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_version", "1.0.0"
+    )
+    orchestrator._get_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_version", "1.0.1"
+    )
+
+    current_service = create_service("1.0.0")
+    latest_service = create_service("1.0.1")
+
+    orchestrator._pull_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_services", [current_service]
+    )
+    orchestrator._pull_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_services", [latest_service]
+    )
+
+    mock_get_role_directory.return_value = "fake-role-dir"
+    mock_os_path_exists.return_value = False
+
+    orchestrator._run = mock.MagicMock()
+
+    # Action
+    with pytest.raises(MissingDirectoryError) as exc:
+        orchestrator.run_plan()
+
+    # Assert
+    assert (
+        "[AU1001] Required directory is missing: Path not found: fake-role-dir"
+        == str(exc.value)
+    )
+    assert orchestrator._get_current_version.called
+    assert orchestrator._get_latest_version.called
+    assert orchestrator._pull_current_version.called
+    assert orchestrator._pull_latest_version.called
+    assert not orchestrator._load_latest_services.called
+    assert not orchestrator._check_versions.called
+    assert not orchestrator._rollout_service.called
+    assert not orchestrator._rollout_migrations.called
+    assert not orchestrator._stop_current_services.called
+    assert not orchestrator._switch_services.called
+    assert not orchestrator._start_latest_services.called
+    assert not orchestrator._prune_services.called
+    assert not orchestrator._remove_services.called
+    assert not orchestrator._finalize_versions.called
+
+
+@patch("subvortex.auto_upgrader.src.orchestrator.saup.get_role_directory")
+@patch("os.path.exists")
+def test_raise_exception_when_role_directory_does_not_exist_while_pulling_latest_services(
+    mock_os_path_exists, mock_get_role_directory, orchestrator
+):
+    # Arrange
+    mock_all_steps(orchestrator)
+
+    orchestrator._load_latest_services = Orchestrator._load_latest_services.__get__(
+        orchestrator
+    )
+
+    orchestrator._get_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_version", "1.0.0"
+    )
+    orchestrator._get_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_version", "1.0.1"
+    )
+
+    current_service = create_service("1.0.0")
+    latest_service = create_service("1.0.1")
+
+    orchestrator._pull_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_services", [current_service]
+    )
+    orchestrator._pull_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_services", [latest_service]
+    )
+
+    mock_get_role_directory.return_value = "fake-role-dir"
+    mock_os_path_exists.return_value = False
+
+    orchestrator._run = mock.MagicMock()
+
+    # Action
+    with pytest.raises(MissingDirectoryError) as exc:
+        orchestrator.run_plan()
+
+    # Assert
+    assert (
+        "[AU1001] Required directory is missing: Path not found: fake-role-dir"
+        == str(exc.value)
+    )
+    assert orchestrator._get_current_version.called
+    assert orchestrator._get_latest_version.called
+    assert orchestrator._pull_current_version.called
+    assert orchestrator._pull_latest_version.called
+    assert orchestrator._load_current_services.called
+    assert not orchestrator._check_versions.called
+    assert not orchestrator._rollout_service.called
+    assert not orchestrator._rollout_migrations.called
+    assert not orchestrator._stop_current_services.called
+    assert not orchestrator._switch_services.called
+    assert not orchestrator._start_latest_services.called
+    assert not orchestrator._prune_services.called
+    assert not orchestrator._remove_services.called
+    assert not orchestrator._finalize_versions.called
+
+
+@patch("subvortex.auto_upgrader.src.orchestrator.saup.get_role_directory")
+@patch("os.path.exists")
+def test_raise_exception_when_latest_services_doe_not_exist_after_pulling_them(
+    mock_os_path_exists, mock_get_role_directory, orchestrator
+):
+    # Arrange
+    mock_all_steps(orchestrator)
+
+    orchestrator._load_latest_services = Orchestrator._load_latest_services.__get__(
+        orchestrator
+    )
+
+    orchestrator._get_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_version", "1.0.0"
+    )
+    orchestrator._get_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_version", "1.0.1"
+    )
+
+    latest_service = create_service("1.0.1")
+
+    orchestrator._load_services = mock.MagicMock()
+    orchestrator._load_services.side_effect = [[], [latest_service]]
+
+    mock_get_role_directory.return_value = "valid-role-dir"
+    mock_os_path_exists.return_value = True
+
+    orchestrator._run = mock.MagicMock()
+
+    # Action
+    with pytest.raises(ServicesLoadError) as exc:
+        orchestrator.run_plan()
+
+    # Assert
+    assert "[AU1003] Failed to load services: Version: 1.0.1" == str(exc.value)
+    assert orchestrator._get_current_version.called
+    assert orchestrator._get_latest_version.called
+    assert orchestrator._pull_current_version.called
+    assert orchestrator._pull_latest_version.called
+    assert orchestrator._load_current_services.called
+    assert not orchestrator._check_versions.called
+    assert not orchestrator._rollout_service.called
+    assert not orchestrator._rollout_migrations.called
+    assert not orchestrator._stop_current_services.called
+    assert not orchestrator._switch_services.called
+    assert not orchestrator._start_latest_services.called
+    assert not orchestrator._prune_services.called
+    assert not orchestrator._remove_services.called
+    assert not orchestrator._finalize_versions.called
+
+
+@patch("subvortex.auto_upgrader.src.orchestrator.MigrationManager")
+def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_out_migration_step(
+    mock_migration_manager_class, orchestrator
+):
+    # Arrange
+    mock_all_steps(orchestrator)
+
+    orchestrator._rollout_migrations = Orchestrator._rollout_migrations.__get__(
+        orchestrator
+    )
+
+    orchestrator._get_current_version.side_effect = lambda: setattr(
+        orchestrator, "current_version", "1.0.0"
+    )
+    orchestrator._get_latest_version.side_effect = lambda: setattr(
+        orchestrator, "latest_version", "1.0.1"
+    )
+
+    latest_service = create_service("1.0.1")
+
+    orchestrator._load_services = mock.MagicMock()
+    orchestrator._load_services.side_effect = [[], [latest_service]]
+
+    mock_migration_manager = mock.MagicMock()
+    mock_migration_manager.collect_migrations.side_effect = MissingDirectoryError(directory_path="fake-path")
+    mock_migration_manager_class.return_value = mock_migration_manager
+
+    orchestrator._run = mock.MagicMock()
+
+    # Action
+    with pytest.raises(MissingDirectoryError) as exc:
+        orchestrator.run_plan()
+
+    # Assert
+    assert "[AU1001] Required directory is missing: Path not found: fake-path" == str(exc.value)
+    assert orchestrator._get_current_version.called
+    assert orchestrator._get_latest_version.called
+    assert orchestrator._pull_current_version.called
+    assert orchestrator._pull_latest_version.called
+    assert orchestrator._load_current_services.called
+    assert orchestrator._check_versions.called
+    assert orchestrator._rollout_service.called
+    assert not orchestrator._stop_current_services.called
+    assert not orchestrator._switch_services.called
+    assert not orchestrator._start_latest_services.called
+    assert not orchestrator._prune_services.called
+    assert not orchestrator._remove_services.called
+    assert not orchestrator._finalize_versions.called

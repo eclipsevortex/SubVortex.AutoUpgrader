@@ -1,5 +1,4 @@
 import subprocess
-from pathlib import Path
 from typing import List, Literal
 
 import bittensor.utils.btlogging as btul
@@ -17,12 +16,12 @@ class Service:
         version: str,
         execution: str,
         migration: str,
-        migration_type: str,
         setup_command: str,
         start_command: str,
         stop_command: str,
         teardown_command: str,
         depends_on: List[str] = [],
+        migration_type: str = None,
     ):
         self.id = id
         self.name = name
@@ -55,6 +54,26 @@ class Service:
             teardown_command=metadata.get("teardown_command"),
             depends_on=metadata.get("depends_on"),
         )
+
+    @property
+    def role(self):
+        if not self.id or not self.version:
+            return None
+
+        # Details of the id
+        details = self.id.split("-")
+
+        return details[-2]
+
+    @property
+    def key(self):
+        if not self.id or not self.version:
+            return None
+
+        # Details of the id
+        details = self.id.split("-")
+
+        return details[-1]
 
     def switch_to_version(self, version: str):
         btul.logging.info(

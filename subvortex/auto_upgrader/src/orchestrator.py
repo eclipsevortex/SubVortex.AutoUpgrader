@@ -2,19 +2,20 @@ import os
 import shutil
 import traceback
 import subprocess
+from os import path
 from typing import List, Tuple, Callable
 from packaging.version import Version
-from os import path
 
 import bittensor.utils.btlogging as btul
 
 import subvortex.auto_upgrader.src.service as saus
 import subvortex.auto_upgrader.src.constants as sauc
+import subvortex.auto_upgrader.src.path as saup
+import subvortex.auto_upgrader.src.exception as saue
 import subvortex.auto_upgrader.src.resolvers.dependency_resolver as saudr
 import subvortex.auto_upgrader.src.github as saug
 import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.resolvers.metadata_resolver as saumr
-from subvortex.auto_upgrader.src.migrations.base import Migration
 from subvortex.auto_upgrader.src.migration_manager import MigrationManager
 
 here = path.abspath(path.dirname(__file__))
@@ -76,7 +77,7 @@ class Orchestrator:
         self._step(
             "Copying environement variables",
             self._rollback_nop,
-            self._copy_env_variables,
+            self._copy_env_files,
         )
 
         # Set the action
@@ -94,9 +95,6 @@ class Orchestrator:
         self._step(
             "Load latest services", self._rollback_nop, self._load_latest_services
         )
-
-        # Get the execution of the latest version
-        execution = self._get_execution()
 
         # Check the latest version and the current one
         self._step("Check versions", self._rollback_nop, self._check_versions)
@@ -231,33 +229,28 @@ class Orchestrator:
         # Download and unzip the latest version
         self._pull_assets(version=self.latest_version)
 
+        # Buid the path of the the version directory
+        path = saup.get_version_directory(version=self.latest_version)
+
+        if not os.path.exists(path):
+            raise saue.MissingDirectoryError(directory_path=path)
+
         btul.logging.debug("Latest assets pulled", prefix=sauc.SV_LOGGER_NAME)
 
-    def _copy_env_variables(self):
-        # Build the env directory
-        env_dir = path.join(here, "../environment")
-
-        # Get all the env files
-        env_files = [
-            f for f in os.listdir(env_dir) if os.path.isfile(os.path.join(env_dir, f))
-        ]
-
-        # Get the normalized version
-        normalized_version = sauv.normalize_version(self.latest_version)
-
-        for env_file in env_files:
-            # Get the name of the service
-            name = env_file.split(".")[-1]
-            role = env_file.split(".")[-2]
-
-            if role != sauc.SV_EXECUTION_ROLE:
-                continue
+    def _copy_env_files(self):
+        for service in self.latest_services:
+            # Create the env file path
+            source_file = saup.get_au_environment_file(service=service)
+            if not os.path.exists(source_file):
+                raise saue.MissingFileError(file_path=source_file)
 
             # Build the target env file
-            target = f"{sauc.SV_ASSET_DIR}/subvortex-{normalized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{name}/.env"
+            target_file = saup.get_environment_file(service=service)
+            if not os.path.exists(target_file):
+                raise saue.MissingFileError(file_path=target_file)
 
             # Copy the env file to the service directory
-            shutil.copy2(f"{env_dir}/{env_file}", target)
+            shutil.copy2(source_file, target_file)
 
     def _rollback_pull_latest_version(self):
         # Remove the latest version
@@ -278,6 +271,8 @@ class Orchestrator:
     def _load_latest_services(self):
         # Load the services of the latest version
         self.latest_services = self._load_services(self.latest_version)
+        if len(self.latest_services) == 0:
+            raise saue.ServicesLoadError(version=self.latest_version)
 
         # Display the list of services
         services = [x.name for x in self.current_services]
@@ -389,7 +384,7 @@ class Orchestrator:
 
                 if result == 0:
                     btul.logging.info(
-                        f"🔄 Skipping {service}: container already running.",
+                        f"🔄 Skipping {service.name}: container already running.",
                         prefix=sauc.SV_LOGGER_NAME,
                     )
 
@@ -532,13 +527,10 @@ class Orchestrator:
     def _load_services(self, version: str):
         services = []
 
-        # Get the normalized version
-        normalized_version = sauv.normalize_version(version)
-
         # Determine the neuron directory where to find all the services
-        path = f"{sauc.SV_WORKING_DIRECTORY}/subvortex-{normalized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}"
+        path = saup.get_role_directory(version=version)
         if not os.path.exists(path):
-            return services
+            raise saue.MissingDirectoryError(directory_path=path)
 
         for entry in self.metadata_resolver.list_directory(path=path):
             service_path = os.path.join(path, entry)
@@ -587,17 +579,8 @@ class Orchestrator:
         self._run(action=action, service=service, rollback=rollback)
 
     def _run(self, action: str, service: saus.Service, rollback: bool = False):
-        # Normalized version
-        noramlized_version = sauv.normalize_version(version=service.version)
-
         # Build the setup script path
-        method = (
-            "docker"
-            if sauc.SV_EXECUTION_METHOD == "container"
-            else sauc.SV_EXECUTION_METHOD
-        )
-        _, name = service.id.split("-")
-        script = f"{sauc.SV_ASSET_DIR}/subvortex-{noramlized_version}/subvortex/{sauc.SV_EXECUTION_ROLE}/{name}/deployment/{method}/{name}_{method}_{action}.sh"
+        script = saup.get_service_script(service=service, action=action)
 
         # Check if the script exist
         if not os.path.exists(script):
@@ -636,33 +619,11 @@ class Orchestrator:
         )
 
     def _remove_assets(self, version: str):
-        # Get the normalized version
-        normalized_version = sauv.normalize_version(version=version)
-
         # Build the asset directory
-        asset_dir = f"{sauc.SV_WORKING_DIRECTORY}/subvortex-{normalized_version}"
-
-        if not os.path.exists(asset_dir):
-            return
+        asset_dir = saup.get_version_directory(version=version)
 
         # Remove the directory
         shutil.rmtree(asset_dir)
 
         # Notify the success
         btul.logging.info("Assets removed", prefix=sauc.SV_LOGGER_NAME)
-
-    def _get_execution(self):
-        # Get the list of execution for each service
-        executions = [x.execution for x in self.latest_services]
-
-        # For now all the execution will be same and come from the auto upgrader env var `SUBVORTEX_EXECUTION_METHOD`
-        return executions[0] if len(executions) > 0 else "service"
-
-    def _get_tag(self):
-        if "alpha" == sauc.SV_PRERELEASE_TYPE:
-            return "dev"
-
-        if "rc" == sauc.SV_PRERELEASE_TYPE:
-            return "stable"
-
-        return "latest"

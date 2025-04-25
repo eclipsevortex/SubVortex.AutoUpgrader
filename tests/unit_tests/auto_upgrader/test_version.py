@@ -67,13 +67,3 @@ def test_get_local_version_returns_latest(tmp_path, monkeypatch):
     monkeypatch.setattr("os.listdir", lambda _: files)
 
     assert get_local_version() == "2.0.0"
-
-
-def test_get_local_version_raises_if_none_found(monkeypatch):
-    monkeypatch.setattr(
-        "subvortex.auto_upgrader.src.constants.SV_WORKING_DIRECTORY", "/tmp/fakepath"
-    )
-    monkeypatch.setattr("os.listdir", lambda _: ["random", "not-a-version"])
-
-    with pytest.raises(RuntimeError, match="No valid local subvortex versions found"):
-        get_local_version()

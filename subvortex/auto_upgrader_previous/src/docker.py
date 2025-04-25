@@ -15,7 +15,6 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import re
-import os
 import json
 import base64
 import typing
@@ -27,7 +26,9 @@ import subvortex.auto_upgrader.src.constants as sauc
 
 
 class Docker:
-    async def get_remote_versions(self, tag: str, components: typing.List[str], previous_version: str):
+    async def get_remote_versions(
+        self, tag: str, components: typing.List[str], previous_version: str
+    ):
         # Get the images/digests of the current floating tag
         tasks = [
             self._get_digest_and_label(
@@ -42,8 +43,13 @@ class Docker:
         for result in results:
             merged_results.update(result)
 
-        version = next(iter(versions)) if (versions := {v["version"] for v in merged_results.values()}) and len(versions) == 1 else previous_version
-        merged_results['version'] = version
+        version = (
+            next(iter(versions))
+            if (versions := {v["version"] for v in merged_results.values()})
+            and len(versions) == 1
+            else previous_version
+        )
+        merged_results["version"] = version
 
         return merged_results
 
@@ -203,37 +209,33 @@ class Docker:
     def _get_local_versions(self, repo_name: str, tag: str = "latest"):
         versions = {}
 
-        try:
-            label = ".".join(repo_name.replace("subvortex-", "").split("-"))
+        label = ".".join(repo_name.replace("subvortex-", "").split("-"))
 
-            # Step 1: List all local images with their tags
-            result = subprocess.run(
-                [
-                    "docker",
-                    "inspect",
-                    "--format",
-                    f'version={{{{ index .Config.Labels "version" }}}} {sauc.SV_EXECUTION_ROLE}.version={{{{ index .Config.Labels "{label}.version" }}}}',
-                    repo_name,
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=False,
-            )
+        # Step 1: List all local images with their tags
+        result = subprocess.run(
+            [
+                "docker",
+                "inspect",
+                "--format",
+                f'version={{{{ index .Config.Labels "version" }}}} {sauc.SV_EXECUTION_ROLE}.version={{{{ index .Config.Labels "{label}.version" }}}}',
+                repo_name,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
 
-            if not result.stdout:
-                return versions
+        if not result.stdout:
+            return versions
 
-            # Extract the output
-            output = result.stdout.strip()
-            if not output:
-                return versions
+        # Extract the output
+        output = result.stdout.strip()
+        if not output:
+            return versions
 
-            # Parse the output into a dictionary
-            versions = dict(item.split("=", 1) for item in output.split())
-
-        except subprocess.CalledProcessError as e:
-            print(e)
+        # Parse the output into a dictionary
+        versions = dict(item.split("=", 1) for item in output.split())
 
         return versions
 

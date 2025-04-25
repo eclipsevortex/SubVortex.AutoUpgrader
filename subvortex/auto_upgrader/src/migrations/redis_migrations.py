@@ -6,6 +6,8 @@ from redis import asyncio as aioredis
 import bittensor.utils.btlogging as btul
 
 import subvortex.auto_upgrader.src.constants as sauc
+import subvortex.auto_upgrader.src.path as saup
+import subvortex.auto_upgrader.src.exception as saue
 from subvortex.auto_upgrader.src.service import Service
 from subvortex.auto_upgrader.src.migrations.base import Migration
 
@@ -26,27 +28,35 @@ class RedisMigrations(Migration):
         self.sorted_revisions = []  # Topologically sorted list
 
     def _load_migrations(self):
-        for fname in os.listdir(self.migration):
+        # Build the migration path
+        migration_path = saup.get_migration_directory(service=self.service)
+        if migration_path is None:
+            return
+
+        # Check if the provided migration path exists
+        if not os.path.exists(migration_path):
+            raise saue.MissingDirectoryError(directory_path=migration_path)
+
+        for fname in os.listdir(migration_path):
             if not fname.endswith(".py"):
                 continue
 
-            fpath = os.path.join(self.migration, fname)
-            spec = importlib.util.spec_from_file_location(fname[:-3], fpath)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+            # Load the migration module
+            mod = self._load_module(path=migration_path, name=fname)
+
+            if not hasattr(mod, "rollout") or not hasattr(mod, "rollback"):
+                raise saue.MalformedMigrationFileError(file=fname)
 
             revision = getattr(mod, "revision", None)
             down_revision = getattr(mod, "down_revision", None)
 
-            if (
-                not revision
-                or not hasattr(mod, "rollout")
-                or not hasattr(mod, "rollback")
-            ):
-                raise ValueError(f"Invalid migration file: {fname}")
+            if revision is None:
+                raise saue.RevisionNotFoundError()
 
-            if revision is None or down_revision == revision:
-                raise ValueError(f"Invalid migration file: {fname}")
+            if down_revision == revision:
+                raise saue.InvalidRevisionLinkError(
+                    revision=revision, down_revision=down_revision
+                )
 
             self.modules[revision] = mod
             self.graph[revision] = down_revision
@@ -85,9 +95,6 @@ class RedisMigrations(Migration):
 
         if current == target:
             return
-
-        if target not in self.sorted_revisions:
-            raise ValueError(f"Target revision {target} not found.")
 
         # Store rollback target (previous version)
         self.service.rollback_version = current
@@ -133,10 +140,11 @@ class RedisMigrations(Migration):
         if current == target:
             return
 
-        if current not in self.sorted_revisions or (
-            target and target not in self.sorted_revisions
-        ):
-            raise ValueError("Revisions not found in migration history.")
+        if current not in self.sorted_revisions:
+            raise saue.RevisionNotFoundError(revision=current)
+
+        if target and target not in self.sorted_revisions:
+            raise saue.RevisionNotFoundError(revision=target)
 
         # Create a database instance
         database = self._create_redis_instance()
@@ -174,3 +182,11 @@ class RedisMigrations(Migration):
         )
 
         return database
+
+    def _load_module(self, path: str, name: str):
+        fpath = os.path.join(path, name)
+        spec = importlib.util.spec_from_file_location(name[:-3], fpath)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        return mod

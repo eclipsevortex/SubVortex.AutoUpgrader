@@ -18,7 +18,6 @@ import pytest
 from subvortex.auto_upgrader.src.service import Service
 from subvortex.auto_upgrader.src.resolvers.dependency_resolver import DependencyResolver
 
-
 def create_service(id, depends_on=None):
     return Service(
         id=id,
