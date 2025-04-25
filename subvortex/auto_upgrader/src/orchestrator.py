@@ -635,7 +635,7 @@ class Orchestrator:
         try:
             subprocess.run(
                 ["pip", "install", "-e", "."],
-                cwd=f"{version_dir}/pyproject.toml",
+                cwd=version_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
