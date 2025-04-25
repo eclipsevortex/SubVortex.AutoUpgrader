@@ -52,7 +52,7 @@ class RevisionNotFoundError(AutoUpgraderError):
         super().__init__(
             code="AU1005",
             message="Revision not found",
-            details=f"Revision: {revision}" if revision else None
+            details=f"Revision: {revision}" if revision else None,
         )
 
 
@@ -64,12 +64,22 @@ class InvalidRevisionLinkError(AutoUpgraderError):
             details=f"Revision: {revision}, Down Revision: {down_revision}",
         )
 
+
 class RuntimeError(AutoUpgraderError):
     def __init__(self, action: str, details: str):
         super().__init__(
             code="AU1007",
             message="Runtime error",
             details=f"Action: {action} - {details}",
+        )
+
+
+class ModuleMigrationError(AutoUpgraderError):
+    def __init__(self, name: str, details: str):
+        super().__init__(
+            code="AU1008",
+            message="Module migration error",
+            details=f"Name: {name} - {details}",
         )
 
 

@@ -58,9 +58,9 @@ def orchestrator():
     # Mock internal steps in run_plan
     orch._get_current_version = mock.MagicMock()
     orch._get_latest_version = mock.MagicMock()
-    orch._pull_current_version = mock.MagicMock()
-    orch._pull_latest_version = mock.MagicMock()
-    orch._rollback_pull_latest_version = mock.MagicMock()
+    orch._pull_current_assets = mock.MagicMock()
+    orch._pull_latest_assets = mock.MagicMock()
+    orch._rollback_pull_latest_assets = mock.MagicMock()
     orch._load_current_services = mock.MagicMock()
     orch._load_latest_services = mock.MagicMock()
     orch._copy_env_files = mock.MagicMock()
@@ -88,15 +88,15 @@ def create_service(version: str, id="subvortex-neuron", execution="process"):
 def mock_all_steps(orch):
     orch._get_current_version = mock.MagicMock()
     orch._get_latest_version = mock.MagicMock()
-    orch._pull_current_version = mock.MagicMock()
-    orch._pull_latest_version = mock.MagicMock()
-    orch._rollback_pull_latest_version = mock.MagicMock()
+    orch._pull_current_assets = mock.MagicMock()
+    orch._pull_latest_assets = mock.MagicMock()
+    orch._rollback_pull_latest_assets = mock.MagicMock()
     orch._copy_env_files = mock.MagicMock()
     orch._load_current_services = mock.MagicMock()
     orch._load_latest_services = mock.MagicMock()
     orch._check_versions = mock.MagicMock()
     orch._rollout_service = mock.MagicMock()
-    orch._rollback_services_changes = mock.MagicMock()
+    orch._rollback_services = mock.MagicMock()
     orch._rollout_migrations = mock.MagicMock()
     orch._rollback_migrations = mock.MagicMock()
     orch._stop_current_services = mock.MagicMock()
@@ -224,8 +224,8 @@ async def test_run_plan_execute_all_steps_for_container_execution(orchestrator):
     assert 16 == len(orchestrator.rollback_steps)
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert orchestrator._load_latest_services.called
     assert orchestrator._check_versions.called
@@ -261,8 +261,8 @@ async def test_run_plan_executes_all_steps_for_process_execution(orchestrator):
     assert 16 == len(orchestrator.rollback_steps)
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert orchestrator._load_latest_services.called
     assert orchestrator._check_versions.called
@@ -298,8 +298,8 @@ async def test_run_plan_executes_all_steps_for_service_execution(orchestrator):
     assert 16 == len(orchestrator.rollback_steps)
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert orchestrator._load_latest_services.called
     assert orchestrator._check_versions.called
@@ -323,8 +323,8 @@ async def test_run_plan_downgrade_path(orchestrator):
         orchestrator, "latest_version", "1.0.0"
     )
     orchestrator._get_execution = lambda: "process"
-    orchestrator._pull_current_version = mock.MagicMock()
-    orchestrator._pull_latest_version = mock.MagicMock()
+    orchestrator._pull_current_assets = mock.MagicMock()
+    orchestrator._pull_latest_assets = mock.MagicMock()
     orchestrator.get_service_script = mock.MagicMock()
     orchestrator._load_current_services = lambda: setattr(
         orchestrator, "current_services", [create_service("1.0.1")]
@@ -352,9 +352,9 @@ async def test_run_plan_new_service_install(orchestrator):
         orchestrator, "latest_version", "1.0.1"
     )
     orchestrator._get_execution = lambda: "process"
-    orchestrator._pull_current_version = mock.MagicMock()
-    orchestrator._pull_latest_version = mock.MagicMock()
-    orchestrator._rollback_pull_latest_version = mock.MagicMock()
+    orchestrator._pull_current_assets = mock.MagicMock()
+    orchestrator._pull_latest_assets = mock.MagicMock()
+    orchestrator._rollback_pull_latest_assets = mock.MagicMock()
     orchestrator._execute_setup = mock.MagicMock()
     orchestrator._execute_start = mock.MagicMock()
     orchestrator._execute_stop = mock.MagicMock()
@@ -387,9 +387,9 @@ async def test_run_plan_old_service_removal(orchestrator):
         orchestrator, "latest_version", "1.0.1"
     )
     orchestrator._get_execution = lambda: "process"
-    orchestrator._pull_current_version = mock.MagicMock()
-    orchestrator._pull_latest_version = mock.MagicMock()
-    orchestrator._rollback_pull_latest_version = mock.MagicMock()
+    orchestrator._pull_current_assets = mock.MagicMock()
+    orchestrator._pull_latest_assets = mock.MagicMock()
+    orchestrator._rollback_pull_latest_assets = mock.MagicMock()
     orchestrator._execute_setup = mock.MagicMock()
     orchestrator._execute_start = mock.MagicMock()
     orchestrator._execute_stop = mock.MagicMock()
@@ -584,7 +584,7 @@ async def test_raise_exception_when_version_asset_directory_does_not_exist_after
     # Arrange
     mock_all_steps(orchestrator)
 
-    orchestrator._pull_latest_version = Orchestrator._pull_latest_version.__get__(
+    orchestrator._pull_latest_assets = Orchestrator._pull_latest_assets.__get__(
         orchestrator
     )
 
@@ -612,7 +612,7 @@ async def test_raise_exception_when_version_asset_directory_does_not_exist_after
     )
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
+    assert orchestrator._pull_current_assets.called
     assert not orchestrator._copy_env_files.called
     assert not orchestrator._load_current_services.called
     assert not orchestrator._load_latest_services.called
@@ -649,10 +649,10 @@ async def test_raise_exception_when_source_env_file_does_not_exist_during_the_co
     current_service = create_service("1.0.0")
     latest_service = create_service("1.0.1")
 
-    orchestrator._pull_current_version.side_effect = lambda: setattr(
+    orchestrator._pull_current_assets.side_effect = lambda: setattr(
         orchestrator, "current_services", [current_service]
     )
-    orchestrator._pull_latest_version.side_effect = lambda: setattr(
+    orchestrator._pull_latest_assets.side_effect = lambda: setattr(
         orchestrator, "latest_services", [latest_service]
     )
 
@@ -671,8 +671,8 @@ async def test_raise_exception_when_source_env_file_does_not_exist_during_the_co
     )
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert orchestrator._load_latest_services.called
     assert orchestrator._check_versions.called
@@ -708,10 +708,10 @@ async def test_raise_exception_when_target_env_dir_does_not_exist_during_the_cop
     current_service = create_service("1.0.0")
     latest_service = create_service("1.0.1")
 
-    orchestrator._pull_current_version.side_effect = lambda: setattr(
+    orchestrator._pull_current_assets.side_effect = lambda: setattr(
         orchestrator, "current_services", [current_service]
     )
-    orchestrator._pull_latest_version.side_effect = lambda: setattr(
+    orchestrator._pull_latest_assets.side_effect = lambda: setattr(
         orchestrator, "latest_services", [latest_service]
     )
 
@@ -731,8 +731,8 @@ async def test_raise_exception_when_target_env_dir_does_not_exist_during_the_cop
     )
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert orchestrator._load_latest_services.called
     assert orchestrator._check_versions.called
@@ -769,10 +769,10 @@ async def test_raise_exception_when_role_directory_does_not_exist_while_pulling_
     current_service = create_service("1.0.0")
     latest_service = create_service("1.0.1")
 
-    orchestrator._pull_current_version.side_effect = lambda: setattr(
+    orchestrator._pull_current_assets.side_effect = lambda: setattr(
         orchestrator, "current_services", [current_service]
     )
-    orchestrator._pull_latest_version.side_effect = lambda: setattr(
+    orchestrator._pull_latest_assets.side_effect = lambda: setattr(
         orchestrator, "latest_services", [latest_service]
     )
 
@@ -792,8 +792,8 @@ async def test_raise_exception_when_role_directory_does_not_exist_while_pulling_
     )
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert not orchestrator._load_latest_services.called
     assert not orchestrator._check_versions.called
     assert not orchestrator._rollout_service.called
@@ -829,10 +829,10 @@ async def test_raise_exception_when_role_directory_does_not_exist_while_pulling_
     current_service = create_service("1.0.0")
     latest_service = create_service("1.0.1")
 
-    orchestrator._pull_current_version.side_effect = lambda: setattr(
+    orchestrator._pull_current_assets.side_effect = lambda: setattr(
         orchestrator, "current_services", [current_service]
     )
-    orchestrator._pull_latest_version.side_effect = lambda: setattr(
+    orchestrator._pull_latest_assets.side_effect = lambda: setattr(
         orchestrator, "latest_services", [latest_service]
     )
 
@@ -852,8 +852,8 @@ async def test_raise_exception_when_role_directory_does_not_exist_while_pulling_
     )
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert not orchestrator._check_versions.called
     assert not orchestrator._rollout_service.called
@@ -904,8 +904,8 @@ async def test_raise_exception_when_latest_services_doe_not_exist_after_pulling_
     assert "[AU1003] Failed to load services: Version: 1.0.1" == str(exc.value)
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert not orchestrator._check_versions.called
     assert not orchestrator._rollout_service.called
@@ -960,8 +960,8 @@ async def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_o
     )
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
-    assert orchestrator._pull_current_version.called
-    assert orchestrator._pull_latest_version.called
+    assert orchestrator._pull_current_assets.called
+    assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert orchestrator._check_versions.called
     assert orchestrator._rollout_service.called
@@ -990,8 +990,8 @@ async def test_run_plan_calls_all_steps_in_order(orchestrator):
     # Mock all steps
     orchestrator._get_current_version = make_step("get_current_version")
     orchestrator._get_latest_version = make_step("get_latest_version")
-    orchestrator._pull_current_version = make_step("pull_current_version")
-    orchestrator._pull_latest_version = make_step("pull_latest_version")
+    orchestrator._pull_current_assets = make_step("pull_current_version")
+    orchestrator._pull_latest_assets = make_step("pull_latest_version")
     orchestrator._load_current_services = make_step("load_current_services")
     orchestrator._load_latest_services = make_step("load_latest_services")
     orchestrator._check_versions = make_step("check_versions")
@@ -1039,3 +1039,66 @@ async def test_run_plan_calls_all_steps_in_order(orchestrator):
 
     # Assert
     assert called_steps == expected_steps
+
+
+@pytest.mark.asyncio
+async def test_rollback_calls_all_steps_in_reverse_order(orchestrator):
+    # Arrange
+    called_rollback_steps = []
+
+    def make_rollback_step(name):
+        async def async_step(*args, **kwargs):
+            called_rollback_steps.append(name)
+
+        def sync_step(*args, **kwargs):
+            called_rollback_steps.append(name)
+
+        return async_step if "async" in name else sync_step
+
+    # Register rollback steps in the order they would be registered during run_plan
+    orchestrator.rollback_steps = [
+        ("Get current version", make_rollback_step("Get current version")),
+        ("Get latest version", make_rollback_step("Get latest version")),
+        ("Pull current version", make_rollback_step("Pull current version")),
+        ("Pull latest version", make_rollback_step("Pull latest version")),
+        ("Load current services", make_rollback_step("Load current services")),
+        ("Load latest services", make_rollback_step("Load latest services")),
+        ("Check versions", make_rollback_step("Check versions")),
+        (
+            "Copying environment variables",
+            make_rollback_step("Copying environment variables"),
+        ),
+        ("Upgrade services", make_rollback_step("Upgrade services")),
+        ("Run migrations", make_rollback_step("Run migrations")),
+        ("Stop previous services", make_rollback_step("Stop previous services")),
+        ("Switching to new version", make_rollback_step("Switching to new version")),
+        ("Start new services", make_rollback_step("Start new services")),
+        ("Remove prune services", make_rollback_step("Remove prune services")),
+        ("Remove previous version", make_rollback_step("Remove previous version")),
+        ("Finalize service versions", make_rollback_step("Finalize service versions")),
+    ]
+
+    # Act
+    await orchestrator.run_rollback_plan()
+
+    # Assert: rollback should call steps in reverse registration order
+    expected_rollback_order = [
+        "Finalize service versions",
+        "Remove previous version",
+        "Remove prune services",
+        "Start new services",
+        "Switching to new version",
+        "Stop previous services",
+        "Run migrations",
+        "Upgrade services",
+        "Copying environment variables",
+        "Check versions",
+        "Load latest services",
+        "Load current services",
+        "Pull latest version",
+        "Pull current version",
+        "Get latest version",
+        "Get current version",
+    ]
+
+    assert called_rollback_steps == expected_rollback_order

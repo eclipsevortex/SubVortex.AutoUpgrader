@@ -201,9 +201,12 @@ class RedisMigrations(Migration):
         return database
 
     def _load_module(self, path: str, name: str):
-        fpath = os.path.join(path, name)
-        spec = importlib.util.spec_from_file_location(name[:-3], fpath)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        try:
+            fpath = os.path.join(path, name)
+            spec = importlib.util.spec_from_file_location(name[:-3], fpath)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
 
-        return module
+            return module
+        except Exception as e:
+            raise saue.ModuleMigrationError(name=name, details=str(e))

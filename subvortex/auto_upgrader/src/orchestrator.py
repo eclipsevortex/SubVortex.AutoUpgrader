@@ -16,6 +16,7 @@ import subvortex.auto_upgrader.src.utils as sauu
 import subvortex.auto_upgrader.src.exception as saue
 import subvortex.auto_upgrader.src.resolvers.dependency_resolver as saudr
 import subvortex.auto_upgrader.src.github as saug
+import subvortex.auto_upgrader.src.docker as saud
 import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.resolvers.metadata_resolver as saumr
 from subvortex.auto_upgrader.src.migration_manager import MigrationManager
@@ -35,6 +36,7 @@ class Orchestrator:
         self.latest_services: List[saus.Service] = []
 
         self.github = saug.Github()
+        self.docker = saud.Docker()
         self.metadata_resolver = saumr.MetadataResolver()
 
     async def run_plan(self):
@@ -62,15 +64,15 @@ class Orchestrator:
         await self._step(
             "Pull current version",
             self._rollback_nop,
-            self._pull_current_version,
+            self._pull_current_assets,
             condition=lambda: self.current_version != last_version_before_auto_upgrader,
         )
 
         # Pull the assets of the latest version for the neuron
         await self._step(
             "Pull latest version",
-            self._rollback_pull_latest_version,
-            self._pull_latest_version,
+            self._rollback_pull_latest_assets,
+            self._pull_latest_assets,
         )
 
         if self.current_version == self.latest_version:
@@ -112,7 +114,7 @@ class Orchestrator:
         # Upgrade the services that have changed
         await self._step(
             f"{action} services".capitalize(),
-            self._rollback_services_changes,
+            self._rollback_services,
             self._rollout_service,
         )
 
@@ -223,12 +225,21 @@ class Orchestrator:
             else:
                 action_func()
 
+        btul.logging.info(f"✅ Completed: {description}", prefix=sauc.SV_LOGGER_NAME)
+
     def _rollback_nop(self):
         pass  # For steps that don't change state
 
     def _get_current_version(self):
         # Get the latest version
-        version = sauv.get_local_version() or sauc.DEFAULT_LAST_RELEASE["global"]
+        version = self.github.get_latest_version()
+
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Get the version in docker hub
+            docker_version = self.docker.get_local_version()
+
+            # Set verison to be the docker one if they are different as github is always the source of truth
+            version = docker_version if docker_version != version else version
 
         # Set the current version in a denormlized wayt
         self.current_version = sauv.denormalize_version(version)
@@ -239,7 +250,11 @@ class Orchestrator:
 
     def _get_latest_version(self):
         # Get the latest version
-        version = self.github.get_latest_version()
+        version = (
+            self.docker.get_latest_version()
+            if sauc.SV_EXECUTION_METHOD == "container"
+            else self.github.get_latest_version()
+        )
 
         # Set the current version in a denormlized wayt
         self.latest_version = sauv.denormalize_version(version)
@@ -248,25 +263,18 @@ class Orchestrator:
             f"Latest version: {self.latest_version}", prefix=sauc.SV_LOGGER_NAME
         )
 
-    def _pull_current_version(self):
+    def _pull_current_assets(self):
         # Download and unzip the latest version
         self._pull_assets(version=self.current_version)
 
-        btul.logging.debug("Current assets pulled", prefix=sauc.SV_LOGGER_NAME)
-
-    def _pull_latest_version(self):
+    def _pull_latest_assets(self):
         # Download and unzip the latest version
         self._pull_assets(version=self.latest_version)
-
-        # Install subvortex as editable
-        # self._install_in_editable_mode()
 
         # Buid the path of the the version directory
         path = saup.get_version_directory(version=self.latest_version)
         if not os.path.exists(path):
             raise saue.MissingDirectoryError(directory_path=path)
-
-        btul.logging.debug("Latest assets pulled", prefix=sauc.SV_LOGGER_NAME)
 
     def _copy_env_files(self):
         for service in self.latest_services:
@@ -290,7 +298,7 @@ class Orchestrator:
             if not os.path.exists(env_file):
                 raise saue.MissingFileError(file_path=env_file)
 
-    def _rollback_pull_latest_version(self):
+    def _rollback_pull_latest_assets(self):
         # Remove the latest version
         self._remove_assets(version=self.latest_version)
 
@@ -391,7 +399,7 @@ class Orchestrator:
             # Execute the setup
             self._execute_setup(service=service)
 
-    def _rollback_services_changes(self):
+    def _rollback_services(self):
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.latest_services)
 
@@ -456,20 +464,14 @@ class Orchestrator:
 
     def _rollback_switch_services(self):
         # Create the dependency resolver
-        dependency_resolver = saudr.DependencyResolver(services=self.latest_services)
+        dependency_resolver = saudr.DependencyResolver(services=self.current_version)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order(reverse=True)
 
         for service in sorted_services:
-            current_service = next(
-                (x for x in self.current_services if x.id == service.id), None
-            )
-            if not current_service:
-                continue
-
             # Switch to previous version
-            service.switch_to_version(version=current_service.version)
+            service.switch_to_version(version=service.version)
 
     def _start_latest_services(self, service_filter: Callable = None):
         # Create the dependency resolver
@@ -609,9 +611,13 @@ class Orchestrator:
 
     def _pull_assets(self, version: str):
         # Download and unzip the latest version
-        self.github.download_and_unzip_assets(
+        path = self.github.download_and_unzip_assets(
             version=version,
             role=sauc.SV_EXECUTION_ROLE,
+        )
+
+        btul.logging.debug(
+            f"Version {version} pulled in {path}", prefix=sauc.SV_LOGGER_NAME
         )
 
     def _remove_assets(self, version: str):
