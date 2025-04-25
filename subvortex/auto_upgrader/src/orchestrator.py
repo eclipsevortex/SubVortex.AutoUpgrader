@@ -634,8 +634,9 @@ class Orchestrator:
                 env=env,
                 stdout=subprocess.STDOUT,
                 stderr=subprocess.STDOUT,
+                capture_output=True,
                 text=True,
-                check=True,
+                check=False,
             )
         except subprocess.CalledProcessError as e:
             raise saue.RuntimeError(action=action, details=str(e))
