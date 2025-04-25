@@ -254,7 +254,7 @@ class Orchestrator:
 
     def _rollback_pull_latest_version(self):
         # Remove the latest version
-        self._remove_assets(version=self.latest_version)
+        self._remove_assets(version=self.latest_version, throw_exception=False)
 
         btul.logging.debug("Latest assets removed", prefix=sauc.SV_LOGGER_NAME)
 
@@ -265,7 +265,7 @@ class Orchestrator:
         # Display the list of services
         services = [x.name for x in self.current_services]
         btul.logging.debug(
-            f"Current services loaded: {','.join(services)}", prefix=sauc.SV_LOGGER_NAME
+            f"Current services loaded: {', '.join(services)}", prefix=sauc.SV_LOGGER_NAME
         )
 
     def _load_latest_services(self):
@@ -277,7 +277,7 @@ class Orchestrator:
         # Display the list of services
         services = [x.name for x in self.current_services]
         btul.logging.debug(
-            f"Latest services loaded: {','.join(services)}", prefix=sauc.SV_LOGGER_NAME
+            f"Latest services loaded: {', '.join(services)}", prefix=sauc.SV_LOGGER_NAME
         )
 
     def _check_versions(self):
@@ -621,6 +621,8 @@ class Orchestrator:
     def _remove_assets(self, version: str):
         # Build the asset directory
         asset_dir = saup.get_version_directory(version=version)
+        if not os.path.exists(asset_dir):
+            return
 
         # Remove the directory
         shutil.rmtree(asset_dir)
