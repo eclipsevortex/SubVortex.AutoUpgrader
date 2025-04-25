@@ -137,6 +137,9 @@ class Github:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
+            
+            f.flush()
+            os.fsync(f.fileno())
 
         if os.path.exists(target_path):
             btul.logging.warning(
