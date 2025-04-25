@@ -1,5 +1,6 @@
 import os
 import shutil
+import asyncio
 import traceback
 import subprocess
 from os import path
@@ -41,7 +42,7 @@ class Orchestrator:
         self.rollback_steps.clear()
 
         # Get version before auto upgrader
-        last_version_before_auo_upgrader = sauc.DEFAULT_LAST_RELEASE.get("global")
+        last_version_before_auto_upgrader = sauc.DEFAULT_LAST_RELEASE.get("global")
 
         # Get the current version
         await self._step(
@@ -62,7 +63,7 @@ class Orchestrator:
             "Pull current version",
             self._rollback_nop,
             self._pull_current_version,
-            condition=lambda: self.current_version != last_version_before_auo_upgrader,
+            condition=lambda: self.current_version != last_version_before_auto_upgrader,
         )
 
         # Pull the assets of the latest version for the neuron
@@ -90,7 +91,7 @@ class Orchestrator:
             "Load current services",
             self._rollback_nop,
             self._load_current_services,
-            condition=lambda: self.current_version != last_version_before_auo_upgrader,
+            condition=lambda: self.current_version != last_version_before_auto_upgrader,
         )
 
         # Load the services of the latest version
@@ -176,7 +177,10 @@ class Orchestrator:
         for desc, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(f"Rolling back: {desc}", prefix=sauc.SV_LOGGER_NAME)
             try:
-                await rollback_func()
+                if asyncio.iscoroutinefunction(rollback_func):
+                    await rollback_func()
+                else:
+                    rollback_func()
             except Exception as e:
                 success = False
                 btul.logging.error(
@@ -209,9 +213,15 @@ class Orchestrator:
         self.rollback_steps.append((description, rollback_func))
 
         if service_filter:
-            await action_func(service_filter=service_filter)
+            if asyncio.iscoroutinefunction(action_func):
+                await action_func(service_filter=service_filter)
+            else:
+                action_func(service_filter=service_filter)
         else:
-            await action_func()
+            if asyncio.iscoroutinefunction(action_func):
+                await action_func()
+            else:
+                action_func()
 
     def _rollback_nop(self):
         pass  # For steps that don't change state
