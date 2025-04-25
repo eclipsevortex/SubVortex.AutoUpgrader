@@ -206,13 +206,4 @@ class RedisMigrations(Migration):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
-        # Extract the Migration class
-        migration_class = getattr(module, "Migration", None)
-        if migration_class is None:
-            btul.logging.error(
-                f"No 'Migration' class found in: {path}",
-                prefix=sauc.SV_LOGGER_NAME,
-            )
-            return None
-
-        return migration_class
+        return module
