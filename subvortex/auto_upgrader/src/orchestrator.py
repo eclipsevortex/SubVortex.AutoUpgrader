@@ -270,8 +270,15 @@ class Orchestrator:
             if not os.path.exists(target_dir):
                 raise saue.MissingDirectoryError(directory_path=target_dir)
 
+            # Create the env file
+            env_file = f"{target_dir}/.env"
+
             # Copy the env file to the service directory
-            shutil.copy2(source_file, f"{target_dir}/.env")
+            shutil.copy2(source_file, env_file)
+
+            # Check if the file is there
+            if not os.path.exists(env_file):
+                raise saue.MissingFileError(file_path=env_file)
 
     def _rollback_pull_latest_version(self):
         # Remove the latest version
