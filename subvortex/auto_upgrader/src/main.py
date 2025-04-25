@@ -41,6 +41,9 @@ class Worker:
 
             try:
                 if not first_run:
+                    btul.logging.debug(
+                        f"Waiting {sauc.SV_CHECK_INTERVAL} seconds before next check..."
+                    )
                     await asyncio.sleep(sauc.SV_CHECK_INTERVAL)
 
                 # Rollout the plan

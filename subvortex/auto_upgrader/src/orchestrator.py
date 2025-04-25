@@ -36,7 +36,7 @@ class Orchestrator:
         self.metadata_resolver = saumr.MetadataResolver()
 
     def run_plan(self):
-        btul.logging.info("Runing the plan...", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
 
         # Get the current version
         self._step(
@@ -161,15 +161,25 @@ class Orchestrator:
         return True
 
     def run_rollback_plan(self):
+        btul.logging.info("Rolling back the plan...", prefix=sauc.SV_LOGGER_NAME)
+
+        success = True
         for desc, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(f"Rolling back: {desc}", prefix=sauc.SV_LOGGER_NAME)
             try:
                 rollback_func()
             except Exception as e:
+                success = False
                 btul.logging.error(
                     f"Failed to rollback {desc}: {e}", prefix=sauc.SV_LOGGER_NAME
                 )
                 btul.logging.debug(traceback.format_exc())
+
+        if success:
+            btul.logging.success(
+                "↩️ Rollback completed succesfully",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
     def _step(
         self,
