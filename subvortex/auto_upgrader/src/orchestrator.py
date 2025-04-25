@@ -79,13 +79,6 @@ class Orchestrator:
             )
             return True
 
-        # Copy the env var file in the latest version services
-        self._step(
-            "Copying environement variables",
-            self._rollback_nop,
-            self._copy_env_files,
-        )
-
         # Set the action
         action = (
             "upgrade" if self.current_version < self.latest_version else "downgrade"
@@ -107,6 +100,13 @@ class Orchestrator:
 
         # Check the latest version and the current one
         self._step("Check versions", self._rollback_nop, self._check_versions)
+
+        # Copy the env var file in the latest version services
+        self._step(
+            "Copying environement variables",
+            self._rollback_nop,
+            self._copy_env_files,
+        )
 
         # Upgrade the services that have changed
         self._step(
