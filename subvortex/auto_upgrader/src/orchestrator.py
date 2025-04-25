@@ -39,6 +39,9 @@ class Orchestrator:
         btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
         self.rollback_steps.clear()
 
+        # Get version before auto upgrader
+        last_version_before_auo_upgrader = sauc.DEFAULT_LAST_RELEASE.get('global')
+
         # Get the current version
         self._step(
             "Get current version",
@@ -58,6 +61,7 @@ class Orchestrator:
             "Pull current version",
             self._rollback_nop,
             self._pull_current_version,
+            condition=lambda: self.current_version != last_version_before_auo_upgrader
         )
 
         # Pull the assets of the latest version for the neuron
@@ -87,9 +91,10 @@ class Orchestrator:
         )
         emoji = "⬆️" if self.current_version < self.latest_version else "⬇️"
 
-        # Load the services of the latest version
+        # Load the services of the current version
         self._step(
-            "Load current services", self._rollback_nop, self._load_current_services
+            "Load current services", self._rollback_nop, self._load_current_services,
+            condition=lambda: self.current_version != last_version_before_auo_upgrader
         )
 
         # Load the services of the latest version
