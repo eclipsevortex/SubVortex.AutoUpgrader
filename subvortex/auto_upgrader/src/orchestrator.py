@@ -647,6 +647,10 @@ class Orchestrator:
         # Get the version directory
         version_dir = saup.get_version_directory(version=self.latest_version)
 
+        # Check if the pyproject is there
+        if not os.path.exists(f"{version_dir}/pyproject.toml"):
+            raise saue.MissingFileError(file_path=f"{version_dir}/pyproject.toml")
+
         # Install the subnet
         try:
             result = subprocess.run(
