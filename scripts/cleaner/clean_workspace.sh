@@ -28,7 +28,7 @@ show_help() {
 version_sort() {
     if command -v sort >/dev/null && sort -V </dev/null &>/dev/null; then
         sort -V
-        elif command -v gsort >/dev/null; then
+    elif command -v gsort >/dev/null; then
         gsort -V
     else
         echo "❌ Error: version sort (sort -V or gsort -V) not supported on this system." >&2
@@ -60,7 +60,7 @@ while [ "$#" -ge 1 ]; do
             shift
         ;;
         -h|--help)
-            usage
+            show_help
             exit 0
         ;;
         --)
@@ -76,6 +76,7 @@ while [ "$#" -ge 1 ]; do
 done
 
 TARGET_BASE="/var/tmp/subvortex"
+SYMLINK_PATH="/root/subvortex"
 
 if [ ! -d "$TARGET_BASE" ]; then
     echo "❌ Error: Directory '$TARGET_BASE' does not exist."
@@ -108,6 +109,13 @@ else
     fi
 fi
 
+# Determine what the /root/subvortex symlink points to (if it exists)
+symlink_target=""
+if [ -L "$SYMLINK_PATH" ]; then
+    symlink_target="$(readlink "$SYMLINK_PATH")"
+    symlink_target="$(basename "$symlink_target")"
+fi
+
 echo "🧹 Cleaning up: $TARGET_BASE"
 
 for dir in "${all_dirs[@]}"; do
@@ -119,8 +127,17 @@ for dir in "${all_dirs[@]}"; do
             if [[ "$DRY_RUN" == "false" ]]; then
                 echo "🔥 Removing: $dir"
                 rm -rf "$dir"
+
+                # Remove symlink if it points to this version
+                if [ "$symlink_target" == "$dir" ]; then
+                    echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
+                    rm -f "$SYMLINK_PATH"
+                fi
             else
                 echo "💡 Simulating removal: $dir"
+                if [ "$symlink_target" == "$dir" ]; then
+                    echo "💡 Simulating symlink removal: $SYMLINK_PATH (targeted $dir)"
+                fi
             fi
         else
             echo "🛡️  Preserving: $dir"
@@ -147,8 +164,16 @@ for dir in "${all_dirs[@]}"; do
         if [[ "$DRY_RUN" == "false" ]]; then
             echo "🔥 Removing: $dir"
             rm -rf "$dir"
+
+            if [ "$symlink_target" == "$dir" ]; then
+                echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
+                rm -f "$SYMLINK_PATH"
+            fi
         else
             echo "💡 Simulating removal: $dir"
+            if [ "$symlink_target" == "$dir" ]; then
+                echo "💡 Simulating symlink removal: $SYMLINK_PATH (targeted $dir)"
+            fi
         fi
     fi
 done
