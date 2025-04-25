@@ -1,4 +1,5 @@
 import os
+import shutil
 import tarfile
 import requests
 from packaging.version import Version, InvalidVersion
@@ -179,7 +180,7 @@ class Github:
 
             # If target directory exists, remove it to allow clean overwrite
             if os.path.exists(target_dir):
-                return target_dir
+                shutil.rmtree(target_dir)
 
             # Extract archive
             tar.extractall(path=sauc.SV_ASSET_DIR)
@@ -190,6 +191,8 @@ class Github:
         )
 
         if not os.path.exists(target_dir):
-            raise RuntimeError(f"Expected directory {target_dir} does not exist after extraction.")
+            raise RuntimeError(
+                f"Expected directory {target_dir} does not exist after extraction."
+            )
 
         return target_dir
