@@ -36,7 +36,7 @@ class Orchestrator:
         self.github = saug.Github()
         self.metadata_resolver = saumr.MetadataResolver()
 
-    def run_plan(self):
+    async def run_plan(self):
         btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
         self.rollback_steps.clear()
 
@@ -44,21 +44,21 @@ class Orchestrator:
         last_version_before_auo_upgrader = sauc.DEFAULT_LAST_RELEASE.get("global")
 
         # Get the current version
-        self._step(
+        await self._step(
             "Get current version",
             self._rollback_nop,
             self._get_current_version,
         )
 
         # Get the latest version
-        self._step(
+        await self._step(
             "Get latest version",
             self._rollback_nop,
             self._get_latest_version,
         )
 
         # Pull the assets of the current version for the neuron
-        self._step(
+        await self._step(
             "Pull current version",
             self._rollback_nop,
             self._pull_current_version,
@@ -66,7 +66,7 @@ class Orchestrator:
         )
 
         # Pull the assets of the latest version for the neuron
-        self._step(
+        await self._step(
             "Pull latest version",
             self._rollback_pull_latest_version,
             self._pull_latest_version,
@@ -86,7 +86,7 @@ class Orchestrator:
         emoji = "⬆️" if self.current_version < self.latest_version else "⬇️"
 
         # Load the services of the current version
-        self._step(
+        await self._step(
             "Load current services",
             self._rollback_nop,
             self._load_current_services,
@@ -94,69 +94,69 @@ class Orchestrator:
         )
 
         # Load the services of the latest version
-        self._step(
+        await self._step(
             "Load latest services", self._rollback_nop, self._load_latest_services
         )
 
         # Check the latest version and the current one
-        self._step("Check versions", self._rollback_nop, self._check_versions)
+        await self._step("Check versions", self._rollback_nop, self._check_versions)
 
         # Copy the env var file in the latest version services
-        self._step(
+        await self._step(
             "Copying environement variables",
             self._rollback_nop,
             self._copy_env_files,
         )
 
         # Upgrade the services that have changed
-        self._step(
+        await self._step(
             f"{action} services".capitalize(),
             self._rollback_services_changes,
             self._rollout_service,
         )
 
         # Rollout migrations
-        self._step(
+        await self._step(
             "Run migrations", self._rollback_migrations, self._rollout_migrations
         )
 
         # Stop previous services
-        self._step(
+        await self._step(
             "Stop previous services",
             self._rollback_stop_current_services,
             self._stop_current_services,
         )
 
         # Switch services to new version
-        self._step(
+        await self._step(
             "Switching to new version",
             self._rollback_switch_services,
             self._switch_services,
         )
 
         # Start latest services
-        self._step(
+        await self._step(
             "Start new services",
             self._rollback_start_latest_services,
             self._start_latest_services,
         )
 
         # Remove prune services
-        self._step(
+        await self._step(
             "Remove prune services",
             self._rollback_prune_services,
             self._prune_services,
         )
 
         # Remove previous services
-        self._step(
+        await self._step(
             "Remove previous version",
             self._rollback_remove_services,
             self._remove_services,
         )
 
         # Finalize service versions
-        self._step(
+        await self._step(
             "Finalize service versions",
             self._rollback_nop,
             self._finalize_versions,
@@ -169,14 +169,14 @@ class Orchestrator:
 
         return True
 
-    def run_rollback_plan(self):
+    async def run_rollback_plan(self):
         btul.logging.info("Rolling back the plan...", prefix=sauc.SV_LOGGER_NAME)
 
         success = True
         for desc, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(f"Rolling back: {desc}", prefix=sauc.SV_LOGGER_NAME)
             try:
-                rollback_func()
+                await rollback_func()
             except Exception as e:
                 success = False
                 btul.logging.error(
@@ -190,7 +190,7 @@ class Orchestrator:
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
-    def _step(
+    async def _step(
         self,
         description: str,
         rollback_func: callable,
@@ -209,9 +209,9 @@ class Orchestrator:
         self.rollback_steps.append((description, rollback_func))
 
         if service_filter:
-            action_func(service_filter=service_filter)
+            await action_func(service_filter=service_filter)
         else:
-            action_func()
+            await action_func()
 
     def _rollback_nop(self):
         pass  # For steps that don't change state
@@ -382,7 +382,7 @@ class Orchestrator:
             self._execute_setup(service=service)
 
         # Install subvortex as editable
-        self._install_in_editable_mode()
+        # self._install_in_editable_mode()
 
     def _can_rollout_service(self, service: saus.Service):
         if service.execution != "container":
@@ -423,17 +423,17 @@ class Orchestrator:
             # Execute the setup
             self._execute_setup(service=service, rollback=True)
 
-    def _rollout_migrations(self):
+    async def _rollout_migrations(self):
         # Filter out services that do not need any update
         services = [x for x in self.services if x.needs_update]
 
         # Create the migrations manager and apply the migrations
         self.migration_manager = MigrationManager(services)
         self.migration_manager.collect_migrations()
-        self.migration_manager.apply()
+        await self.migration_manager.apply()
 
-    def _rollback_migrations(self):
-        self.migration_manager.rollback()
+    async def _rollback_migrations(self):
+        await self.migration_manager.rollback()
 
     def _stop_current_services(self, service_filter: Callable = None):
         # Create the dependency resolver

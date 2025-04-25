@@ -28,16 +28,10 @@ class MigrationManager:
 
             self.migrations.append(migration_class(service))
 
-    def apply(self):
-        asyncio.run(self._apply())
-
-    def rollback(self):
-        asyncio.run(self._rollback())
-
-    async def _apply(self):
+    async def apply(self):
         for migration in self.migrations:
             await migration.apply()
 
-    async def _rollback(self):
+    async def rollback(self):
         for migration in reversed(self.migrations):
             await migration.rollback()

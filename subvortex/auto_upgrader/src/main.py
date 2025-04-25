@@ -47,7 +47,7 @@ class Worker:
                     await asyncio.sleep(sauc.SV_CHECK_INTERVAL)
 
                 # Rollout the plan
-                success = self.orchestrator.run_plan()
+                success = await self.orchestrator.run_plan()
 
             except KeyboardInterrupt:
                 btul.logging.debug("KeyboardInterrupt", prefix=sauc.SV_LOGGER_NAME)
@@ -68,7 +68,7 @@ class Worker:
 
                 if not success and not sauc.SV_DISABLE_ROLLBACK:
                     # The plan was not successful, rollback it
-                    self.orchestrator.run_rollback_plan()
+                    await self.orchestrator.run_rollback_plan()
 
         # Signal the waiter the service has finished
         self.finished.set()
