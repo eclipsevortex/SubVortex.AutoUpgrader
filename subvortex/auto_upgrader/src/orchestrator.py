@@ -230,7 +230,7 @@ class Orchestrator:
     def _rollback_nop(self):
         pass  # For steps that don't change state
 
-    def _get_current_version(self):
+    async def _get_current_version(self):
         # Get the latest version
         version = self.github.get_latest_version()
 
@@ -239,7 +239,7 @@ class Orchestrator:
 
         if sauc.SV_EXECUTION_METHOD == "container":
             # Get the version in docker hub
-            docker_version = self.docker.get_local_version()
+            docker_version = await self.docker.get_local_version()
 
             # Set verison to be the docker one if they are different as github is always the source of truth
             version = docker_version if docker_version != version else version
@@ -249,7 +249,7 @@ class Orchestrator:
             f"Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
         )
 
-    def _get_latest_version(self):
+    async def _get_latest_version(self):
         # Get the latest version
         version = self.github.get_latest_version()
 
@@ -258,7 +258,7 @@ class Orchestrator:
 
         if sauc.SV_EXECUTION_METHOD == "container":
             # Get the version in docker hub
-            version = self.docker.get_latest_version()
+            version = await self.docker.get_latest_version()
 
         self.latest_version = version
         btul.logging.debug(
