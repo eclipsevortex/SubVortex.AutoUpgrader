@@ -63,6 +63,7 @@ def orchestrator():
     orch._rollback_pull_latest_version = mock.MagicMock()
     orch._load_current_services = mock.MagicMock()
     orch._load_latest_services = mock.MagicMock()
+    orch._copy_env_files = mock.MagicMock()
 
     # Removal
     orch._remove_assets = mock.MagicMock()
@@ -118,7 +119,8 @@ def mock_all_scripts(orch):
     orch._execute_teardown = mock.MagicMock()
 
 
-def test_run_plan_no_new_version(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_no_new_version(orchestrator):
     # Arrange
     orchestrator._get_current_version.side_effect = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -130,13 +132,14 @@ def test_run_plan_no_new_version(orchestrator):
     orchestrator._rollout_service = mock.MagicMock()
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     orchestrator._rollout_service.assert_not_called()
 
 
-def test_run_plan_new_version_upgrade(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_new_version_upgrade(orchestrator):
     # Arrange
     orchestrator._get_current_version.side_effect = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -159,7 +162,7 @@ def test_run_plan_new_version_upgrade(orchestrator):
     orchestrator._run = mock.MagicMock()
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     assert len(orchestrator.services) == 1
@@ -170,7 +173,8 @@ def test_run_plan_new_version_upgrade(orchestrator):
     )
 
 
-def test_run_plan_handles_failed_setup(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_handles_failed_setup(orchestrator):
     # Arrange
     orchestrator._get_current_version.side_effect = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -197,10 +201,11 @@ def test_run_plan_handles_failed_setup(orchestrator):
 
     # Action
     with pytest.raises(RuntimeError):
-        orchestrator.run_plan()
+        await orchestrator.run_plan()
 
 
-def test_run_plan_execute_all_steps_for_container_execution(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_execute_all_steps_for_container_execution(orchestrator):
     # Arrange
     mock_all_steps(orchestrator)
 
@@ -215,7 +220,7 @@ def test_run_plan_execute_all_steps_for_container_execution(orchestrator):
     orchestrator._get_execution = lambda: "container"
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     assert 16 == len(orchestrator.rollback_steps)
@@ -236,7 +241,8 @@ def test_run_plan_execute_all_steps_for_container_execution(orchestrator):
     assert orchestrator._finalize_versions.called
 
 
-def test_run_plan_executes_all_steps_for_process_execution(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_executes_all_steps_for_process_execution(orchestrator):
     # Assert
     mock_all_steps(orchestrator)
 
@@ -251,7 +257,7 @@ def test_run_plan_executes_all_steps_for_process_execution(orchestrator):
     orchestrator._get_execution = lambda: "process"
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     assert 16 == len(orchestrator.rollback_steps)
@@ -272,7 +278,8 @@ def test_run_plan_executes_all_steps_for_process_execution(orchestrator):
     assert orchestrator._finalize_versions.called
 
 
-def test_run_plan_executes_all_steps_for_service_execution(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_executes_all_steps_for_service_execution(orchestrator):
     # Assert
     mock_all_steps(orchestrator)
 
@@ -287,7 +294,7 @@ def test_run_plan_executes_all_steps_for_service_execution(orchestrator):
     orchestrator._get_execution = lambda: "service"
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     assert 16 == len(orchestrator.rollback_steps)
@@ -308,7 +315,8 @@ def test_run_plan_executes_all_steps_for_service_execution(orchestrator):
     assert orchestrator._finalize_versions.called
 
 
-def test_run_plan_downgrade_path(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_downgrade_path(orchestrator):
     # Assert
     orchestrator._get_current_version = lambda: setattr(
         orchestrator, "current_version", "1.0.1"
@@ -330,13 +338,14 @@ def test_run_plan_downgrade_path(orchestrator):
     orchestrator._run = mock.MagicMock()
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     assert orchestrator.services[0].upgrade_type == "downgrade"
 
 
-def test_run_plan_new_service_install(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_new_service_install(orchestrator):
     # Assert
     orchestrator._get_current_version = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -360,7 +369,7 @@ def test_run_plan_new_service_install(orchestrator):
     )
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     assert orchestrator.services[0].upgrade_type == "install"
@@ -370,7 +379,8 @@ def test_run_plan_new_service_install(orchestrator):
     assert not orchestrator._execute_teardown.called
 
 
-def test_run_plan_old_service_removal(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_old_service_removal(orchestrator):
     # Assert
     orchestrator._get_current_version = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -394,7 +404,7 @@ def test_run_plan_old_service_removal(orchestrator):
     )
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     assert orchestrator.services[0].must_remove is True
@@ -404,7 +414,8 @@ def test_run_plan_old_service_removal(orchestrator):
     assert orchestrator._execute_teardown.called
 
 
-def test_run_plan_execute_scripts_for_container_execution(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_execute_scripts_for_container_execution(orchestrator):
     # Arrange
     mock_all_scripts(orchestrator)
 
@@ -431,7 +442,7 @@ def test_run_plan_execute_scripts_for_container_execution(orchestrator):
     orchestrator._get_execution = lambda: "container"
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     setup_call = orchestrator._execute_setup.call_args_list[0]
@@ -483,7 +494,8 @@ def test_run_plan_execute_scripts_for_existing_container_execution(orchestrator)
     assert not orchestrator._execute_teardown.called
 
 
-def test_run_plan_execute_scripts_for_service_execution(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_execute_scripts_for_service_execution(orchestrator):
     # Arrange
     mock_all_scripts(orchestrator)
 
@@ -510,7 +522,7 @@ def test_run_plan_execute_scripts_for_service_execution(orchestrator):
     orchestrator._get_execution = lambda: "service"
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     setup_call = orchestrator._execute_setup.call_args_list[0]
@@ -524,7 +536,8 @@ def test_run_plan_execute_scripts_for_service_execution(orchestrator):
     assert not orchestrator._execute_teardown.called
 
 
-def test_run_plan_execute_scripts_for_process_execution(orchestrator):
+@pytest.mark.asyncio
+async def test_run_plan_execute_scripts_for_process_execution(orchestrator):
     # Arrange
     mock_all_scripts(orchestrator)
 
@@ -551,7 +564,7 @@ def test_run_plan_execute_scripts_for_process_execution(orchestrator):
     orchestrator._get_execution = lambda: "process"
 
     # Action
-    orchestrator.run_plan()
+    await orchestrator.run_plan()
 
     # Assert
     setup_call = orchestrator._execute_setup.call_args_list[0]
@@ -564,9 +577,10 @@ def test_run_plan_execute_scripts_for_process_execution(orchestrator):
     assert not orchestrator._execute_teardown.called
 
 
+@pytest.mark.asyncio
 @patch("subvortex.auto_upgrader.src.orchestrator.saup.get_version_directory")
 @patch("os.path.exists")
-def test_raise_exception_when_version_asset_directory_does_not_exist_after_pulling_the_latest_version(
+async def test_raise_exception_when_version_asset_directory_does_not_exist_after_pulling_the_latest_version(
     mock_os_path_exists, mock_get_version_directory, orchestrator
 ):
     # Arrange
@@ -575,10 +589,6 @@ def test_raise_exception_when_version_asset_directory_does_not_exist_after_pulli
     orchestrator._pull_latest_version = Orchestrator._pull_latest_version.__get__(
         orchestrator
     )
-
-    # orchestrator.check_version_assets_exists = (
-    #     Orchestrator.check_version_assets_exists.__get__(orchestrator)
-    # )
 
     orchestrator._get_current_version.side_effect = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -596,7 +606,7 @@ def test_raise_exception_when_version_asset_directory_does_not_exist_after_pulli
 
     # Action
     with pytest.raises(MissingDirectoryError) as exc:
-        orchestrator.run_plan()
+        await orchestrator.run_plan()
 
     # Assert
     assert "[AU1001] Required directory is missing: Path not found: fake-path" == str(
@@ -619,17 +629,16 @@ def test_raise_exception_when_version_asset_directory_does_not_exist_after_pulli
     assert not orchestrator._finalize_versions.called
 
 
+@pytest.mark.asyncio
 @patch("subvortex.auto_upgrader.src.orchestrator.saup.get_au_environment_file")
 @patch("os.path.exists")
-def test_raise_exception_when_source_env_file_does_not_exist_during_the_copy_env_files_step(
+async def test_raise_exception_when_source_env_file_does_not_exist_during_the_copy_env_files_step(
     mock_os_path_exists, mock_get_au_environment_file, orchestrator
 ):
     # Arrange
     mock_all_steps(orchestrator)
 
-    orchestrator._copy_env_files = Orchestrator._copy_env_files.__get__(
-        orchestrator
-    )
+    orchestrator._copy_env_files = Orchestrator._copy_env_files.__get__(orchestrator)
 
     orchestrator._get_current_version.side_effect = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -656,7 +665,7 @@ def test_raise_exception_when_source_env_file_does_not_exist_during_the_copy_env
 
     # Action
     with pytest.raises(MissingFileError) as exc:
-        orchestrator.run_plan()
+        await orchestrator.run_plan()
 
     # Assert
     assert "[AU1002] Required file is missing: Path not found: fake-source-file" == str(
@@ -666,9 +675,9 @@ def test_raise_exception_when_source_env_file_does_not_exist_during_the_copy_env
     assert orchestrator._get_latest_version.called
     assert orchestrator._pull_current_version.called
     assert orchestrator._pull_latest_version.called
-    assert not orchestrator._load_current_services.called
-    assert not orchestrator._load_latest_services.called
-    assert not orchestrator._check_versions.called
+    assert orchestrator._load_current_services.called
+    assert orchestrator._load_latest_services.called
+    assert orchestrator._check_versions.called
     assert not orchestrator._rollout_service.called
     assert not orchestrator._rollout_migrations.called
     assert not orchestrator._stop_current_services.called
@@ -679,17 +688,16 @@ def test_raise_exception_when_source_env_file_does_not_exist_during_the_copy_env
     assert not orchestrator._finalize_versions.called
 
 
+@pytest.mark.asyncio
 @patch("subvortex.auto_upgrader.src.orchestrator.saup.get_environment_file")
 @patch("os.path.exists")
-def test_raise_exception_when_target_env_dir_does_not_exist_during_the_copy_env_files_step(
+async def test_raise_exception_when_target_env_dir_does_not_exist_during_the_copy_env_files_step(
     mock_os_path_exists, mock_get_environment_file, orchestrator
 ):
     # Arrange
     mock_all_steps(orchestrator)
 
-    orchestrator._copy_env_files = Orchestrator._copy_env_files.__get__(
-        orchestrator
-    )
+    orchestrator._copy_env_files = Orchestrator._copy_env_files.__get__(orchestrator)
 
     orchestrator._get_current_version.side_effect = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -716,19 +724,20 @@ def test_raise_exception_when_target_env_dir_does_not_exist_during_the_copy_env_
 
     # Action
     with pytest.raises(MissingDirectoryError) as exc:
-        orchestrator.run_plan()
+        await orchestrator.run_plan()
 
     # Assert
-    assert "[AU1001] Required directory is missing: Path not found: /var/tmp/subvortex/subvortex-1.0.1/subvortex/miner/neuron" == str(
-        exc.value
+    assert (
+        "[AU1001] Required directory is missing: Path not found: /var/tmp/subvortex/subvortex-1.0.1/subvortex/miner/neuron"
+        == str(exc.value)
     )
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
     assert orchestrator._pull_current_version.called
     assert orchestrator._pull_latest_version.called
-    assert not orchestrator._load_current_services.called
-    assert not orchestrator._load_latest_services.called
-    assert not orchestrator._check_versions.called
+    assert orchestrator._load_current_services.called
+    assert orchestrator._load_latest_services.called
+    assert orchestrator._check_versions.called
     assert not orchestrator._rollout_service.called
     assert not orchestrator._rollout_migrations.called
     assert not orchestrator._stop_current_services.called
@@ -739,9 +748,10 @@ def test_raise_exception_when_target_env_dir_does_not_exist_during_the_copy_env_
     assert not orchestrator._finalize_versions.called
 
 
+@pytest.mark.asyncio
 @patch("subvortex.auto_upgrader.src.orchestrator.saup.get_role_directory")
 @patch("os.path.exists")
-def test_raise_exception_when_role_directory_does_not_exist_while_pulling_current_services(
+async def test_raise_exception_when_role_directory_does_not_exist_while_pulling_current_services(
     mock_os_path_exists, mock_get_role_directory, orchestrator
 ):
     # Arrange
@@ -775,7 +785,7 @@ def test_raise_exception_when_role_directory_does_not_exist_while_pulling_curren
 
     # Action
     with pytest.raises(MissingDirectoryError) as exc:
-        orchestrator.run_plan()
+        await orchestrator.run_plan()
 
     # Assert
     assert (
@@ -798,9 +808,10 @@ def test_raise_exception_when_role_directory_does_not_exist_while_pulling_curren
     assert not orchestrator._finalize_versions.called
 
 
+@pytest.mark.asyncio
 @patch("subvortex.auto_upgrader.src.orchestrator.saup.get_role_directory")
 @patch("os.path.exists")
-def test_raise_exception_when_role_directory_does_not_exist_while_pulling_latest_services(
+async def test_raise_exception_when_role_directory_does_not_exist_while_pulling_latest_services(
     mock_os_path_exists, mock_get_role_directory, orchestrator
 ):
     # Arrange
@@ -834,7 +845,7 @@ def test_raise_exception_when_role_directory_does_not_exist_while_pulling_latest
 
     # Action
     with pytest.raises(MissingDirectoryError) as exc:
-        orchestrator.run_plan()
+        await orchestrator.run_plan()
 
     # Assert
     assert (
@@ -857,9 +868,10 @@ def test_raise_exception_when_role_directory_does_not_exist_while_pulling_latest
     assert not orchestrator._finalize_versions.called
 
 
+@pytest.mark.asyncio
 @patch("subvortex.auto_upgrader.src.orchestrator.saup.get_role_directory")
 @patch("os.path.exists")
-def test_raise_exception_when_latest_services_doe_not_exist_after_pulling_them(
+async def test_raise_exception_when_latest_services_doe_not_exist_after_pulling_them(
     mock_os_path_exists, mock_get_role_directory, orchestrator
 ):
     # Arrange
@@ -888,7 +900,7 @@ def test_raise_exception_when_latest_services_doe_not_exist_after_pulling_them(
 
     # Action
     with pytest.raises(ServicesLoadError) as exc:
-        orchestrator.run_plan()
+        await orchestrator.run_plan()
 
     # Assert
     assert "[AU1003] Failed to load services: Version: 1.0.1" == str(exc.value)
@@ -908,8 +920,9 @@ def test_raise_exception_when_latest_services_doe_not_exist_after_pulling_them(
     assert not orchestrator._finalize_versions.called
 
 
+@pytest.mark.asyncio
 @patch("subvortex.auto_upgrader.src.orchestrator.MigrationManager")
-def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_out_migration_step(
+async def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_out_migration_step(
     mock_migration_manager_class, orchestrator
 ):
     # Arrange
@@ -932,17 +945,21 @@ def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_out_mig
     orchestrator._load_services.side_effect = [[], [latest_service]]
 
     mock_migration_manager = mock.MagicMock()
-    mock_migration_manager.collect_migrations.side_effect = MissingDirectoryError(directory_path="fake-path")
+    mock_migration_manager.collect_migrations.side_effect = MissingDirectoryError(
+        directory_path="fake-path"
+    )
     mock_migration_manager_class.return_value = mock_migration_manager
 
     orchestrator._run = mock.MagicMock()
 
     # Action
     with pytest.raises(MissingDirectoryError) as exc:
-        orchestrator.run_plan()
+        await orchestrator.run_plan()
 
     # Assert
-    assert "[AU1001] Required directory is missing: Path not found: fake-path" == str(exc.value)
+    assert "[AU1001] Required directory is missing: Path not found: fake-path" == str(
+        exc.value
+    )
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
     assert orchestrator._pull_current_version.called
@@ -956,3 +973,71 @@ def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_out_mig
     assert not orchestrator._prune_services.called
     assert not orchestrator._remove_services.called
     assert not orchestrator._finalize_versions.called
+
+
+@pytest.mark.asyncio
+async def test_run_plan_calls_all_steps_in_order(orchestrator):
+    # Arrange
+    called_steps = []
+
+    def make_step(name):
+        async def async_step(*args, **kwargs):
+            called_steps.append(name)
+
+        def sync_step(*args, **kwargs):
+            called_steps.append(name)
+
+        return async_step if "migrations" in name else sync_step
+
+    # Mock all steps
+    orchestrator._get_current_version = make_step("get_current_version")
+    orchestrator._get_latest_version = make_step("get_latest_version")
+    orchestrator._pull_current_version = make_step("pull_current_version")
+    orchestrator._pull_latest_version = make_step("pull_latest_version")
+    orchestrator._load_current_services = make_step("load_current_services")
+    orchestrator._load_latest_services = make_step("load_latest_services")
+    orchestrator._check_versions = make_step("check_versions")
+    orchestrator._copy_env_files = make_step("copy_env_files")
+    orchestrator._rollout_service = make_step("rollout_service")
+    orchestrator._rollout_migrations = make_step("rollout_migrations")
+    orchestrator._stop_current_services = make_step("stop_current_services")
+    orchestrator._switch_services = make_step("switch_services")
+    orchestrator._start_latest_services = make_step("start_latest_services")
+    orchestrator._prune_services = make_step("prune_services")
+    orchestrator._remove_services = make_step("remove_services")
+    orchestrator._finalize_versions = make_step("finalize_versions")
+
+    # Simulate versions
+    orchestrator.current_version = "1.0.0"
+    orchestrator.latest_version = "1.0.1"
+
+    # Simulate services
+    orchestrator.services = []
+    orchestrator.current_services = []
+    orchestrator.latest_services = []
+
+    # Action
+    await orchestrator.run_plan()
+
+    # Expected order
+    expected_steps = [
+        "get_current_version",
+        "get_latest_version",
+        "pull_current_version",
+        "pull_latest_version",
+        "load_current_services",
+        "load_latest_services",
+        "check_versions",
+        "copy_env_files",
+        "rollout_service",
+        "rollout_migrations",
+        "stop_current_services",
+        "switch_services",
+        "start_latest_services",
+        "prune_services",
+        "remove_services",
+        "finalize_versions",
+    ]
+
+    # Assert
+    assert called_steps == expected_steps

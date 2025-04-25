@@ -1,13 +1,8 @@
-import os
-import asyncio
 from typing import List
 
 from subvortex.auto_upgrader.src.migrations.base import Migration
-from subvortex.auto_upgrader.src.migrations.redis_migrations import RedisMigrations
 
-MIGRATION_TYPES = {
-    "redis": RedisMigrations,
-}
+MIGRATION_TYPES = {}
 
 
 class MigrationManager:
@@ -17,15 +12,27 @@ class MigrationManager:
 
     def collect_migrations(self):
         for service in self.services:
-            if not getattr(service, "migration_type", None):
+            migration_type = getattr(service, "migration_type", None)
+            if not migration_type:
                 continue
 
-            migration_class = MIGRATION_TYPES.get(service.migration_type)
-            if not migration_class:
-                raise ValueError(
-                    f"Unsupported migration type: {service.migration_type}"
-                )
+            if migration_type not in MIGRATION_TYPES:
+                # Lazy import when needed
+                if migration_type == "redis":
+                    try:
+                        from subvortex.auto_upgrader.src.migrations.redis_migrations import (
+                            RedisMigrations,
+                        )
 
+                        MIGRATION_TYPES["redis"] = RedisMigrations
+                    except ImportError as e:
+                        raise ImportError(
+                            "Redis migrations require redis packages to be installed."
+                        ) from e
+                else:
+                    raise ValueError(f"Unsupported migration type: {migration_type}")
+
+            migration_class = MIGRATION_TYPES[migration_type]
             self.migrations.append(migration_class(service))
 
     async def apply(self):
