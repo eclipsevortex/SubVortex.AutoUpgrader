@@ -1,4 +1,5 @@
 import os
+import time
 import shutil
 import tarfile
 import requests
@@ -142,12 +143,16 @@ class Github:
             f.flush()
             os.fsync(f.fileno())
 
-        if os.path.exists(target_path):
-            btul.logging.warning(
-                f"Asset paths {target_path} does not exist even if the unzip phase did not throw any exception",
-                prefix=sauc.SV_LOGGER_NAME,
+        # Check with retry the file has been downloaded on the file system
+        for _ in range(5):  # Try for ~500ms
+            if os.path.exists(target_path):
+                break
+            time.sleep(0.1)
+        else:
+            raise saue.MissingFileError(
+                file_path=target_path,
+                message=f"Downloaded archive {target_path} does not exist after writing."
             )
-            return None
 
         btul.logging.debug(
             f"Archive {archive_name} downloaded into {target_path}",
