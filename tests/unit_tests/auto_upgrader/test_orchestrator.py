@@ -168,9 +168,7 @@ async def test_run_plan_new_version_upgrade(orchestrator):
     assert len(orchestrator.services) == 1
     assert orchestrator.services[0].needs_update
     assert orchestrator.services[0].upgrade_type == "upgrade"
-    orchestrator._run.assert_any_call(
-        action="setup", service=orchestrator.services[0], rollback=False
-    )
+    orchestrator._run.assert_any_call(action="setup", service=orchestrator.services[0])
 
 
 @pytest.mark.asyncio

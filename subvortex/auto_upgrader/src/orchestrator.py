@@ -391,17 +391,6 @@ class Orchestrator:
             # Execute the setup
             self._execute_setup(service=service)
 
-    def _can_rollout_service(self, service: saus.Service):
-        if service.execution != "container":
-            return True
-
-        # Chekc if the container is created
-        result = os.system(
-            f"docker ps --format '{{{{.Names}}}}' | grep -q '{service.name}'"
-        )
-
-        return result != 0
-
     def _rollback_services_changes(self):
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.latest_services)
@@ -412,20 +401,6 @@ class Orchestrator:
         for service in sorted_services:
             if not service.needs_update:
                 continue
-
-            if service.execution == "container":
-                # Check if container for service is already running
-                result = os.system(
-                    f"docker ps --format '{{{{.Names}}}}' | grep -q '{service.name}'"
-                )
-
-                if result == 0:
-                    btul.logging.info(
-                        f"🔄 Skipping {service.name}: container already running.",
-                        prefix=sauc.SV_LOGGER_NAME,
-                    )
-
-                    continue
 
             # Execute the setup
             self._execute_teardown(service=service)
