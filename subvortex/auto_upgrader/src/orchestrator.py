@@ -235,7 +235,7 @@ class Orchestrator:
         version = self.github.get_latest_version()
 
         # Set the current version in a denormlized wayt
-        self.current_version = sauv.denormalize_version(version)
+        version = sauv.denormalize_version(version)
 
         if sauc.SV_EXECUTION_METHOD == "container":
             # Get the version in docker hub
@@ -244,6 +244,7 @@ class Orchestrator:
             # Set verison to be the docker one if they are different as github is always the source of truth
             version = docker_version if docker_version != version else version
 
+        self.current_version = version
         btul.logging.debug(
             f"Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
         )
@@ -253,15 +254,13 @@ class Orchestrator:
         version = self.github.get_latest_version()
 
         # Set the current version in a denormlized wayt
-        self.current_version = sauv.denormalize_version(version)
+        version = sauv.denormalize_version(version)
 
         if sauc.SV_EXECUTION_METHOD == "container":
             # Get the version in docker hub
             version = self.docker.get_latest_version()
 
-        # Set the current version in a denormlized wayt
-        self.latest_version = sauv.denormalize_version(version)
-
+        self.latest_version = version
         btul.logging.debug(
             f"Latest version: {self.latest_version}", prefix=sauc.SV_LOGGER_NAME
         )
