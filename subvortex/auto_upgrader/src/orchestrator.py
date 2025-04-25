@@ -649,11 +649,11 @@ class Orchestrator:
 
         # Install the subnet
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["pip", "install", "-e", "."],
                 cwd=version_dir,
-                stdout=subprocess.STDOUT,
-                stderr=subprocess.STDOUT,
+                # stdout=subprocess.STDOUT,
+                # stderr=subprocess.STDOUT,
                 text=True,
                 check=True,
             )

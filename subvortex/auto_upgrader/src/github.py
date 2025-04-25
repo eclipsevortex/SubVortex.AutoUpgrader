@@ -8,6 +8,7 @@ import bittensor.utils.btlogging as btul
 
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.version as sauv
+import subvortex.auto_upgrader.src.exception as saue
 
 
 class Github:
@@ -157,7 +158,7 @@ class Github:
 
     def _unzip_assets(self, archive_path: str):
         if not os.path.isfile(archive_path):
-            raise FileNotFoundError(f"Archive not found: {archive_path}")
+            raise saue.MissingFileError(file_path=archive_path)
 
         # Ensure the directory exists
         os.makedirs(sauc.SV_ASSET_DIR, exist_ok=True)
@@ -194,8 +195,6 @@ class Github:
         )
 
         if not os.path.exists(target_dir):
-            raise RuntimeError(
-                f"Expected directory {target_dir} does not exist after extraction."
-            )
+            raise saue.MissingDirectoryError(directory_path=target_dir)
 
         return target_dir
