@@ -66,7 +66,7 @@ class Worker:
                 # Flat not first run anymore
                 first_run = False
 
-                if not success:
+                if not success and not sauc.SV_DISABLE_ROLLBACK:
                     # The plan was not successful, rollback it
                     self.orchestrator.run_rollback_plan()
 

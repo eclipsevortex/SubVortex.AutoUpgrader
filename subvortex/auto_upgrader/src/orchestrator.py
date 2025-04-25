@@ -249,7 +249,7 @@ class Orchestrator:
         self._pull_assets(version=self.latest_version)
 
         # Install subvortex as editable
-        self._install_editable()
+        self._install_in_editable_mode()
 
         # Buid the path of the the version directory
         path = saup.get_version_directory(version=self.latest_version)
@@ -643,7 +643,7 @@ class Orchestrator:
         # Notify the success
         btul.logging.info("Assets removed", prefix=sauc.SV_LOGGER_NAME)
 
-    def _install_editable(self):
+    def _install_in_editable_mode(self):
         # Get the version directory
         version_dir = saup.get_version_directory(version=self.latest_version)
 

@@ -35,3 +35,5 @@ DEFAULT_LAST_RELEASE = {
     "validator.neuron": "2.3.3",
     "validator.redis": "2.2.0",
 }
+
+SV_DISABLE_ROLLBACK = os.getenv("SUBVORTEX_DISABLE_ROLLBACK", False)
