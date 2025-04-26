@@ -300,6 +300,11 @@ class Orchestrator:
             if not os.path.exists(env_file):
                 raise saue.MissingFileError(file_path=env_file)
 
+            btul.logging.info(
+                f"Env file {source_file} copied to {env_file}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
     def _rollback_pull_latest_assets(self):
         # Remove the latest version
         self._remove_assets(version=self.latest_version)
@@ -557,6 +562,14 @@ class Orchestrator:
             metadata = self.metadata_resolver.get_metadata(path=service_path)
             if not metadata:
                 continue
+
+            # Override version from docker image if container
+            if sauc.SV_EXECUTION_METHOD == "container":
+                # Get the version from the image label
+                version = self.docker.get_latest_service_version(name=entry)
+
+                # Override the version
+                service.version = version
 
             # Create the instance of service
             service = saus.Service.create(metadata)

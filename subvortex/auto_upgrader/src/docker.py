@@ -7,6 +7,10 @@ import subvortex.auto_upgrader.src.utils as sauu
 
 
 class Docker:
+    def __init__(self):
+        self.latest_versions = {}
+        self.local_versions = {}
+
     async def get_latest_version(self):
         # Get the floating tag
         ftag = sauu.get_tag()
@@ -36,7 +40,9 @@ class Docker:
         )
         merged_results["version"] = version
 
-        return merged_results["version"]
+        self.latest_versions = merged_results
+
+        return self.latest_versions["version"]
 
     async def get_local_version(self):
         versions = {}
@@ -82,7 +88,18 @@ class Docker:
         global_versions = list(set([x.get("version") for x in versions.values()]))
         versions["version"] = global_versions[0] if len(global_versions) > 0 else None
 
-        return versions["version"]
+        # Store the versions
+        self.local_versions = versions
+
+        return self.local_versions["version"]
+
+    def get_local_service_version(self, name: str):
+        default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
+        return self.local_versions.get(name) or default_version
+
+    def get_latest_service_version(self, name: str):
+        default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
+        return self.latest_versions.get(name) or default_version
 
     async def _get_images(self):
         # Get all the images named subvortex

@@ -86,8 +86,11 @@ class RedisMigrations(Migration):
         # Load the migrations
         self._load_migrations()
         btul.logging.debug(
-            f"# of migrations: {len(self.sorted_revisions)}", prefix=sauc.SV_LOGGER_NAME
+            f"# of migrations: {len(self.sorted_revisions)}",
+            prefix=sauc.SV_LOGGER_NAME,
         )
+
+        # TODO: Filter migration from the current version until the latest one
 
         # Set the current and target verions
         current = self.service.version
