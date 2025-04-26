@@ -151,7 +151,7 @@ class Github:
         else:
             raise saue.MissingFileError(
                 file_path=target_path,
-                message=f"Downloaded archive {target_path} does not exist after writing."
+                message=f"Downloaded archive {target_path} does not exist after writing.",
             )
 
         btul.logging.debug(

@@ -312,8 +312,17 @@ class Orchestrator:
         btul.logging.debug("Latest assets removed", prefix=sauc.SV_LOGGER_NAME)
 
     def _load_current_services(self):
+        # Get the version of all services for container, for the other it will come from the metadata loaded locally
+        versions = (
+            self.docker.get_local_service_version()
+            if sauc.SV_EXECUTION_METHOD == "container"
+            else {}
+        )
+
         # Load the services of the current version
-        self.current_services = self._load_services(self.current_version)
+        self.current_services = self._load_services(
+            version=self.current_version, versions=versions
+        )
 
         # Display the list of services
         services = [x.name for x in self.current_services]
@@ -323,8 +332,17 @@ class Orchestrator:
         )
 
     def _load_latest_services(self):
+        # Get the version of all services for container, for the other it will come from the metadata loaded locally
+        versions = (
+            self.docker.get_latest_service_version()
+            if sauc.SV_EXECUTION_METHOD == "container"
+            else {}
+        )
+
         # Load the services of the latest version
-        self.latest_services = self._load_services(self.latest_version)
+        self.latest_services = self._load_services(
+            version=self.latest_version, versions=versions
+        )
         if len(self.latest_services) == 0:
             raise saue.ServicesLoadError(version=self.latest_version)
 
@@ -545,7 +563,7 @@ class Orchestrator:
             service.version = service.rollback_version
             service.rollback_version = None
 
-    def _load_services(self, version: str):
+    def _load_services(self, version: str, versions: dict):
         services = []
 
         # Determine the neuron directory where to find all the services
@@ -563,13 +581,8 @@ class Orchestrator:
             if not metadata:
                 continue
 
-            # Override version from docker image if container
-            if sauc.SV_EXECUTION_METHOD == "container":
-                # Get the version from the image label
-                version = self.docker.get_latest_service_version(name=entry)
-
-                # Override the version
-                metadata['version'] = version
+            # Override the metadata with the versions (it will be only for container execution)
+            metadata = {**metadata, **versions}
 
             # Create the instance of service
             service = saus.Service.create(metadata)

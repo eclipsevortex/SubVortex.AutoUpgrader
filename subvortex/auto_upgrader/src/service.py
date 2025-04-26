@@ -14,6 +14,8 @@ class Service:
         id: str,
         name: str,
         version: str,
+        componet_version: str,
+        service_version: str,
         execution: str,
         migration: str,
         setup_command: str,
@@ -25,7 +27,9 @@ class Service:
     ):
         self.id = id
         self.name = name
-        self.version = version or sauc.DEFAULT_LAST_RELEASE.get(name)
+        self.version = version
+        self.componet_version = componet_version
+        self.service_version = service_version
         self.execution = execution
         self.migration = migration
         self.migration_type = migration_type
@@ -45,6 +49,8 @@ class Service:
             id=metadata.get("id"),
             name=metadata.get("name"),
             version=metadata.get("version"),
+            component_version=metadata.get("component_version"),
+            service_version=metadata.get("service_version"),
             execution=metadata.get("execution") or sauc.SV_EXECUTION_METHOD,
             migration=metadata.get("migration"),
             migration_type=metadata.get("migration_type"),

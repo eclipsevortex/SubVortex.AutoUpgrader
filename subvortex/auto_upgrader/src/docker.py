@@ -93,29 +93,43 @@ class Docker:
 
         return self.local_versions["version"]
 
-    def get_local_service_version(self, name: str):
-        # Get the default version
-        default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
-
-        # Get the versions of the service
-        service_versions = self.local_versions.get(name, {})
-
-        # Get the label for the service version
-        label = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
-
-        return service_versions.get(label) or default_version
-
     def get_latest_service_version(self, name: str):
-        # Get the default version
-        default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
+        # Get the default versions
+        default_versions = self._get_default_verisons(name=name)
 
-        # Get the versions of the service
-        service_versions = self.latest_versions.get(name, {})
+        # Get the service versions
+        versions = self.latest_versions.get(name, default_versions)
 
-        # Get the label for the service version
-        label = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
+        return versions
+        # # Get the default version
+        # default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
 
-        return service_versions.get(label) or default_version
+        # # Get the versions of the service
+        # service_versions = self.latest_versions.get(name, {})
+
+        # # Get the label for the service version
+        # label = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
+
+        # return service_versions.get(label) or default_version
+
+    def get_local_service_version(self, name: str):
+        # Get the default versions
+        default_versions = self._get_default_verisons(name=name)
+
+        # Get the service versions
+        versions = self.local_versions.get(name, default_versions)
+
+        return versions
+        # # Get the default version
+        # default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
+
+        # # Get the versions of the service
+        # service_versions = self.local_versions.get(name, {})
+
+        # # Get the label for the service version
+        # label = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
+
+        # return service_versions.get(label) or default_version
 
     async def _get_images(self):
         # Get all the images named subvortex
@@ -214,3 +228,10 @@ class Docker:
         versions = dict(item.split("=", 1) for item in output.split())
 
         return versions
+
+    def _get_default_verisons(self, name: str):
+        return {
+            "version": None,
+            f"{sauc.SV_EXECUTION_ROLE}.version": None,
+            f"{sauc.SV_EXECUTION_ROLE}.{name}version": None,
+        }
