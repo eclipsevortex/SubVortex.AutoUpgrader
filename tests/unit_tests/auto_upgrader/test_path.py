@@ -32,6 +32,8 @@ def fake_service():
         id="miner-neuron",
         name="subvortex-miner-neuron",
         version="v3.0.0-alpha.1",
+        component_version="v3.0.0-alpha.1",
+        service_version="v3.0.0-alpha.1",
         execution="process",
         migration="migrations",
         setup_command="",

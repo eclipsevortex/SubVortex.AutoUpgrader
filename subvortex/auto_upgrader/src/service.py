@@ -14,7 +14,7 @@ class Service:
         id: str,
         name: str,
         version: str,
-        componet_version: str,
+        component_version: str,
         service_version: str,
         execution: str,
         migration: str,
@@ -28,7 +28,7 @@ class Service:
         self.id = id
         self.name = name
         self.version = version
-        self.componet_version = componet_version
+        self.componet_version = component_version
         self.service_version = service_version
         self.execution = execution
         self.migration = migration

@@ -319,9 +319,9 @@ class Orchestrator:
     def _load_current_services(self):
         # Get the version of all services for container, for the other it will come from the metadata loaded locally
         versions = (
-            self.docker.get_local_service_version()
+            self.docker.get_local_service_version
             if sauc.SV_EXECUTION_METHOD == "container"
-            else {}
+            else lambda: {}
         )
 
         # Load the services of the current version
@@ -339,9 +339,9 @@ class Orchestrator:
     def _load_latest_services(self):
         # Get the version of all services for container, for the other it will come from the metadata loaded locally
         versions = (
-            self.docker.get_latest_service_version()
+            self.docker.get_latest_service_version
             if sauc.SV_EXECUTION_METHOD == "container"
-            else {}
+            else lambda: {}
         )
 
         # Load the services of the latest version
@@ -568,7 +568,7 @@ class Orchestrator:
             service.version = service.rollback_version
             service.rollback_version = None
 
-    def _load_services(self, version: str, versions: dict):
+    def _load_services(self, version: str, versions: Callable):
         services = []
 
         # Determine the neuron directory where to find all the services
@@ -587,7 +587,7 @@ class Orchestrator:
                 continue
 
             # Override the metadata with the versions (it will be only for container execution)
-            metadata = {**metadata, **versions}
+            metadata = {**metadata, **versions(name=entry)}
 
             # Create the instance of service
             service = saus.Service.create(metadata)

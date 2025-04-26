@@ -76,6 +76,8 @@ def create_service(version: str, id="subvortex-neuron", execution="process"):
         id=id,
         name="neuron",
         version=version,
+        component_version=version,
+        service_version=version,
         execution=execution,
         migration="",
         setup_command="deployment/neuron_process_setup.sh",

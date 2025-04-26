@@ -37,6 +37,8 @@ def redis_service():
         id="svc-1",
         name="test-service",
         version=None,
+        component_version=None,
+        service_version=None,
         execution="process",
         migration=migration_dir,
         setup_command="",

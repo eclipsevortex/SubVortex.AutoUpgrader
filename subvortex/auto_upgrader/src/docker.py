@@ -97,7 +97,7 @@ class Docker:
 
     def get_latest_service_version(self, name: str):
         # Get the default versions
-        default_versions = self._get_default_verisons(name=name)
+        default_versions = self._get_default_versions(name=name)
 
         # Get the service versions
         versions = self.latest_versions.get(name, default_versions)
@@ -116,7 +116,7 @@ class Docker:
 
     def get_local_service_version(self, name: str):
         # Get the default versions
-        default_versions = self._get_default_verisons(name=name)
+        default_versions = self._get_default_versions(name=name)
 
         # Get the service versions
         versions = self.local_versions.get(name, default_versions)
@@ -233,7 +233,7 @@ class Docker:
 
         return versions
 
-    def _get_default_verisons(self, name: str):
+    def _get_default_versions(self, name: str):
         return {
             "version": None,
             f"{sauc.SV_EXECUTION_ROLE}.version": None,

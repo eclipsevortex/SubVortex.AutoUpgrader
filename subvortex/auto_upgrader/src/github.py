@@ -49,7 +49,7 @@ class Github:
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            return self.latest_version
+            return self.latest_version, None
 
         releases = response.json()
 
