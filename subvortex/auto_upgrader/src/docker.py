@@ -42,7 +42,7 @@ class Docker:
         merged_results["version"] = version
 
         self.latest_versions = merged_results
-        btul.logging.debug(
+        btul.logging.trace(
             f"Latest versions: {self.latest_versions}", prefix=sauc.SV_LOGGER_NAME
         )
 
@@ -79,9 +79,6 @@ class Docker:
 
                 repo_name = repo.replace("/subvortex", "")
                 service_name = repo.replace(prefix, "")
-                btul.logging.info(
-                    f"SERVICE FROM IMAGE: {repo} / {prefix} / {service_name}"
-                )
 
                 local_versions = self._get_local_versions(repo_name=repo_name, tag=ftag)
 
@@ -96,7 +93,7 @@ class Docker:
 
         # Store the versions
         self.local_versions = versions
-        btul.logging.debug(
+        btul.logging.trace(
             f"Local versions: {self.local_versions}", prefix=sauc.SV_LOGGER_NAME
         )
 
@@ -158,7 +155,7 @@ class Docker:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        btul.logging.debug(f"Image {image} pulled", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.trace(f"Image {image} pulled", prefix=sauc.SV_LOGGER_NAME)
 
         # Get labels
         proc_labels = await asyncio.create_subprocess_exec(
@@ -175,7 +172,7 @@ class Docker:
 
         versions = dict(item.split("=", 1) for item in output.split())
 
-        btul.logging.debug(
+        btul.logging.trace(
             f"Image version labels: {versions}", prefix=sauc.SV_LOGGER_NAME
         )
 
@@ -213,7 +210,7 @@ class Docker:
         # Parse the output into a dictionary
         versions = dict(item.split("=", 1) for item in output.split())
 
-        btul.logging.debug(
+        btul.logging.trace(
             f"Image version labels: {versions}", prefix=sauc.SV_LOGGER_NAME
         )
 
