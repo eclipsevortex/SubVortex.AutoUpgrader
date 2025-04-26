@@ -28,7 +28,7 @@ class Service:
         self.id = id
         self.name = name
         self.version = version
-        self.componet_version = component_version
+        self.component_version = component_version
         self.service_version = service_version
         self.execution = execution
         self.migration = migration
@@ -45,12 +45,15 @@ class Service:
 
     @staticmethod
     def create(metadata: dict):
+        service_name = metadata.get("id").split("-")[-1]
+        component_version = metadata.get(f"{sauc.SV_EXECUTION_ROLE}.version")
+        service_version = metadata.get(f"{sauc.SV_EXECUTION_ROLE}.{service_name}.version")
         return Service(
             id=metadata.get("id"),
             name=metadata.get("name"),
             version=metadata.get("version"),
-            component_version=metadata.get("component_version"),
-            service_version=metadata.get("service_version"),
+            component_version=component_version,
+            service_version=service_version,
             execution=metadata.get("execution") or sauc.SV_EXECUTION_METHOD,
             migration=metadata.get("migration"),
             migration_type=metadata.get("migration_type"),

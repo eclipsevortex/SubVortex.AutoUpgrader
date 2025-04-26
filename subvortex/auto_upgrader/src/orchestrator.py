@@ -173,26 +173,35 @@ class Orchestrator:
         return True
 
     async def run_rollback_plan(self):
-        btul.logging.info("\033[35mRolling back the plan...\033[0m", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.info("Rolling back the plan...", prefix=sauc.SV_LOGGER_NAME)
 
         success = True
-        for desc, rollback_func in reversed(self.rollback_steps):
-            btul.logging.info(f"Rolling back: {desc}", prefix=sauc.SV_LOGGER_NAME)
+        for description, rollback_func in reversed(self.rollback_steps):
+            btul.logging.info(
+                f"▶️ \033[35mRolling back: {description}\033[0m",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             try:
                 if asyncio.iscoroutinefunction(rollback_func):
                     await rollback_func()
                 else:
                     rollback_func()
+
+                btul.logging.info(
+                    f"✅ \033[32mCompleted: {description}\033[0m",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
             except Exception as e:
                 success = False
                 btul.logging.error(
-                    f"Failed to rollback {desc}: {e}", prefix=sauc.SV_LOGGER_NAME
+                    f"❌ Failed to rollback {description}: {e}",
+                    prefix=sauc.SV_LOGGER_NAME,
                 )
                 btul.logging.debug(traceback.format_exc())
 
         if success:
             btul.logging.success(
-                "↩️ \033[32mRollback completed succesfully\033[0m",
+                "Rollback completed succesfully",
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
@@ -249,6 +258,7 @@ class Orchestrator:
             version = docker_version if docker_version != version else version
 
         self.current_version = version
+
         btul.logging.debug(
             f"Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
         )
@@ -305,7 +315,7 @@ class Orchestrator:
             if not os.path.exists(env_file):
                 raise saue.MissingFileError(file_path=env_file)
 
-            btul.logging.info(
+            btul.logging.trace(
                 f"Env file {source_file} copied to {env_file}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
@@ -330,7 +340,10 @@ class Orchestrator:
         )
 
         # Display the list of services
-        services = [x.name for x in self.current_services]
+        services = [
+            f"{x.name} (v:{x.version}, comp:{x.component_version}, svc:{x.service_version})"
+            for x in self.current_services
+        ]
         btul.logging.debug(
             f"Current services loaded ({len(self.current_services)}): {', '.join(services)}",
             prefix=sauc.SV_LOGGER_NAME,
@@ -352,7 +365,10 @@ class Orchestrator:
             raise saue.ServicesLoadError(version=self.latest_version)
 
         # Display the list of services
-        services = [x.name for x in self.latest_services]
+        services = [
+            f"{x.name} (v:{x.version}, comp:{x.component_version}, svc:{x.service_version})"
+            for x in self.latest_services
+        ]
         btul.logging.debug(
             f"Latest services loaded ({len(self.latest_services)}): {', '.join(services)}",
             prefix=sauc.SV_LOGGER_NAME,
@@ -586,8 +602,18 @@ class Orchestrator:
             if not metadata:
                 continue
 
+            # Build the service name
+            service_name = entry.split(".")[-1]
+
+            # Get the versions overrided
+            overrided_versions = versions(name=service_name)
+            btul.logging.trace(
+                f"Overrided version for {service_name}: {metadata} -> {overrided_versions}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
             # Override the metadata with the versions (it will be only for container execution)
-            metadata = {**metadata, **versions(name=entry)}
+            metadata = {**metadata, **overrided_versions}
 
             # Create the instance of service
             service = saus.Service.create(metadata)

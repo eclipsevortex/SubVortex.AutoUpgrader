@@ -194,7 +194,7 @@ class Github:
             # Extract archive
             tar.extractall(path=sauc.SV_ASSET_DIR)
 
-        btul.logging.debug(
+        btul.logging.trace(
             f"Archive {archive_path} unzipped into {target_dir}",
             prefix=sauc.SV_LOGGER_NAME,
         )

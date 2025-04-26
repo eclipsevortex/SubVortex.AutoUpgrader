@@ -42,6 +42,9 @@ class Docker:
         merged_results["version"] = version
 
         self.latest_versions = merged_results
+        btul.logging.debug(
+            f"Latest versions: {self.latest_versions}", prefix=sauc.SV_LOGGER_NAME
+        )
 
         return self.latest_versions["version"]
 
@@ -74,11 +77,13 @@ class Docker:
                 if not repo.startswith(prefix) or tag != ftag:
                     continue
 
-                service_name = repo.replace("subvortex/", "")
-
-                local_versions = self._get_local_versions(
-                    repo_name=service_name, tag=ftag
+                repo_name = repo.replace("/subvortex", "")
+                service_name = repo.replace(prefix, "")
+                btul.logging.info(
+                    f"SERVICE FROM IMAGE: {repo} / {prefix} / {service_name}"
                 )
+
+                local_versions = self._get_local_versions(repo_name=repo_name, tag=ftag)
 
                 versions[service_name] = local_versions
 
@@ -91,6 +96,9 @@ class Docker:
 
         # Store the versions
         self.local_versions = versions
+        btul.logging.debug(
+            f"Local versions: {self.local_versions}", prefix=sauc.SV_LOGGER_NAME
+        )
 
         return self.local_versions["version"]
 
@@ -202,18 +210,20 @@ class Docker:
         if not output:
             return versions
 
-        btul.logging.debug(
-            f"Image version labels: {output}", prefix=sauc.SV_LOGGER_NAME
-        )
-
         # Parse the output into a dictionary
         versions = dict(item.split("=", 1) for item in output.split())
+
+        btul.logging.debug(
+            f"Image version labels: {versions}", prefix=sauc.SV_LOGGER_NAME
+        )
 
         return versions
 
     def _get_default_versions(self, name: str):
+        component = sauc.SV_EXECUTION_ROLE
+        service = f"{component}.{name}"
         return {
-            "version": None,
-            f"{sauc.SV_EXECUTION_ROLE}.version": None,
-            f"{sauc.SV_EXECUTION_ROLE}.{name}version": None,
+            "version": sauc.DEFAULT_LAST_RELEASE.get("global"),
+            f"{component}.version": sauc.DEFAULT_LAST_RELEASE.get(component),
+            service: sauc.DEFAULT_LAST_RELEASE.get(service),
         }
