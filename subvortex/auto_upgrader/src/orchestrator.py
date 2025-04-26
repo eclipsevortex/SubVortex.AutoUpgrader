@@ -211,7 +211,7 @@ class Orchestrator:
             )
             return
 
-        btul.logging.info(f"▶️ Starting: {description}", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.info(f"▶️ \033[33mStarting: {description}\033[0m", prefix=sauc.SV_LOGGER_NAME)
         self.rollback_steps.append((description, rollback_func))
 
         if service_filter:
@@ -225,7 +225,7 @@ class Orchestrator:
             else:
                 action_func()
 
-        btul.logging.info(f"✅ Completed: {description}", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.info(f"✅ \033[32mCompleted: {description}\033[0m", prefix=sauc.SV_LOGGER_NAME)
 
     def _rollback_nop(self):
         pass  # For steps that don't change state
