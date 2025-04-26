@@ -473,7 +473,9 @@ class Orchestrator:
 
         # For each service, if it's new or needs to be up for migrations, ensure it is started
         for service in services:
-            if service.upgrade_type == "install":
+            if service.upgrade_type == "install" and self._has_migrations(
+                service=service
+            ):
                 btul.logging.info(
                     f"⚙️ Preparing new service {service.name} before migrations",
                     prefix=sauc.SV_LOGGER_NAME,
@@ -740,3 +742,9 @@ class Orchestrator:
             )
         except subprocess.CalledProcessError as e:
             raise saue.RuntimeError(action="install_editable", details=str(e))
+
+    def _has_migrations(self, service: saus.Service) -> bool:
+        migration_dir = saup.get_migration_directory(service=service)
+        return os.path.isdir(service.migration) and any(
+            f.endswith(".py") for f in os.listdir(migration_dir)
+        )
