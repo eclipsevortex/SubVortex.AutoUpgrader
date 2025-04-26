@@ -169,10 +169,10 @@ class RedisMigrations(Migration):
 
     def _create_redis_instance(self):
         return aioredis.StrictRedis(
-            host=os.getenv("SUBVORTEX_REDIS_HOST", "localhost"),
-            port=int(os.getenv("SUBVORTEX_REDIS_PORT", 6379)),
-            db=int(os.getenv("SUBVORTEX_REDIS_INDEX", 0)),
-            password=os.getenv("SUBVORTEX_REDIS_PASSWORD"),
+            host=os.getenv("SUBVORTEX_DATABASE_HOST", "localhost"),
+            port=int(os.getenv("SUBVORTEX_DATABASE_PORT", 6379)),
+            db=int(os.getenv("SUBVORTEX_DATABASE_INDEX", 0)),
+            password=os.getenv("SUBVORTEX_DATABASE_PASSWORD"),
         )
 
     def _load_migrations(self):
