@@ -24,8 +24,9 @@ from subvortex.auto_upgrader.src.service import Service
 from subvortex.auto_upgrader.src.exception import (
     MissingDirectoryError,
     MalformedMigrationFileError,
-    InvalidRevisionLinkError,
+    InvalidRevisionError,
     RevisionNotFoundError,
+    DownRevisionNotFoundError
 )
 from subvortex.auto_upgrader.src.migrations.redis_migrations import RedisMigrations
 
@@ -93,48 +94,74 @@ async def _rollback(database):
 )
 async def test_apply_all_migrations(mock_get_migration_dir, redis_service):
     # Arrange
-    redis_service.version = None
-
-    create_migration_file(redis_service.migration, "001", None)
-    create_migration_file(redis_service.migration, "002", "001")
-    create_migration_file(redis_service.migration, "003", "002")
+    create_migration_file(redis_service.migration, "0.0.1", None)
+    create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
+    create_migration_file(redis_service.migration, "0.0.3", "0.0.2")
 
     mock_get_migration_dir.return_value = redis_service.migration
 
     redis = RedisMigrations(redis_service)
 
     mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.0"
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
         await redis.apply()
 
-    assert redis_service.version == "003"
+    # Assert
+    mocked_db.set.assert_any_call("version", "0.0.3")
 
 
 @pytest.mark.asyncio
 @patch(
     "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_migration_directory"
 )
-async def test_rollback_all_migrations(mock_get_migration_dir, redis_service):
+async def test_rollout_migration(mock_get_migration_dir, redis_service):
     # Arrange
-    redis_service.next_version = "003"
-
-    create_migration_file(redis_service.migration, "001", None)
-    create_migration_file(redis_service.migration, "002", "001")
-    create_migration_file(redis_service.migration, "003", "002")
+    create_migration_file(redis_service.migration, "0.0.1", None)
+    create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
+    create_migration_file(redis_service.migration, "0.0.3", "0.0.2")
 
     mock_get_migration_dir.return_value = redis_service.migration
 
     redis = RedisMigrations(redis_service)
+
     mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.2"
+
+    # Action
+    with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
+        await redis.apply()
+
+    # Assert
+    mocked_db.set.assert_any_call("version", "0.0.3")
+
+
+@pytest.mark.asyncio
+@patch(
+    "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_migration_directory"
+)
+async def test_rollback_migration(mock_get_migration_dir, redis_service):
+    # Arrange
+    create_migration_file(redis_service.migration, "0.0.1", None)
+    create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
+    create_migration_file(redis_service.migration, "0.0.3", "0.0.2")
+
+    mock_get_migration_dir.return_value = redis_service.migration
+
+    redis = RedisMigrations(redis_service)
+    redis.previous_version = "0.0.2"
+
+    mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.3"
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
         await redis.rollback()
 
     # Assert
-    assert redis_service.version is None
+    mocked_db.set.assert_any_call("version", "0.0.2")
 
 
 @pytest.mark.asyncio
@@ -145,21 +172,23 @@ async def test_apply_does_nothing_when_up_to_date(
     mock_get_migration_dir, redis_service
 ):
     # Arrange
-    create_migration_file(redis_service.migration, "001", None)
+    create_migration_file(redis_service.migration, "0.0.1", None)
 
     mock_get_migration_dir.return_value = redis_service.migration
 
-    redis_service.version = "001"
-
     redis = RedisMigrations(redis_service)
+
     mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.1"
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
-        redis.apply()
+        await redis.apply()
 
     # Assert
-    assert redis_service.version == "001"
+    assert not any(
+        c.args and c.args[0] == "version" for c in mocked_db.set.call_args_list
+    )
 
 
 @pytest.mark.asyncio
@@ -170,44 +199,25 @@ async def test_rollback_does_nothing_when_at_base(
     mock_get_migration_dir, redis_service
 ):
     # Arrange
-    create_migration_file(redis_service.migration, "001", None)
+    create_migration_file(redis_service.migration, "0.0.1", None)
 
     mock_get_migration_dir.return_value = redis_service.migration
 
     redis_service.version = None
 
     redis = RedisMigrations(redis_service)
+
     mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.0"
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
         await redis.rollback()
 
     # Assert
-    assert redis_service.version is None
-
-
-@pytest.mark.asyncio
-@patch(
-    "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_migration_directory"
-)
-async def test_rollback_skips_base(mock_get_migration_dir, redis_service):
-    # Arrange
-    create_migration_file(redis_service.migration, "001", None)
-
-    mock_get_migration_dir.return_value = redis_service.migration
-
-    redis_service.version = "001"
-
-    redis = RedisMigrations(redis_service)
-    mocked_db = AsyncMock()
-
-    # Action
-    with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
-        await redis.rollback()
-
-    # Assert
-    assert redis_service.version is None
+    assert not any(
+        c.args and c.args[0] == "version" for c in mocked_db.set.call_args_list
+    )
 
 
 @pytest.mark.asyncio
@@ -219,7 +229,7 @@ async def test_raise_exception_when_migration_path_does_not_exist(
     mock_os_path_exists, mock_get_migration_directory, redis_service
 ):
     # Arrange
-    create_migration_file(redis_service.migration, "001", None)
+    create_migration_file(redis_service.migration, "0.0.1", None)
 
     mock_get_migration_directory.return_value = "fake-dir"
     mock_os_path_exists.return_value = False
@@ -241,20 +251,19 @@ async def test_raise_exception_when_migration_path_does_not_exist(
     "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_migration_directory"
 )
 @patch("os.path.exists")
-# @patch("os.listdir")
 async def test_raise_exception_when_migration_file_is_malformed(
     mock_os_path_exists, mock_get_migration_directory, redis_service
 ):
     # Arrange
-    create_malformed_migration_file(redis_service.migration, "001", None)
+    create_malformed_migration_file(redis_service.migration, "0.0.1", None)
 
     mock_get_migration_directory.return_value = redis_service.migration
     mock_os_path_exists.return_value = True
 
-    redis_service.version = "001"
-
     redis = RedisMigrations(redis_service)
+
     mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.0"
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
@@ -262,7 +271,7 @@ async def test_raise_exception_when_migration_file_is_malformed(
             redis._load_migrations()
 
     # Assert
-    assert "[AU1004] Malformed migration file: File: 001.py" == str(exc.value)
+    assert "[AU1004] Malformed migration file: File: 0.0.1.py" == str(exc.value)
 
 
 @pytest.mark.asyncio
@@ -279,9 +288,13 @@ async def test_raise_exception_when_revision_is_not_found(
 
     redis = RedisMigrations(redis_service)
 
+    mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.2"
+
     # Action
-    with pytest.raises(RevisionNotFoundError) as exc:
-        redis._load_migrations()
+    with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
+        with pytest.raises(RevisionNotFoundError) as exc:
+            redis._load_migrations()
 
     # Assert
     assert "[AU1005] Revision not found" == str(exc.value)
@@ -291,23 +304,27 @@ async def test_raise_exception_when_revision_is_not_found(
 @patch(
     "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_migration_directory"
 )
-async def test_raise_exception_when_revision_revision_is_invalid(
+async def test_raise_exception_when_revision_is_invalid(
     mock_get_migration_dir, redis_service
 ):
     # Arrange
-    create_migration_file(redis_service.migration, "100", "100")
+    create_migration_file(redis_service.migration, "0.0.1", "0.0.1")
 
     mock_get_migration_dir.return_value = redis_service.migration
 
     redis = RedisMigrations(redis_service)
 
+    mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.0"
+
     # Action
-    with pytest.raises(InvalidRevisionLinkError) as exc:
-        redis._load_migrations()
+    with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
+        with pytest.raises(InvalidRevisionError) as exc:
+            redis._load_migrations()
 
     # Assert
     assert (
-        "[AU1006] Invalid migration revision: Revision: 100, Down Revision: 100"
+        "[AU1006] Invalid revision: Revision: 0.0.1, Down revision: 0.0.1"
         == str(exc.value)
     )
 
@@ -316,48 +333,28 @@ async def test_raise_exception_when_revision_revision_is_invalid(
 @patch(
     "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_migration_directory"
 )
-async def test_raise_exception_when_revision_revision_does_not_exist(
+async def test_raise_exception_when_down_revision_does_not_exist(
     mock_get_migration_dir, redis_service
 ):
     # Arrange
-    create_migration_file(redis_service.migration, "100", "101")
+    create_migration_file(
+        redis_service.migration, "0.0.2", "0.0.1"
+    )  # 0.0.1 does not exist!
 
     mock_get_migration_dir.return_value = redis_service.migration
 
-    redis_service.version = "002"
-
     redis = RedisMigrations(redis_service)
+
     mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.0"
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
-        with pytest.raises(RevisionNotFoundError) as exc:
-            await redis.rollback()
+        with pytest.raises(DownRevisionNotFoundError) as exc:
+            redis._load_migrations()
 
     # Assert
-    assert "[AU1005] Revision not found: Revision: 002" == str(exc.value)
-
-
-@pytest.mark.asyncio
-@patch(
-    "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_migration_directory"
-)
-async def test_raise_exception_when_down_revision_revision_does_not_exist(
-    mock_get_migration_dir, redis_service
-):
-    # Arrange
-    create_migration_file(redis_service.migration, "100", "101")
-
-    mock_get_migration_dir.return_value = redis_service.migration
-
-    redis_service.version = "100"
-    redis_service.rollback_version = "002"
-
-    redis = RedisMigrations(redis_service)
-
-    # Action
-    with pytest.raises(RevisionNotFoundError) as exc:
-        await redis.rollback()
-
-    # Assert
-    assert "[AU1005] Revision not found: Revision: 002" == str(exc.value)
+    assert (
+        "[AU1010] Down revision not found: Down revision: 0.0.1"
+        == str(exc.value)
+    )

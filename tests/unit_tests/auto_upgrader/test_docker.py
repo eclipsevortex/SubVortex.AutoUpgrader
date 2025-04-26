@@ -23,17 +23,9 @@ async def test_get_latest_version_success(mock_subproc_exec, mock_get_tag):
     pull_proc.communicate.return_value = (b"Pulled", b"")
 
     inspect_proc = AsyncMock()
-    labels = {
-        "Config": {
-            "Labels": {
-                "miner.neuron.version": "1.0.0",
-                "miner.version": "1.0.1",
-                "version": "1.0.2",
-            }
-        }
-    }
+    labels = "version=1.0.2 miner.version=1.0.1 miner.neuron.version=1.0.0"
     inspect_proc.communicate.return_value = (
-        json.dumps([labels]).encode(),
+        labels.encode(),
         b"",
     )
 
@@ -81,6 +73,6 @@ def test_get_local_version_filters_only_dev_tags(mock_run, mock_get_tag):
 
     # Assert
     assert result == "1.0.0"
-    assert docker.local_versions["subvortex-miner-neuron"]["version"] == "1.0.0"
-    assert docker.local_versions["subvortex-miner-redis"]["version"] == "1.0.0"
+    assert docker.local_versions["neuron"]["version"] == "1.0.0"
+    assert docker.local_versions["redis"]["version"] == "1.0.0"
     assert docker.local_versions["version"] == "1.0.0"

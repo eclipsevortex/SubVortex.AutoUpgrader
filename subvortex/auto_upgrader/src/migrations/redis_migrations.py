@@ -13,36 +13,178 @@ from subvortex.auto_upgrader.src.migrations.base import Migration
 
 # Resolve the path two levels up from the current file
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../.env"))
-
-# Load the env file
 load_dotenv(dotenv_path=env_path)
 
 
 class RedisMigrations(Migration):
     def __init__(self, service: Service):
-        super().__init__(service)
-        self.service = service
-        self.migration = service.migration
+        self.migration_path = saup.get_migration_directory(service=service)
+        self.previous_version = None
         self.modules = {}  # revision -> module
         self.graph = {}  # revision -> down_revision
         self.sorted_revisions = []  # Topologically sorted list
 
-    def _load_migrations(self):
-        # Build the migration path
-        migration_path = saup.get_migration_directory(service=self.service)
-        if migration_path is None:
+    async def apply(self):
+        # Create a database instance
+        database = self._create_redis_instance()
+
+        # Load the migrations
+        self._load_migrations()
+        btul.logging.debug(
+            f"# of migrations: {len(self.sorted_revisions)}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        # Get the current version
+        current_version = await self._get_current_version(database)
+        btul.logging.debug(
+            f"🔍 Current database version: {current_version}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        # Set rollback target
+        self.previous_version = current_version
+
+        # Set reached variable
+        reached = current_version == "0.0.0"
+
+        # Determinate all the revisions that need to be applied
+        path = []
+        for rev in self.sorted_revisions:
+            if not reached:
+                if rev == current_version:
+                    reached = True
+                continue
+            else:
+                if rev != current_version:
+                    path.append(rev)
+
+        if not path:
+            btul.logging.debug(
+                "✅ No migrations to apply.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             return
 
-        # Check if the provided migration path exists
-        if not os.path.exists(migration_path):
-            raise saue.MissingDirectoryError(directory_path=migration_path)
+        for rev in path:
+            btul.logging.debug(
+                f"⬆️  Applying migration: {rev}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
-        for fname in os.listdir(migration_path):
+            # Set the mode
+            await database.set(f"migration_mode:{rev}", "dual")
+
+            # Rollout the migration
+            await self.modules[rev].rollout(database)
+
+            # Set the mode and version
+            await database.set("version", rev)
+            await database.set(f"migration_mode:{rev}", "new")
+
+    async def rollback(self):
+        # Create the database instance
+        database = self._create_redis_instance()
+
+        # Load the migrations
+        self._load_migrations()
+        btul.logging.debug(
+            f"# of migrations: {len(self.sorted_revisions)}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        # Get the current version
+        current_version = await self._get_current_version(database)
+        btul.logging.debug(
+            f"🔍 Current database version: {current_version}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        # Set the previous version as target version
+        target_version = self.previous_version
+        if not target_version:
+            btul.logging.info(
+                "ℹ️ No rollback target version set. Skipping rollback.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return
+
+        if current_version == target_version:
+            btul.logging.info(
+                "✅ Current version matches rollback target. No rollback needed.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return
+
+        if current_version not in self.sorted_revisions:
+            raise saue.RevisionNotFoundError(revision=current_version)
+
+        if (
+            not target_version or target_version != "0.0.0"
+        ) and target_version not in self.sorted_revisions:
+            raise saue.RevisionNotFoundError(revision=target_version)
+
+        # Determinate all the migrations that have to be applied
+        path = []
+        collecting = False
+        for rev in reversed(self.sorted_revisions):
+            if rev == current_version:
+                collecting = True
+            if collecting:
+                path.append(rev)
+            if rev == target_version:
+                break
+
+        if not path:
+            btul.logging.info(
+                "✅ No rollback actions needed.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return
+
+        btul.logging.info(
+            f"↩️ Rollback path: {path}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        for rev in path:
+            btul.logging.info(
+                f"⬇️  Rolling back migration: {rev}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
+            # Set the mode
+            await database.set(f"migration_mode:{rev}", "dual")
+
+            # Rollback the migration
+            await self.modules[rev].rollback(database)
+
+            # Set the mode and version
+            parent_version = self.graph.get(rev)
+            if parent_version:
+                await database.set("version", parent_version)
+                await database.set(f"migration_mode:{parent_version}", "legacy")
+            else:
+                await database.set("version", "0.0.0")
+
+    def _create_redis_instance(self):
+        return aioredis.StrictRedis(
+            host=os.getenv("SUBVORTEX_REDIS_HOST", "localhost"),
+            port=int(os.getenv("SUBVORTEX_REDIS_PORT", 6379)),
+            db=int(os.getenv("SUBVORTEX_REDIS_INDEX", 0)),
+            password=os.getenv("SUBVORTEX_REDIS_PASSWORD"),
+        )
+
+    def _load_migrations(self):
+        if not self.migration_path or not os.path.exists(self.migration_path):
+            raise saue.MissingDirectoryError(directory_path=self.migration_path)
+
+        # 1. Load all migration files
+        for fname in os.listdir(self.migration_path):
             if not fname.endswith(".py"):
                 continue
 
-            # Load the migration module
-            module = self._load_module(path=migration_path, name=fname)
+            module = self._load_module(path=self.migration_path, name=fname)
 
             if not hasattr(module, "rollout") or not hasattr(module, "rollback"):
                 raise saue.MalformedMigrationFileError(file=fname)
@@ -54,12 +196,19 @@ class RedisMigrations(Migration):
                 raise saue.RevisionNotFoundError()
 
             if down_revision == revision:
-                raise saue.InvalidRevisionLinkError(
+                raise saue.InvalidRevisionError(
                     revision=revision, down_revision=down_revision
                 )
 
             self.modules[revision] = module
             self.graph[revision] = down_revision
+
+        # 2. Check that every non-None down_revision exists
+        for revision, down_revision in self.graph.items():
+            if down_revision is not None and down_revision not in self.modules:
+                raise saue.DownRevisionNotFoundError(
+                    down_revision=down_revision,
+                )
 
         self.sorted_revisions = self._topological_sort()
 
@@ -70,138 +219,21 @@ class RedisMigrations(Migration):
         def visit(rev):
             if rev in visited or rev is None:
                 return
-
             parent = self.graph.get(rev)
             visit(parent)
-            if rev not in visited:
-                visited.add(rev)
-                result.append(rev)
+            visited.add(rev)
+            result.append(rev)
 
         for rev in self.modules:
             visit(rev)
 
         return result
 
-    async def apply(self):
-        # Load the migrations
-        self._load_migrations()
-        btul.logging.debug(
-            f"# of migrations: {len(self.sorted_revisions)}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-
-        # TODO: Filter migration from the current version until the latest one
-
-        # Set the current and target verions
-        current = self.service.version
-        target = self.sorted_revisions[-1] if self.sorted_revisions else None
-
-        if current == target:
-            return
-
-        # Store rollback target (previous version)
-        self.service.rollback_version = current
-
-        # Create a database instance
-        database = self._create_redis_instance()
-
-        # Get the path for each revisions
-        path = []
-        reached = current == None
-        for rev in self.sorted_revisions:
-            if rev == current:
-                reached = True
-            elif reached:
-                path.append(rev)
-
-            if rev == target:
-                break
-
-        # Loop through the path to rollout the migration
-        for rev in path:
-            btul.logging.info(
-                f"⬆️  Applying migration: {rev}", prefix=sauc.SV_LOGGER_NAME
-            )
-
-            # Set mode to dual so app reads/writes both if needed
-            await database.set(f"migration_mode:{self.service.version}", "dual")
-
-            # Rollout migration
-            await self.modules[rev].rollout(database)
-
-            # Set version
-            self.service.version = rev
-
-            # Set mode to dual so app reads/writes both if needed
-            await database.set("version", self.service.version)
-            await database.set(f"migration_mode:{self.service.version}", "new")
-
-    async def rollback(self):
-        # Load the migrations
-        self._load_migrations()
-        btul.logging.debug(
-            f"# of migrations: {len(self.sorted_revisions)}", prefix=sauc.SV_LOGGER_NAME
-        )
-
-        # Set the current and target verions
-        current = self.service.version
-        target = self.service.rollback_version
-
-        if current == target:
-            return
-
-        if current not in self.sorted_revisions:
-            raise saue.RevisionNotFoundError(revision=current)
-
-        if target and target not in self.sorted_revisions:
-            raise saue.RevisionNotFoundError(revision=target)
-
-        # Create a database instance
-        database = self._create_redis_instance()
-
-        # Get the path for each revisions
-        path = []
-        for rev in reversed(self.sorted_revisions):
-            if rev == current:
-                path.append(rev)
-            elif path:
-                path.append(rev)
-
-            if rev == target:
-                break
-
-        # Loop through the path to rollout the migration
-        for rev in path:
-            btul.logging.info(
-                f"⬇️  Rolling back migration: {rev}", prefix=sauc.SV_LOGGER_NAME
-            )
-
-            # Set mode to dual so app reads/writes both if needed
-            await database.set(f"migration_mode:{self.service.version}", "dual")
-
-            # Rollback migration
-            await self.modules[rev].rollback(database)
-
-            # Update the version
-            self.service.version = self.graph[rev]
-
-            # Set mode to dual so app reads/writes both if needed
-            if self.service.version is not None:
-                await database.set("version", self.service.version)
-                await database.set(f"migration_mode:{rev}", "legacy")
-            else:
-                await database.set("version", "0.0.0")
-
-    def _create_redis_instance(self):
-        # Create the instance of redis
-        database = aioredis.StrictRedis(
-            host=os.getenv("SUBVORTEX_REDIS_HOST", "localhost"),
-            port=os.getenv("SUBVORTEX_REDIS_PORT", 6379),
-            db=os.getenv("SUBVORTEX_REDIS_INDEX", 0),
-            password=os.getenv("SUBVORTEX_REDIS_PASSWORD"),
-        )
-
-        return database
+    async def _get_current_version(self, database):
+        value = await database.get("version")
+        if value is None:
+            return "0.0.0"
+        return value.decode().strip()
 
     def _load_module(self, path: str, name: str):
         try:
@@ -209,7 +241,6 @@ class RedisMigrations(Migration):
             spec = importlib.util.spec_from_file_location(name[:-3], fpath)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-
             return module
         except Exception as e:
             raise saue.ModuleMigrationError(name=name, details=str(e))

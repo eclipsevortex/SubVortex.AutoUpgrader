@@ -56,12 +56,12 @@ class RevisionNotFoundError(AutoUpgraderError):
         )
 
 
-class InvalidRevisionLinkError(AutoUpgraderError):
+class InvalidRevisionError(AutoUpgraderError):
     def __init__(self, revision: str, down_revision: str):
         super().__init__(
             code="AU1006",
-            message="Invalid migration revision",
-            details=f"Revision: {revision}, Down Revision: {down_revision}",
+            message="Invalid revision",
+            details=f"Revision: {revision}, Down revision: {down_revision}",
         )
 
 
@@ -90,6 +90,13 @@ class MissingVersionError(AutoUpgraderError):
             details=f"Name: {name}, Type: {type}",
         )
 
+class DownRevisionNotFoundError(AutoUpgraderError):
+    def __init__(self, down_revision: str):
+        super().__init__(
+            code="AU1010",
+            message="Down revision not found",
+            details=f"Down revision: {down_revision}",
+        )
 
 class UnexpectedError(AutoUpgraderError):
     def __init__(self, reason: str = "An unexpected error occurred"):
