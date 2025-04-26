@@ -18,6 +18,7 @@ class Docker:
 
         # Get the list of images
         images = await self._get_images()
+        btul.logging.trace(f"Latest images: {images}", prefix=sauc.SV_LOGGER_NAME)
 
         # Get the images/digests of the current floating tag
         tasks = [
@@ -147,7 +148,7 @@ class Docker:
         service_version = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
 
         # Get image quietly
-        await asyncio.create_subprocess_exec(
+        pull_proc = await asyncio.create_subprocess_exec(
             "docker",
             "pull",
             "--quiet",
@@ -155,6 +156,7 @@ class Docker:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        _, _ = await pull_proc.communicate()
         btul.logging.trace(f"Image {image} pulled", prefix=sauc.SV_LOGGER_NAME)
 
         # Get labels

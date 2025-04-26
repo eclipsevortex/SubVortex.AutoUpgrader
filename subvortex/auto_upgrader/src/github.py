@@ -35,6 +35,17 @@ class Github:
         # Unzip the version
         asset_path = self._unzip_assets(archive_path=archive_path)
 
+        # Remove the archive
+        if os.path.isfile(archive_path):
+            # Remove the archive
+            os.remove(archive_path)
+
+            # Log it
+            archive_name = os.path.basename(archive_path)
+            btul.logging.trace(
+                f"Archive {archive_name} removed", prefix=sauc.SV_LOGGER_NAME
+            )
+
         return asset_path
 
     def _get_latest_tag_including_prereleases(self):
@@ -48,8 +59,10 @@ class Github:
         )
 
         response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            return self.latest_version, None
+        if response.status_code == 404:
+            return None
+
+        response.raise_for_status()
 
         releases = response.json()
 
@@ -154,7 +167,7 @@ class Github:
                 message=f"Downloaded archive {target_path} does not exist after writing.",
             )
 
-        btul.logging.debug(
+        btul.logging.trace(
             f"Archive {archive_name} downloaded into {target_path}",
             prefix=sauc.SV_LOGGER_NAME,
         )

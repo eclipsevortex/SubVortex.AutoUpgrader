@@ -178,7 +178,7 @@ class Orchestrator:
         success = True
         for description, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(
-                f"▶️ \033[35mRolling back: {description}\033[0m",
+                f"▶️ \033[34mRolling back: {description}\033[0m",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             try:
@@ -221,7 +221,7 @@ class Orchestrator:
             return
 
         btul.logging.info(
-            f"▶️ \033[33mStarting: {description}\033[0m", prefix=sauc.SV_LOGGER_NAME
+            f"▶️ \033[34mStarting: {description}\033[0m", prefix=sauc.SV_LOGGER_NAME
         )
         self.rollback_steps.append((description, rollback_func))
 
@@ -257,7 +257,7 @@ class Orchestrator:
             # Set verison to be the docker one if they are different as github is always the source of truth
             version = docker_version if docker_version != version else version
 
-        self.current_version = version
+        self.current_version = version or sauc.DEFAULT_LAST_RELEASE.get("global")
 
         btul.logging.debug(
             f"Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
@@ -266,6 +266,7 @@ class Orchestrator:
     async def _get_latest_version(self):
         # Get the latest version
         version = self.github.get_latest_version()
+        btul.logging.trace(f"Latest release: {version}", prefix=sauc.SV_LOGGER_NAME)
 
         # Set the current version in a denormlized wayt
         version = sauv.denormalize_version(version)
@@ -274,7 +275,9 @@ class Orchestrator:
             # Get the version in docker hub
             version = await self.docker.get_latest_version()
 
-        self.latest_version = version or sauc.DEFAULT_LAST_RELEASE.get("global")
+        self.latest_version = version
+        if self.latest_version is None:
+            raise saue.MissingVersionError(name="global", type="latest")
 
         btul.logging.debug(
             f"Latest version: {self.latest_version}", prefix=sauc.SV_LOGGER_NAME
@@ -302,7 +305,7 @@ class Orchestrator:
 
             # Build the target env file
             target_dir = saup.get_service_directory(service=service)
-            if not os.path.exists(target_dir):
+            if not os.path.isdir(target_dir):
                 raise saue.MissingDirectoryError(directory_path=target_dir)
 
             # Create the env file
@@ -312,7 +315,7 @@ class Orchestrator:
             shutil.copy2(source_file, env_file)
 
             # Check if the file is there
-            if not os.path.exists(env_file):
+            if not os.path.isfile(env_file):
                 raise saue.MissingFileError(file_path=env_file)
 
             btul.logging.trace(

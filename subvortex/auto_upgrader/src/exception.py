@@ -82,6 +82,14 @@ class ModuleMigrationError(AutoUpgraderError):
             details=f"Name: {name} - {details}",
         )
 
+class MissingVersionError(AutoUpgraderError):
+    def __init__(self, name: str, type: str):
+        super().__init__(
+            code="AU1009",
+            message="Version missing",
+            details=f"Name: {name}, Type: {type}",
+        )
+
 
 class UnexpectedError(AutoUpgraderError):
     def __init__(self, reason: str = "An unexpected error occurred"):
