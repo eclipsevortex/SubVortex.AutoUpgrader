@@ -27,6 +27,7 @@ here = path.abspath(path.dirname(__file__))
 class Orchestrator:
     def __init__(self):
         self.rollback_steps: List[Tuple[str, callable]] = []
+        self.previously_started_services: List[str] = []
 
         self.current_version = None
         self.latest_version = None
@@ -42,6 +43,7 @@ class Orchestrator:
     async def run_plan(self):
         btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
         self.rollback_steps.clear()
+        self.previously_started_services.clear()
 
         # Get version before auto upgrader
         last_version_before_auto_upgrader = sauc.DEFAULT_LAST_RELEASE.get("global")
@@ -468,6 +470,20 @@ class Orchestrator:
 
         # Create the migrations manager and apply the migrations
         self.migration_manager = MigrationManager(services)
+
+        # For each service, if it's new or needs to be up for migrations, ensure it is started
+        for service in services:
+            if service.upgrade_type == "install":
+                btul.logging.info(
+                    f"⚙️ Preparing new service {service.name} before migrations",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                # Start the service
+                self._execute_start(service=service)
+
+                # Mark this service as started early
+                self.previously_started_services.append(service.id)
+
         self.migration_manager.collect_migrations()
         await self.migration_manager.apply()
 
@@ -531,6 +547,13 @@ class Orchestrator:
 
         for service in sorted_services:
             if service_filter and not service_filter(service):
+                continue
+
+            if service.id in self.previously_started_services:
+                btul.logging.debug(
+                    f"⏩ Skipping start for {service.name} (already started before migration)",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
                 continue
 
             self._execute_start(service=service)

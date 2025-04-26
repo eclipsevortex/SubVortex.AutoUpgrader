@@ -18,7 +18,7 @@ SV_CHECK_INTERVAL = int(os.getenv("SUBVORTEX_CHECK_INTERVAL", 60))
 SV_GITHUB_TOKEN = os.getenv("SUBVORTEX_GITHUB_TOKEN")
 
 # Prerelease
-SV_PRERELEASE_ENABLED = os.getenv("SUBVORTEX_PRERELEASE_ENABLED", False)
+SV_PRERELEASE_ENABLED = os.getenv("SUBVORTEX_PRERELEASE_ENABLED", "False").lower() == "true"
 SV_PRERELEASE_TYPE = os.getenv("SUBVORTEX_PRERELEASE_TYPE", "")
 
 # Variables about execution
@@ -36,4 +36,4 @@ DEFAULT_LAST_RELEASE = {
     "validator.redis": "2.2.0",
 }
 
-SV_DISABLE_ROLLBACK = os.getenv("SUBVORTEX_DISABLE_ROLLBACK", False)
+SV_DISABLE_ROLLBACK = os.getenv("SUBVORTEX_DISABLE_ROLLBACK", "False").lower() == "true"
