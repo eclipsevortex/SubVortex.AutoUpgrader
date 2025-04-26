@@ -569,7 +569,7 @@ class Orchestrator:
                 version = self.docker.get_latest_service_version(name=entry)
 
                 # Override the version
-                service.version = version
+                metadata['version'] = version
 
             # Create the instance of service
             service = saus.Service.create(metadata)
