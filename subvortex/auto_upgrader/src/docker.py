@@ -1,4 +1,3 @@
-import json
 import asyncio
 import subprocess
 
@@ -103,16 +102,6 @@ class Docker:
         versions = self.latest_versions.get(name, default_versions)
 
         return versions
-        # # Get the default version
-        # default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
-
-        # # Get the versions of the service
-        # service_versions = self.latest_versions.get(name, {})
-
-        # # Get the label for the service version
-        # label = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
-
-        # return service_versions.get(label) or default_version
 
     def get_local_service_version(self, name: str):
         # Get the default versions
@@ -122,16 +111,6 @@ class Docker:
         versions = self.local_versions.get(name, default_versions)
 
         return versions
-        # # Get the default version
-        # default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
-
-        # # Get the versions of the service
-        # service_versions = self.local_versions.get(name, {})
-
-        # # Get the label for the service version
-        # label = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
-
-        # return service_versions.get(label) or default_version
 
     async def _get_images(self):
         # Get all the images named subvortex
@@ -163,7 +142,7 @@ class Docker:
         service_version = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
 
         # Get image quietly
-        proc_digest = await asyncio.create_subprocess_exec(
+        await asyncio.create_subprocess_exec(
             "docker",
             "pull",
             "--quiet",
@@ -171,8 +150,6 @@ class Docker:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout_digest, _ = await proc_digest.communicate()
-        image_output = stdout_digest.decode()
         btul.logging.debug(f"Image {image} pulled", prefix=sauc.SV_LOGGER_NAME)
 
         # Get labels
@@ -180,30 +157,27 @@ class Docker:
             "docker",
             "inspect",
             image,
+            "--format",
+            f'version={{{{ index .Config.Labels "version" }}}} {component_version}={{{{ index .Config.Labels "{component_version}" }}}} {service_version}={{{{ index .Config.Labels "{service_version}" }}}}',
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         stdout_labels, _ = await proc_labels.communicate()
+        output = stdout_labels.decode()
 
-        labels = {}
-        if stdout_labels:
-            image_output = json.loads(stdout_labels.decode())
-            if len(image_output) != 0:
-                labels = image_output[0].get("Config", {}).get("Labels", {})
-        btul.logging.debug(f"Image labels: {labels}", prefix=sauc.SV_LOGGER_NAME)
+        versions = dict(item.split("=", 1) for item in output.split())
 
-        return {
-            name: {
-                "version": labels.get("version"),
-                component_version: labels.get(component_version),
-                service_version: labels.get(service_version),
-            }
-        }
+        btul.logging.debug(
+            f"Image version labels: {versions}", prefix=sauc.SV_LOGGER_NAME
+        )
+
+        return {name: versions}
 
     def _get_local_versions(self, repo_name: str, tag: str = "latest"):
         versions = {}
 
-        label = ".".join(repo_name.replace("subvortex-", "").split("-"))
+        component_name = repo_name.replace("subvortex-", "").split("-")[0]
+        service_name = ".".join(repo_name.replace("subvortex-", "").split("-"))
 
         # Step 1: List all local images with their tags
         result = subprocess.run(
@@ -211,7 +185,7 @@ class Docker:
                 "docker",
                 "inspect",
                 "--format",
-                f'version={{{{ index .Config.Labels "version" }}}} {sauc.SV_EXECUTION_ROLE}.version={{{{ index .Config.Labels "{label}.version" }}}}',
+                f'version={{{{ index .Config.Labels "version" }}}} {component_name}.version={{{{ index .Config.Labels "{component_name}.version" }}}} {service_name}.version={{{{ index .Config.Labels "{service_name}.version" }}}}',
                 repo_name,
             ],
             stdout=subprocess.PIPE,
@@ -227,6 +201,10 @@ class Docker:
         output = result.stdout.strip()
         if not output:
             return versions
+
+        btul.logging.debug(
+            f"Image version labels: {output}", prefix=sauc.SV_LOGGER_NAME
+        )
 
         # Parse the output into a dictionary
         versions = dict(item.split("=", 1) for item in output.split())

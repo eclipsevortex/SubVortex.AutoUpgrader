@@ -173,7 +173,7 @@ class Orchestrator:
         return True
 
     async def run_rollback_plan(self):
-        btul.logging.info("Rolling back the plan...", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.info("\033[35mRolling back the plan...\033[0m", prefix=sauc.SV_LOGGER_NAME)
 
         success = True
         for desc, rollback_func in reversed(self.rollback_steps):
@@ -192,7 +192,7 @@ class Orchestrator:
 
         if success:
             btul.logging.success(
-                "↩️ Rollback completed succesfully",
+                "↩️ \033[32mRollback completed succesfully\033[0m",
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
