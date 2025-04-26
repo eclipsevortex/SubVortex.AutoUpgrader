@@ -25,7 +25,7 @@ class Service:
     ):
         self.id = id
         self.name = name
-        self.version = version
+        self.version = version or sauc.DEFAULT_LAST_RELEASE.get(name)
         self.execution = execution
         self.migration = migration
         self.migration_type = migration_type
