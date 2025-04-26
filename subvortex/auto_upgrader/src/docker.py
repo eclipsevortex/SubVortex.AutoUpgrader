@@ -94,12 +94,28 @@ class Docker:
         return self.local_versions["version"]
 
     def get_local_service_version(self, name: str):
+        # Get the default version
         default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
-        return self.local_versions.get(name) or default_version
+
+        # Get the versions of the service
+        service_versions = self.local_versions.get(name, {})
+
+        # Get the label for the service version
+        label = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
+
+        return service_versions.get(label) or default_version
 
     def get_latest_service_version(self, name: str):
+        # Get the default version
         default_version = sauc.DEFAULT_LAST_RELEASE.get(name)
-        return self.latest_versions.get(name) or default_version
+
+        # Get the versions of the service
+        service_versions = self.latest_versions.get(name, {})
+
+        # Get the label for the service version
+        label = f"{sauc.SV_EXECUTION_ROLE}.{name}.version"
+
+        return service_versions.get(label) or default_version
 
     async def _get_images(self):
         # Get all the images named subvortex
