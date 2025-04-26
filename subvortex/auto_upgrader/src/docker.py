@@ -2,6 +2,8 @@ import json
 import asyncio
 import subprocess
 
+import bittensor.utils.btlogging as btul
+
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.utils as sauu
 
@@ -171,6 +173,7 @@ class Docker:
         )
         stdout_digest, _ = await proc_digest.communicate()
         image_output = stdout_digest.decode()
+        btul.logging.debug(f"Image {image} pulled", prefix=sauc.SV_LOGGER_NAME)
 
         # Get labels
         proc_labels = await asyncio.create_subprocess_exec(
@@ -187,6 +190,7 @@ class Docker:
             image_output = json.loads(stdout_labels.decode())
             if len(image_output) != 0:
                 labels = image_output[0].get("Config", {}).get("Labels", {})
+        btul.logging.debug(f"Image labels: {labels}", prefix=sauc.SV_LOGGER_NAME)
 
         return {
             name: {
