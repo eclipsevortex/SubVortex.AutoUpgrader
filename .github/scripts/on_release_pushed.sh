@@ -57,6 +57,13 @@ for FLOAT_TAG in dev stable latest; do
   fi
 
   TARGET_VERSION="${TARGET_TAG#v}"
+
+  # 🔥 Check if the source image exists
+  if ! docker buildx imagetools inspect "$IMAGE:$TARGET_VERSION" &>/dev/null; then
+    echo "⚠️ Source image $IMAGE:$TARGET_VERSION does not exist — skipping $FLOAT_TAG"
+    continue
+  fi
+
   echo "🔁 Creating manifest for $IMAGE:$FLOAT_TAG from $IMAGE:$TARGET_VERSION"
   docker buildx imagetools create \
     --tag "$IMAGE:$FLOAT_TAG" \
