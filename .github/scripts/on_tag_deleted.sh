@@ -7,40 +7,32 @@ TAG="$3"
 
 VERSION="${TAG#v}"
 REPO_NAME="subvortex-${COMPONENT//_/-}"
-IMAGE="subvortex/$REPO_NAME"
+IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER}/$REPO_NAME"
 
-DOCKER_USERNAME="${DOCKER_USERNAME:-}"
-DOCKER_PASSWORD="${DOCKER_PASSWORD:-}"
+GHCR_USERNAME="${GHCR_USERNAME:-}"
+GHCR_TOKEN="${GHCR_TOKEN:-}"
 
-if [[ -z "$DOCKER_USERNAME" || -z "$DOCKER_PASSWORD" ]]; then
-  echo "❌ Missing Docker credentials (DOCKER_USERNAME / DOCKER_PASSWORD)"
-  exit 1
+if [[ -z "$GHCR_USERNAME" || -z "$GHCR_TOKEN" ]]; then
+    echo "❌ Missing Docker credentials (GHCR_USERNAME / GHCR_TOKEN)"
+    exit 1
 fi
 
-echo "🔐 Requesting Docker Hub JWT token..."
-TOKEN=$(curl -s -X POST https://hub.docker.com/v2/users/login/ \
-  -H "Content-Type: application/json" \
-  -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_PASSWORD\"}" | jq -r .token)
+echo "🔍 Deleting $IMAGE:$VERSION from GitHub Container Registry..."
 
-if [[ "$TOKEN" == "null" || -z "$TOKEN" ]]; then
-  echo "❌ Failed to authenticate with Docker Hub"
-  exit 1
-fi
-
-echo "🔍 Deleting $IMAGE:$VERSION from Docker Hub..."
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-  -H "Authorization: JWT $TOKEN" \
-  "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$REPO_NAME/tags/$VERSION/")
+    -H "Authorization: Bearer $GHCR_TOKEN" \
+    -H "Accept: application/vnd.github.v3+json" \
+"https://api.github.com/orgs/${GHCR_USERNAME}/packages/container/${REPO_NAME}/versions/$VERSION")
 
 case "$RESPONSE" in
-  204)
-    echo "✅ Deleted $IMAGE:$VERSION"
+    204)
+        echo "✅ Deleted $IMAGE:$VERSION"
     ;;
-  404)
-    echo "⚠️ Tag not found: $IMAGE:$VERSION"
+    404)
+        echo "⚠️ Tag not found: $IMAGE:$VERSION"
     ;;
-  *)
-    echo "❌ Failed to delete tag: HTTP $RESPONSE"
-    exit 1
+    *)
+        echo "❌ Failed to delete tag: HTTP $RESPONSE"
+        exit 1
     ;;
 esac

@@ -5,13 +5,13 @@ COMPONENT="$1"
 TAG="$2"
 VERSION="${TAG#v}"
 REPO_NAME="subvortex-${COMPONENT//_/-}"
-IMAGE="subvortex/$REPO_NAME"
+IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER}/$REPO_NAME"
 
-DOCKER_USERNAME="${DOCKER_USERNAME:-}"
-DOCKER_PASSWORD="${DOCKER_PASSWORD:-}"
+GHCR_USERNAME="${GHCR_USERNAME:-}"
+GHCR_TOKEN="${GHCR_TOKEN:-}"
 
-if [[ -z "$DOCKER_USERNAME" || -z "$DOCKER_PASSWORD" ]]; then
-  echo "❌ Missing Docker credentials (DOCKER_USERNAME / DOCKER_PASSWORD)"
+if [[ -z "$GHCR_USERNAME" || -z "$GHCR_TOKEN" ]]; then
+  echo "❌ Missing GHCR credentials (GHCR_USERNAME / GHCR_TOKEN)"
   exit 1
 fi
 
@@ -41,19 +41,26 @@ printf "    latest  → %s\n" "${LATEST_TAG:-<none>}"
 delete_docker_tag() {
   local tag="$1"
 
-  echo "🔐 Authenticating to Docker Hub..."
-  TOKEN=$(curl -s -X POST https://hub.docker.com/v2/users/login/ \
-    -H "Content-Type: application/json" \
-    -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_PASSWORD\"}" | jq -r .token)
+  echo "🗑️ Attempting to delete $IMAGE:$tag from GHCR..."
 
-  echo "🗑️ Attempting to delete $IMAGE:$tag from Docker Hub..."
+  # Find version ID
+  VERSION_ID=$(gh api "user/packages/container/${REPO_NAME}/versions" \
+    -H "Authorization: Bearer $GHCR_TOKEN" \
+    | jq -r ".[] | select(.metadata.container.tags[]? == \"$tag\") | .id")
+
+  if [[ -z "$VERSION_ID" ]]; then
+    echo "⚠️ No version ID found for tag $tag — skipping delete."
+    return
+  fi
+
   RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-    "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$REPO_NAME/tags/$tag/" \
-    -H "Authorization: JWT $TOKEN")
+    -H "Authorization: Bearer $GHCR_TOKEN" \
+    -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/user/packages/container/${REPO_NAME}/versions/${VERSION_ID}")
 
   case "$RESPONSE" in
     204) echo "✅ Deleted $IMAGE:$tag" ;;
-    404) echo "⚠️ Tag $IMAGE:$tag not found on Docker Hub" ;;
+    404) echo "⚠️ Tag $IMAGE:$tag not found on GHCR" ;;
     *)   echo "❌ Failed to delete $IMAGE:$tag (HTTP $RESPONSE)" ;;
   esac
 }
