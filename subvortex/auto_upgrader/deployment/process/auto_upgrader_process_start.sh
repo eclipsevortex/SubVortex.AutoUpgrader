@@ -26,12 +26,13 @@ while IFS= read -r line; do
     cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"
     if [[ "$(echo "$value" | tr '[:upper:]' '[:lower:]')" == "true" ]]; then
       ARGS+=("$cli_key")
+    elif [[ $value_lower == "false" ]]; then
+      continue
     else
       ARGS+=("$cli_key" "$value")
     fi
   fi
 done < <(env)
-
 
 # Start or reload PM2
 if pm2 list | grep -q "$SERVICE_NAME"; then
