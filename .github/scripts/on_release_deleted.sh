@@ -86,13 +86,21 @@ for FTAG in dev stable latest; do
   fi
 
   TARGET="${TARGET#v}"
+
   if [[ -n "$TARGET" ]]; then
-    echo "🏷️ Re-tagging $IMAGE:$FTAG → $IMAGE:$TARGET using skopeo"
-    skopeo copy --all --dest-creds="${GHCR_USERNAME}:${GHCR_TOKEN}" \
-      docker://$IMAGE:$TARGET \
-      docker://$IMAGE:$FTAG
+    echo "🔍 Checking if $IMAGE:$TARGET exists..."
+
+    if skopeo inspect --creds "${GHCR_USERNAME}:${GHCR_TOKEN}" docker://$IMAGE:$TARGET &>/dev/null; then
+      echo "🏷️ Re-tagging $IMAGE:$FTAG → $IMAGE:$TARGET using skopeo"
+      skopeo copy --all --dest-creds="${GHCR_USERNAME}:${GHCR_TOKEN}" \
+        docker://$IMAGE:$TARGET \
+        docker://$IMAGE:$FTAG
+      echo "✅ Floating tag '$FTAG' now points to '$TARGET'"
+    else
+      echo "⚠️ Image $IMAGE:$TARGET does not exist — skipping $FTAG re-tag"
+      delete_docker_tag "$FTAG"
+    fi
   else
-    echo "⚠️ No valid candidate for $FTAG — will attempt cleanup"
-    delete_docker_tag "$FTAG"
+    echo "⚠️ No valid candidate for $FTAG — skipping"
   fi
 done
