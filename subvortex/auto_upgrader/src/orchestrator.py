@@ -284,7 +284,9 @@ class Orchestrator:
     async def _get_latest_version(self):
         # Get the latest version
         version = self.github.get_latest_version()
-        btul.logging.trace(f"Latest release: {version}", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.debug(
+            f"Latest github release: {version}", prefix=sauc.SV_LOGGER_NAME
+        )
 
         # Set the current version in a denormlized wayt
         version = sauv.denormalize_version(version)
@@ -292,6 +294,9 @@ class Orchestrator:
         if sauc.SV_EXECUTION_METHOD == "container":
             # Get the version in docker hub
             docker_version = await self.docker.get_latest_version()
+            btul.logging.debug(
+                f"Latest docker tag: {version}", prefix=sauc.SV_LOGGER_NAME
+            )
 
             if Version(version) != Version(docker_version):
                 # Keep the docker version until it changes once ci/cd finished
