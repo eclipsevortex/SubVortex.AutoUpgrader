@@ -90,7 +90,7 @@ for FTAG in dev stable latest; do
   if [[ -n "$TARGET" ]]; then
     echo "🔍 Checking if $IMAGE:$TARGET exists..."
 
-    if skopeo inspect --creds "${GHCR_USERNAME}:${GHCR_TOKEN}" docker://$IMAGE:$TARGET &>/dev/null; then
+    if skopeo inspect --raw --creds "${GHCR_USERNAME}:${GHCR_TOKEN}" docker://$IMAGE:$TARGET &>/dev/null; then
       echo "🏷️ Re-tagging $IMAGE:$FTAG → $IMAGE:$TARGET using skopeo"
       skopeo copy --all --dest-creds="${GHCR_USERNAME}:${GHCR_TOKEN}" \
         docker://$IMAGE:$TARGET \
