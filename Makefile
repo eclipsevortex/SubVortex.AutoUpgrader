@@ -48,6 +48,15 @@ define get_version
 	fi
 endef
 
+define load_env
+if [ -f .secrets ]; then \
+  echo "📦 Loading environment from .secrets"; \
+  set -a; \
+  source .secrets; \
+  set +a; \
+fi
+endef
+
 # ==================
 # 🔨 Version Bumping
 # ==================
@@ -203,6 +212,7 @@ endef
 define github_unrelease
 	@VERSION=$$($(call get_version, .)); \
 	TAG=v$$VERSION; \
+	$(load_env); \
 	\
 	(gh release view "$$TAG" &>/dev/null && \
 	  echo "🗑️  Deleting GitHub release $$TAG..." && \
@@ -234,7 +244,7 @@ endef
 define github_unprerelease
 	@VERSION=$$($(call get_version, .)); \
 	TAG=v$$VERSION; \
-	echo "TAG $$TAG"; \
+	$(load_env); \
 	\
 	(gh release view "$$TAG" &>/dev/null && \
 	  echo "🗑️  Deleting GitHub prerelease $$TAG..." && \

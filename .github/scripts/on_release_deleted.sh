@@ -4,11 +4,18 @@ set -euo pipefail
 COMPONENT="$1"
 TAG="$2"
 VERSION="${TAG#v}"
+REPO_OWNER="${GITHUB_REPOSITORY_OWNER:-eclipsevortex}"
 REPO_NAME="subvortex-${COMPONENT//_/-}"
-IMAGE="ghcr.io/$GITHUB_REPOSITORY_OWNER/$REPO_NAME"
+IMAGE="ghcr.io/$REPO_OWNER/$REPO_NAME"
 
 GHCR_USERNAME="${GHCR_USERNAME:-}"
 GHCR_TOKEN="${GHCR_TOKEN:-}"
+
+# Always resolve the absolute path to the 'scripts' folder
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Run the install_skopeo.sh script
+bash "$SCRIPT_DIR/install_skopeo.sh"
 
 if [[ -z "$GHCR_USERNAME" || -z "$GHCR_TOKEN" ]]; then
   echo "❌ Missing GHCR credentials (GHCR_USERNAME / GHCR_TOKEN)"
@@ -80,10 +87,10 @@ for FTAG in dev stable latest; do
 
   TARGET="${TARGET#v}"
   if [[ -n "$TARGET" ]]; then
-    echo "🏷️  Re-tagging $IMAGE:$FTAG → $IMAGE:$TARGET"
-    docker buildx imagetools create \
-      --tag "$IMAGE:$FTAG" \
-      "$IMAGE:$TARGET"
+    echo "🏷️ Re-tagging $IMAGE:$FTAG → $IMAGE:$TARGET using skopeo"
+    skopeo copy --all --dest-creds="${GHCR_USERNAME}:${GHCR_TOKEN}" \
+      docker://$IMAGE:$TARGET \
+      docker://$IMAGE:$FTAG
   else
     echo "⚠️ No valid candidate for $FTAG — will attempt cleanup"
     delete_docker_tag "$FTAG"

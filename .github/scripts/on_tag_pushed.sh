@@ -5,10 +5,11 @@ COMPONENT="$1"
 WHEEL_IMAGE="$2"
 VERSION_TAG="$3"
 
-REPO_NAME="subvortex-${COMPONENT//_/-}"
-IMAGE="ghcr.io/$GITHUB_REPOSITORY_OWNER/$REPO_NAME"
 VERSION="${VERSION_TAG#v}"
 DOCKERFILE="subvortex/$COMPONENT/Dockerfile"
+REPO_OWNER="${GITHUB_REPOSITORY_OWNER:-eclipsevortex}"
+REPO_NAME="subvortex-${COMPONENT//_/-}"
+IMAGE="ghcr.io/$REPO_OWNER/$REPO_NAME"
 
 echo "🔍 Building image for component: $COMPONENT"
 echo "📦 Image name: $IMAGE"

@@ -7,8 +7,9 @@ IS_PRERELEASE="$3"
 IS_DRAFT="$4"
 
 VERSION="${RAW_VERSION_TAG#v}"
+REPO_OWNER="${GITHUB_REPOSITORY_OWNER:-eclipsevortex}"
 REPO_NAME="subvortex-${COMPONENT//_/-}"
-IMAGE="ghcr.io/$GITHUB_REPOSITORY_OWNER/$REPO_NAME"
+IMAGE="ghcr.io/$REPO_OWNER/$REPO_NAME"
 
 if [[ "$IS_DRAFT" == "true" ]]; then
   echo "⏭️ Skipping draft release"
