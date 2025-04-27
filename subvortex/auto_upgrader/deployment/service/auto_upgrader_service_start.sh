@@ -49,7 +49,7 @@ TEMP_TEMPLATE="/tmp/${SERVICE_NAME}.service.template"
 sed "s|^ExecStart=.*|ExecStart=$FULL_EXEC_START|" "$TEMPLATE_PATH" > "$TEMP_TEMPLATE"
 
 # Install the service configuration
-envsubst < "./deployment/templates/${SERVICE_NAME}.service" | tee "/etc/systemd/system/${SERVICE_NAME}.service" > /dev/null
+envsubst < "$TEMP_TEMPLATE" | tee "/etc/systemd/system/${SERVICE_NAME}.service" > /dev/null
 
 # Prepare the log
 sudo mkdir -p /var/log/$SERVICE_NAME

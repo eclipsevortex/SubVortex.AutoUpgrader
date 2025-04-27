@@ -19,30 +19,35 @@ ARGS=()
 PREFIX="SUBVORTEX_"
 
 while IFS= read -r line; do
-  key="${line%%=*}"
-  value="${line#*=}"
-  if [[ $key == ${PREFIX}* ]]; then
-    key_suffix="${key#$PREFIX}"
-    cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"
-    value_lower="$(echo "$value" | tr '[:upper:]' '[:lower:]')"
-
-    if [[ "$value_lower" == "true" ]]; then
-      ARGS+=("$cli_key")
-    elif [[ $value_lower == "false" ]]; then
-      continue
-    else
-      ARGS+=("$cli_key" "$value")
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [[ $key == ${PREFIX}* ]]; then
+        key_suffix="${key#$PREFIX}"
+        cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"
+        value_lower="$(echo "$value" | tr '[:upper:]' '[:lower:]')"
+        
+        if [[ "$value_lower" == "true" ]]; then
+            ARGS+=("$cli_key")
+            elif [[ $value_lower == "false" ]]; then
+            continue
+        else
+            ARGS+=("$cli_key" "$value")
+        fi
     fi
-  fi
 done < <(env)
 
 # Start or reload PM2
 if pm2 list | grep -q "$SERVICE_NAME"; then
-  echo "🔁 Reloading $SERVICE_NAME"
-  pm2 reload "$SERVICE_NAME" --update-env
+    if [[ ${#ARGS[@]} -eq 0 ]]; then
+        echo "🔁  No additional CLI args, reloading service normally..."
+        pm2 reload "$SERVICE_NAME" --update-env
+    else
+        echo "🔁  Restarting $SERVICE_NAME with updated CLI args: ${ARGS[*]}"
+        pm2 restart "$SERVICE_NAME" --update-env -- "${ARGS[@]}"
+    fi
 else
-  echo "🚀 Starting $SERVICE_NAME"
-  pm2 start src/main.py \
+    echo "🚀 Starting $SERVICE_NAME"
+    pm2 start src/main.py \
     --name "$SERVICE_NAME" \
     --interpreter python3 -- \
     "${ARGS[@]}"
