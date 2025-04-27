@@ -180,7 +180,7 @@ class Orchestrator:
         success = True
         for description, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(
-                f"▶️ \033[34mRolling back: {description}\033[0m",
+                f"▶️ \35m[34mRolling back: {description}\033[0m",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             try:
