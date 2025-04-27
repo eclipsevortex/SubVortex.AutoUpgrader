@@ -18,22 +18,37 @@ if [[ -z "$GHCR_USERNAME" || -z "$GHCR_TOKEN" ]]; then
     exit 1
 fi
 
-echo "🔍 Deleting $IMAGE:$VERSION from GitHub Container Registry..."
+echo "🔍 Searching for Version ID corresponding to tag: $VERSION..."
+
+# Step 1: Find the Version ID from the tag
+VERSION_ID=$(gh api "user/packages/container/${REPO_NAME}/versions" \
+  -H "Authorization: Bearer $GHCR_TOKEN" \
+  | jq -r --arg VERSION "$VERSION" ".[] | select(.metadata.container.tags[]? == $VERSION) | .id")
+
+if [[ -z "$VERSION_ID" ]]; then
+  echo "⚠️ No Version ID found for tag: $VERSION — skipping delete."
+  exit 0
+fi
+
+echo "🔍 Found Version ID: $VERSION_ID"
+
+# Step 2: Delete by Version ID
+echo "🗑️ Deleting $IMAGE:$VERSION (Version ID: $VERSION_ID) from GitHub Container Registry..."
 
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
     -H "Authorization: Bearer $GHCR_TOKEN" \
     -H "Accept: application/vnd.github.v3+json" \
-"https://api.github.com/orgs/${GHCR_USERNAME}/packages/container/${REPO_NAME}/versions/$VERSION")
+    "https://api.github.com/user/packages/container/${REPO_NAME}/versions/${VERSION_ID}")
 
 case "$RESPONSE" in
     204)
-        echo "✅ Deleted $IMAGE:$VERSION"
+        echo "✅ Successfully deleted $IMAGE:$VERSION"
     ;;
     404)
-        echo "⚠️ Tag not found: $IMAGE:$VERSION"
+        echo "⚠️ Version not found: $IMAGE:$VERSION (maybe already deleted)"
     ;;
     *)
-        echo "❌ Failed to delete tag: HTTP $RESPONSE"
+        echo "❌ Failed to delete $IMAGE:$VERSION (HTTP $RESPONSE)"
         exit 1
     ;;
 esac
