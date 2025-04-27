@@ -6,7 +6,7 @@ WHEEL_IMAGE="$2"
 VERSION_TAG="$3"
 
 REPO_NAME="subvortex-${COMPONENT//_/-}"
-IMAGE="subvortex/$REPO_NAME"
+IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER}/$REPO_NAME"
 VERSION="${VERSION_TAG#v}"
 DOCKERFILE="subvortex/$COMPONENT/Dockerfile"
 
@@ -30,7 +30,7 @@ echo "🧾 Resolved Versions:"
 echo "VERSION=$VERSION"
 echo "COMPONENT_VERSION=$COMPONENT_VERSION"
 
-echo "🚀 Building and pushing Docker image: $IMAGE:$VERSION"
+echo "🚀 Building and pushing image: $IMAGE:$VERSION"
 
 docker buildx build \
   --squash \
@@ -44,3 +44,8 @@ docker buildx build \
   --file "$DOCKERFILE" \
   --push \
   .
+# echo "🌍 Making image public: $IMAGE"
+
+# # Needs gh CLI installed and authenticated (GH_TOKEN must be available in env)
+# PACKAGE_NAME="container/${REPO_NAME}"
+# gh api --method PATCH "/user/packages/${PACKAGE_NAME}/visibility" --field visibility=public

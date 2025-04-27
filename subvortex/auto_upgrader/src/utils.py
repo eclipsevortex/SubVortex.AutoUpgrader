@@ -18,10 +18,14 @@ import subvortex.auto_upgrader.src.constants as sauc
 
 
 def get_tag():
-    if "alpha" == sauc.SV_PRERELEASE_TYPE:
+    enabled = sauc.SV_PRERELEASE_ENABLED
+    prerelease_type = sauc.SV_PRERELEASE_TYPE
+
+    if enabled is False or (isinstance(enabled, str) and enabled.lower() == "false"):
+        return "latest"
+    elif prerelease_type == "alpha":
         return "dev"
-
-    if "rc" == sauc.SV_PRERELEASE_TYPE:
+    elif prerelease_type == "rc":
         return "stable"
-
-    return "latest"
+    else:
+        return "latest"
