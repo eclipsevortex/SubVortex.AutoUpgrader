@@ -211,3 +211,5 @@ jobs:
             "${{ steps.taginfo.outputs.version_tag }}" \
             "${{ github.event.release.prerelease }}" \
             "${{ github.event.release.draft }}"
+        env:
+          GH_TOKEN: ${{ secrets.GHCR_TOKEN }}
