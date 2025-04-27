@@ -89,11 +89,21 @@ async def _rollback(database):
         f.write(content)
 
 
+# def assert_version_calls(mocked_db, expected_versions):
+#     version_calls = [c for c in mocked_db.set.call_args_list if c.args[0] == "version"]
+#     assert version_calls == [
+#         call("version", v) for v in expected_versions
+#     ], f"Expected version calls {expected_versions}, but got {[c.args[1] for c in version_calls]}"
+
 def assert_version_calls(mocked_db, expected_versions):
     version_calls = [c for c in mocked_db.set.call_args_list if c.args[0] == "version"]
-    assert version_calls == [
-        call("version", v) for v in expected_versions
-    ], f"Expected version calls {expected_versions}, but got {[c.args[1] for c in version_calls]}"
+
+    actual_versions = [c.args[1] for c in version_calls]
+    expected_calls = [call("version", v) for v in expected_versions]
+
+    assert actual_versions == expected_versions, (
+        f"Expected version calls {expected_versions}, but got {actual_versions}"
+    )
 
 
 @pytest.mark.asyncio
@@ -395,4 +405,4 @@ async def test_apply_downgrade(redis_service):
         await redis.apply()
 
     # Assert
-    assert_version_calls(mocked_db, ["0.0.2", "0.0.1", "0.0.0"])
+    assert_version_calls(mocked_db, ["0.0.2"])

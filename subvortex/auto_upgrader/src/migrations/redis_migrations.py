@@ -49,8 +49,15 @@ class RedisMigrations(Migration):
             prefix=sauc.SV_LOGGER_NAME,
         )
 
-        # Determine the highe
+        # Determine the highest revions
         highest_revision = (
+            sorted(new_revisions, key=lambda v: Version(v))[-1]
+            if len(new_revisions) > 0
+            else "0.0.0"
+        )
+
+        # Determine the highest old revions
+        highest_old_revision = (
             sorted(new_revisions, key=lambda v: Version(v))[-1]
             if len(new_revisions) > 0
             else "0.0.0"
@@ -66,7 +73,7 @@ class RedisMigrations(Migration):
             await self._downgrade(
                 database=database,
                 revisions=old_revisions,
-                current_version=current_version,
+                current_version=highest_old_revision,
             )
         else:
             btul.logging.info(
@@ -137,6 +144,9 @@ class RedisMigrations(Migration):
         )
 
         for rev in sorted(revisions, key=lambda v: Version(v), reverse=True):
+            if Version(rev) <= Version(current_version):
+                break
+
             btul.logging.info(
                 f"⬇️  Rolling back migration: {rev}", prefix=sauc.SV_LOGGER_NAME
             )
