@@ -465,26 +465,32 @@ class Orchestrator:
             self._execute_teardown(service=service)
 
     async def _rollout_migrations(self):
-        # Filter out services that do not need any update
-        services = [x for x in self.services if x.needs_update]
+        # Filter services that need update
+        services_to_update = [s for s in self.services if s.needs_update]
 
-        # Create the migrations manager and apply the migrations
-        self.migration_manager = MigrationManager(services)
+        # Create a map of old services (current services) by ID
+        current_services_map = {s.id: s for s in self.current_services}
 
-        # For each service, if it's new or needs to be up for migrations, ensure it is started
-        for service in services:
-            if service.upgrade_type == "install" and self._has_migrations(
-                service=service
+        # Prepare service pairs for migration (new service + previous service)
+        service_pairs: List[Tuple[saus.Service, saus.Service]] = []
+        for new_service in services_to_update:
+            old_service = current_services_map.get(new_service.id)
+            service_pairs.append((new_service, old_service))
+
+        # Create the migration manager with service pairs
+        self.migration_manager = MigrationManager(service_pairs)
+
+        # Start services that are new and have migrations
+        for new_service, _ in service_pairs:
+            if new_service.upgrade_type == "install" and self._has_migrations(
+                new_service
             ):
                 btul.logging.info(
-                    f"⚙️ Preparing new service {service.name} before migrations",
+                    f"⚙️ Preparing new service {new_service.name} before migrations",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
-                # Start the service
-                self._execute_start(service=service)
-
-                # Mark this service as started early
-                self.previously_started_services.append(service.id)
+                self._execute_start(service=new_service)
+                self.previously_started_services.append(new_service.id)
 
         self.migration_manager.collect_migrations()
         await self.migration_manager.apply()

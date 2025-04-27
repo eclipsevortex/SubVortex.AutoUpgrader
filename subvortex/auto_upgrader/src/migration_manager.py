@@ -5,14 +5,20 @@ from subvortex.auto_upgrader.src.migrations.base import Migration
 MIGRATION_TYPES = {}
 
 
+from typing import List, Tuple
+from subvortex.auto_upgrader.src.migrations.base import Migration
+
+MIGRATION_TYPES = {}
+
+
 class MigrationManager:
-    def __init__(self, services: List):
-        self.services = services
+    def __init__(self, service_pairs: List[Tuple]):
+        self.service_pairs = service_pairs  # (latest_service, previous_service)
         self.migrations: List[Migration] = []
 
     def collect_migrations(self):
-        for service in self.services:
-            migration_type = getattr(service, "migration_type", None)
+        for new_service, previous_service in self.service_pairs:
+            migration_type = getattr(new_service, "migration_type", None)
             if not migration_type:
                 continue
 
@@ -33,7 +39,7 @@ class MigrationManager:
                     raise ValueError(f"Unsupported migration type: {migration_type}")
 
             migration_class = MIGRATION_TYPES[migration_type]
-            self.migrations.append(migration_class(service))
+            self.migrations.append(migration_class(new_service, previous_service))
 
     async def apply(self):
         for migration in self.migrations:
