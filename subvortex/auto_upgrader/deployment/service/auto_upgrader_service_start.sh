@@ -14,6 +14,36 @@ source venv/bin/activate
 # Load environment variables
 export $(grep -v '^#' .env | xargs)
 
+# Build CLI args from SUBVORTEX_ environment variables
+ARGS=()
+PREFIX="SUBVORTEX_"
+
+while IFS= read -r line; do
+  key="${line%%=*}"
+  value="${line#*=}"
+  if [[ $key == ${PREFIX}* ]]; then
+    key_suffix="${key#$PREFIX}"
+    cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"
+    if [[ "$(echo "$value" | tr '[:upper:]' '[:lower:]')" == "true" ]]; then
+      ARGS+=("$cli_key")
+    else
+      ARGS+=("$cli_key" "$value")
+    fi
+  fi
+done < <(env)
+
+# Build the full ExecStart line
+PYTHON_EXEC="/root/SubVortex.AutoUpgrader/subvortex/auto_upgrader/venv/bin/python3"
+MODULE="subvortex.auto_upgrader.src.main"
+FULL_EXEC_START="$PYTHON_EXEC -m $MODULE ${ARGS[*]}"
+
+# Path setup
+TEMPLATE_PATH="./deployment/templates/${SERVICE_NAME}.service"
+TEMP_TEMPLATE="/tmp/${SERVICE_NAME}.service.template"
+
+# Replace ExecStart in template before envsubst
+sed "s|^ExecStart=.*|ExecStart=$FULL_EXEC_START|" "$TEMPLATE_PATH" > "$TEMP_TEMPLATE"
+
 # Install the service configuration
 envsubst < "./deployment/templates/${SERVICE_NAME}.service" | tee "/etc/systemd/system/${SERVICE_NAME}.service" > /dev/null
 

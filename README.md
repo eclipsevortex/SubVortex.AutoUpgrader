@@ -102,6 +102,18 @@ Here's a breakdown of the key variables:
 - **SUBVORTEX_CHECK_INTERVAL**:  
   Interval in seconds to check if new releases are available. Default 30 seconds.
 
+- **SUBVORTEX_REDIS_HOST**:
+  Host of the redis instance. Provide it ONLY if you are a validator. Default `localhost`
+
+- **SUBVORTEX_REDIS_PORT**:
+  Port of the redis instance. Provide it ONLY if you are a validator. Default `6379`.
+
+- **SUBVORTEX_REDIS_INDEX**:
+  Index of the redis database. Provide it ONLY if you are a validator. Default `0`
+
+- **SUBVORTEX_REDIS_PASSWORD**:
+  Password of the redis database. Provide it ONLY if you are a validator.
+
 <br />
 
 # 🔧 How It Works <a id="how-it-works"></a>

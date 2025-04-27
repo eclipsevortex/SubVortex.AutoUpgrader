@@ -14,20 +14,16 @@ source venv/bin/activate
 # Load environment variables
 export $(grep -v '^#' .env | xargs)
 
-# Start building the argument list
+# Build CLI args from SUBVORTEX_ environment variables
 ARGS=()
-
-# Prefix to look for
 PREFIX="SUBVORTEX_"
 
-# Loop through all environment variables starting with SUBVORTEX_
-while IFS='=' read -r key value; do
+while IFS= read -r line; do
+  key="${line%%=*}"
+  value="${line#*=}"
   if [[ $key == ${PREFIX}* ]]; then
-    # Remove prefix and convert to CLI format: UPPER_SNAKE → --lower.dotted
-    key_suffix="${key#$PREFIX}"                      # Strip prefix
+    key_suffix="${key#$PREFIX}"
     cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"
-
-    # Check if value is boolean true
     if [[ "$(echo "$value" | tr '[:upper:]' '[:lower:]')" == "true" ]]; then
       ARGS+=("$cli_key")
     else
