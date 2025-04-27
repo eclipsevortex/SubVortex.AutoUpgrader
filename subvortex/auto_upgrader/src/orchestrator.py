@@ -291,7 +291,15 @@ class Orchestrator:
 
         if sauc.SV_EXECUTION_METHOD == "container":
             # Get the version in docker hub
-            version = await self.docker.get_latest_version()
+            docker_version = await self.docker.get_latest_version()
+
+            if Version(version) != Version(docker_version):
+                # Keep the docker version until it changes once ci/cd finished
+                version = docker_version
+
+                btul.logging.debug(
+                    f"Upgrade conditions not yet met.", prefix=sauc.SV_LOGGER_NAME
+                )
 
         self.latest_version = version
         if self.latest_version is None:
