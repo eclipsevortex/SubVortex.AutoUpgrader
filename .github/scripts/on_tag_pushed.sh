@@ -6,7 +6,7 @@ WHEEL_IMAGE="$2"
 VERSION_TAG="$3"
 
 REPO_NAME="subvortex-${COMPONENT//_/-}"
-IMAGE="ghcr.io/${GITHUB_REPOSITORY_OWNER}/$REPO_NAME"
+IMAGE="ghcr.io/$GITHUB_REPOSITORY_OWNER/$REPO_NAME"
 VERSION="${VERSION_TAG#v}"
 DOCKERFILE="subvortex/$COMPONENT/Dockerfile"
 
@@ -40,12 +40,8 @@ docker buildx build \
   --build-arg COMPONENT_VERSION="$COMPONENT_VERSION" \
   --cache-from=type=gha,scope=wheels_${COMPONENT}_amd64 \
   --cache-to=type=gha,mode=max,scope=wheels_${COMPONENT}_amd64 \
+  --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
   --tag "$IMAGE:$VERSION" \
   --file "$DOCKERFILE" \
   --push \
   .
-# echo "🌍 Making image public: $IMAGE"
-
-# # Needs gh CLI installed and authenticated (GH_TOKEN must be available in env)
-# PACKAGE_NAME="container/${REPO_NAME}"
-# gh api --method PATCH "/user/packages/${PACKAGE_NAME}/visibility" --field visibility=public
