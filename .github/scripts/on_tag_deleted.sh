@@ -23,7 +23,7 @@ echo "🔍 Searching for Version ID corresponding to tag: $VERSION..."
 # Step 1: Find the Version ID from the tag
 VERSION_ID=$(gh api "user/packages/container/${REPO_NAME}/versions" \
   -H "Authorization: Bearer $GHCR_TOKEN" \
-  | jq -r --arg VERSION "$VERSION" ".[] | select(.metadata.container.tags[]? == $VERSION) | .id")
+  | jq -r --arg VERSION "$VERSION" .[] | select(.metadata.container.tags[]? == \"$VERSION\") | .id")
 
 if [[ -z "$VERSION_ID" ]]; then
   echo "⚠️ No Version ID found for tag: $VERSION — skipping delete."
