@@ -295,7 +295,7 @@ class Orchestrator:
             # Get the version in docker hub
             docker_version = await self.docker.get_latest_version()
             btul.logging.debug(
-                f"Latest docker tag: {version}", prefix=sauc.SV_LOGGER_NAME
+                f"Latest docker tag: {docker_version}", prefix=sauc.SV_LOGGER_NAME
             )
 
             if Version(version) != Version(docker_version):
