@@ -59,7 +59,10 @@ class RedisMigrations(Migration):
         new_revisions = self._load_migrations_from_path(self.new_migration_path)
         old_revisions = (
             self._load_migrations_from_path(self.old_migration_path)
-            if sauv.is_version_before_auto_upgrader()
+            if self.previous_service
+            and sauv.is_version_before_auto_upgrader(
+                version=self.previous_service.version
+            )
             else []
         )
 
