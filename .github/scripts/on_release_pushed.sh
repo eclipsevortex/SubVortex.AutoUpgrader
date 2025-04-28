@@ -65,7 +65,18 @@ for FLOAT_TAG in dev stable latest; do
     continue
   fi
 
-  echo "🔁 Creating manifest for $IMAGE:$FLOAT_TAG from $IMAGE:$TARGET_VERSION"
+  # -- Optimization: check if FLOAT_TAG already points to the correct image
+  echo "🔍 Checking if $IMAGE:$FLOAT_TAG already matches $IMAGE:$TARGET_VERSION..."
+
+  TARGET_DIGEST=$(docker buildx imagetools inspect "$IMAGE:$TARGET_VERSION" --format '{{.Manifest.Digest}}' 2>/dev/null || echo "")
+  FLOAT_DIGEST=$(docker buildx imagetools inspect "$IMAGE:$FLOAT_TAG" --format '{{.Manifest.Digest}}' 2>/dev/null || echo "")
+
+  if [[ "$TARGET_DIGEST" == "$FLOAT_DIGEST" && -n "$TARGET_DIGEST" ]]; then
+    echo "✅ $IMAGE:$FLOAT_TAG already up to date. Skipping."
+    continue
+  fi
+
+  echo "🔁 Retagging $IMAGE:$TARGET_VERSION as $IMAGE:$FLOAT_TAG"
   docker buildx imagetools create \
     --tag "$IMAGE:$FLOAT_TAG" \
     "$IMAGE:$TARGET_VERSION"

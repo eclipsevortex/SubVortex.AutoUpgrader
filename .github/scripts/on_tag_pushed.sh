@@ -31,6 +31,17 @@ echo "🧾 Resolved Versions:"
 echo "VERSION=$VERSION"
 echo "COMPONENT_VERSION=$COMPONENT_VERSION"
 
+# -- Check if local image already matches
+LABEL_KEY="$COMPONENT.$SERVICE.version"
+
+# Try to read the label from local docker images
+EXISTING_COMPONENT_VERSION=$(docker image inspect "$IMAGE:$VERSION" --format "{{ index .Config.Labels \"$LABEL_KEY\" }}" 2>/dev/null || echo "")
+
+if [[ "$EXISTING_COMPONENT_VERSION" == "$COMPONENT_VERSION" ]]; then
+  echo "✅ Image already built for $COMPONENT/$SERVICE with version $COMPONENT_VERSION. Skipping build."
+  exit 0
+fi
+
 echo "🚀 Building and pushing image: $IMAGE:$VERSION"
 
 docker buildx build \
