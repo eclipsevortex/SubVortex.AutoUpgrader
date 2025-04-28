@@ -51,7 +51,7 @@ class Github:
 
         if sauc.SV_EXECUTION_METHOD == "container":
             # Get the github registry version
-            container_version = self._get_latest_container_version()
+            container_version, _ = self._get_latest_container_version()
 
             # Set verison to be the docker one if they are different as github is always the source of truth
             version = container_version if container_version != version else version
