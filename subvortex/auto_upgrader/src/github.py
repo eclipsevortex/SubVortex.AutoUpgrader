@@ -268,7 +268,9 @@ class Github:
         packages = response.json()
 
         subvortex_packages = [
-            package for package in packages if package["name"].startswith("subvortex-")
+            package
+            for package in packages
+            if package["name"].startswith(f"subvortex-{sauc.SV_EXECUTION_ROLE}")
         ]
 
         if not subvortex_packages:
