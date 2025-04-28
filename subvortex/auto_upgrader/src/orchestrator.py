@@ -263,18 +263,19 @@ class Orchestrator:
 
     async def _get_current_version(self):
         # Get the latest version
-        version = self.github.get_latest_version()
+        version = self.github.get_local_version()
 
         # Set the current version in a denormlized wayt
-        version = sauv.denormalize_version(version)
+        # version = sauv.denormalize_version(version)
 
-        if sauc.SV_EXECUTION_METHOD == "container":
-            # Get the version in docker hub
-            docker_version = await self.docker.get_local_version()
+        # if sauc.SV_EXECUTION_METHOD == "container":
+        #     # Get the version in docker hub
+        #     docker_version = await self.docker.get_local_version()
 
-            # Set verison to be the docker one if they are different as github is always the source of truth
-            version = docker_version if docker_version != version else version
+        #     # Set verison to be the docker one if they are different as github is always the source of truth
+        #     version = docker_version if docker_version != version else version
 
+        # Store the current version
         self.current_version = version or sauc.DEFAULT_LAST_RELEASE.get("global")
 
         btul.logging.debug(
@@ -284,31 +285,33 @@ class Orchestrator:
     async def _get_latest_version(self):
         # Get the latest version
         version = self.github.get_latest_version()
-        btul.logging.debug(
-            f"Latest github release: {version}", prefix=sauc.SV_LOGGER_NAME
-        )
+        # btul.logging.debug(
+        #     f"Latest github release: {version}", prefix=sauc.SV_LOGGER_NAME
+        # )
 
         # Set the current version in a denormlized wayt
-        version = sauv.denormalize_version(version)
+        # version = sauv.denormalize_version(version)
 
-        if sauc.SV_EXECUTION_METHOD == "container":
-            # Get the version in docker hub
-            docker_version = await self.docker.get_latest_version()
-            btul.logging.debug(
-                f"Latest docker tag: {docker_version}", prefix=sauc.SV_LOGGER_NAME
-            )
+        # if sauc.SV_EXECUTION_METHOD == "container":
+        #     # Get the version in docker hub
+        #     docker_version = await self.docker.get_latest_version()
+        #     btul.logging.debug(
+        #         f"Latest docker tag: {docker_version}", prefix=sauc.SV_LOGGER_NAME
+        #     )
 
-            if Version(version) != Version(docker_version):
-                # Keep the docker version until it changes once ci/cd finished
-                version = docker_version
+        #     if Version(version) != Version(docker_version):
+        #         # Keep the docker version until it changes once ci/cd finished
+        #         version = docker_version
 
-                btul.logging.debug(
-                    f"Upgrade conditions not yet met.", prefix=sauc.SV_LOGGER_NAME
-                )
+        #         btul.logging.debug(
+        #             f"Upgrade conditions not yet met.", prefix=sauc.SV_LOGGER_NAME
+        #         )
 
-        self.latest_version = version
-        if self.latest_version is None:
+        if version is None:
             raise saue.MissingVersionError(name="global", type="latest")
+
+        # Store the latest version
+        self.latest_version = version
 
         btul.logging.debug(
             f"Latest version: {self.latest_version}", prefix=sauc.SV_LOGGER_NAME

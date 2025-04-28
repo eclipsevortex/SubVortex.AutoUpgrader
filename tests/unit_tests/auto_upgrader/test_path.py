@@ -18,10 +18,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
-import os
 import pytest
-from unittest import mock
 
 import subvortex.auto_upgrader.src.path as saup
 from subvortex.auto_upgrader.src.service import Service

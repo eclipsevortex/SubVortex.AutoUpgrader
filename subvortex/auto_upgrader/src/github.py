@@ -15,10 +15,12 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import os
+import re
 import time
 import shutil
 import tarfile
 import requests
+import subprocess
 from packaging.version import Version, InvalidVersion
 
 import bittensor.utils.btlogging as btul
@@ -26,6 +28,7 @@ import bittensor.utils.btlogging as btul
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.exception as saue
+import subvortex.auto_upgrader.src.utils as sauu
 
 
 class Github:
@@ -35,8 +38,24 @@ class Github:
         self.latest_version = None
         self.published_at = None
 
+    def get_local_version(self):
+        if sauc.SV_EXECUTION_METHOD == "container":
+            version = self._get_local_container_version()
+        else:
+            version = self._get_local_version()
+
+        return version
+
     def get_latest_version(self):
-        version, _ = self._get_latest_tag_including_prereleases()
+        version = self._get_latest_tag_including_prereleases()
+
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Get the github registry version
+            container_version = self._get_latest_container_version()
+
+            # Set verison to be the docker one if they are different as github is always the source of truth
+            version = container_version if container_version != version else version
+
         return version
 
     def download_and_unzip_assets(self, version: str, role: str):
@@ -232,3 +251,237 @@ class Github:
             raise saue.MissingDirectoryError(directory_path=target_dir)
 
         return target_dir
+
+    def _get_latest_container_version(self):
+        url = f"https://api.github.com/users/{self.repo_owner}/packages?package_type=container"
+        headers = (
+            {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
+            if sauc.SV_GITHUB_TOKEN
+            else {}
+        )
+
+        response = requests.get(url, headers=headers)
+        if response.status_code == 404:
+            return None, None
+
+        response.raise_for_status()
+        packages = response.json()
+
+        subvortex_packages = [
+            package for package in packages if package["name"].startswith("subvortex-")
+        ]
+
+        if not subvortex_packages:
+            return None, None
+
+        all_versions = []
+
+        for package in subvortex_packages:
+            package_name = package["name"]
+            version_url = f"https://api.github.com/users/{self.repo_owner}/packages/container/{package_name}/versions"
+            version_response = requests.get(version_url, headers=headers)
+            if version_response.status_code != 200:
+                continue
+
+            package_versions = version_response.json()
+
+            for v in package_versions:
+                created_at = v.get("created_at", "")
+                tags = v.get("metadata", {}).get("container", {}).get("tags", [])
+
+                for tag in tags:
+                    if tag in {"latest", "stable", "dev"}:
+                        continue  # 🚫 Skip floating tags
+
+                    all_versions.append(
+                        {
+                            "tag": tag,
+                            "created_at": created_at,
+                        }
+                    )
+
+        if not all_versions:
+            return None, None
+
+        # Sort by creation date descending
+        all_versions = sorted(all_versions, key=lambda x: x["created_at"], reverse=True)
+
+        # Find the first valid version based on _is_valid_release_or_prerelease
+        for version_info in all_versions:
+            tag = version_info["tag"]
+
+            if self._is_valid_release_or_prerelease(tag):
+                self.published_at = version_info["created_at"]
+                version = tag[1:] if tag.startswith("v") else tag
+                self.latest_version = version
+                return self.latest_version, self.published_at
+
+        return None, None
+
+    def _get_local_container_version(self):
+        """
+        Get the latest local version for container-based execution,
+        inspecting the labels of the locally pulled images.
+        """
+        versions = {}
+
+        try:
+            # Get the floating tag (like dev/stable/latest)
+            ftag = sauu.get_tag()
+
+            # Step 1: List all local images with their tags
+            result = subprocess.run(
+                ["docker", "image", "ls", "--format", "{{.Repository}}:{{.Tag}}"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+            images = result.stdout.strip().split("\n")
+
+            # Step 2: Filter matching images
+            for image in images:
+                if ":" not in image:
+                    continue
+
+                repo, tag = image.rsplit(":", 1)
+
+                # Build the prefix for GitHub registry
+                prefix = (
+                    f"ghcr.io/{self.repo_owner}/subvortex-{sauc.SV_EXECUTION_ROLE}-"
+                )
+
+                if not repo.startswith(prefix) or tag != ftag:
+                    continue
+
+                # Step 3: Inspect labels of the local image
+                local_versions = self._get_local_container_versions(
+                    repo_name=repo, tag=ftag
+                )
+
+                # Extract service name from the repo name
+                service_name = repo.replace(prefix, "")
+
+                versions[service_name] = local_versions
+
+        except subprocess.CalledProcessError as e:
+            btul.logging.warning(
+                f"Failed to list docker images: {e}", prefix=sauc.SV_LOGGER_NAME
+            )
+
+        # Step 4: Determine the global "version"
+        global_versions = list(
+            {v.get("version") for v in versions.values() if v.get("version")}
+        )
+
+        versions["version"] = global_versions[0] if global_versions else None
+
+        # Step 5: Store the versions
+        self.local_versions = versions
+        btul.logging.trace(
+            f"Local versions (from GitHub registry): {self.local_versions}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        return self.local_versions["version"]
+
+    def _get_local_version(self):
+        base_dir = "/var/tmp/subvortex"
+        versions = []
+
+        # Step 1: Check if base_dir exists
+        if not os.path.isdir(base_dir):
+            btul.logging.warning(
+                f"Directory {base_dir} does not exist", prefix=sauc.SV_LOGGER_NAME
+            )
+            return None
+
+        # Step 2: List all directories
+        for entry in os.listdir(base_dir):
+            entry_path = os.path.join(base_dir, entry)
+            if not os.path.isdir(entry_path):
+                continue
+
+            # Step 3: Match directory name pattern
+            match = re.match(r"subvortex-(\d+\.\d+\.\d+(?:[ab]|rc)?\d*)", entry)
+            if not match:
+                continue
+
+            version_str = match.group(1)
+
+            # Step 4: Try to parse version
+            try:
+                parsed_version = Version(version_str)
+                versions.append(parsed_version)
+            except InvalidVersion:
+                continue
+
+        # Step 5: Find latest version
+        if not versions:
+            return None
+
+        latest_version = str(max(versions))
+
+        # Step 6: Denormalize
+        latest_version_denormalized = sauv.denormalize_version(latest_version)
+
+        btul.logging.trace(
+            f"Latest local version found: {latest_version_denormalized}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        return latest_version_denormalized
+
+    def _get_local_container_versions(self, repo_name: str, tag: str) -> dict:
+        """
+        Inspect a local docker image and extract version labels.
+
+        Args:
+            repo_name (str): Full docker repository name (ex: ghcr.io/eclipsevortex/subvortex-miner-neuron)
+            tag (str): Floating tag (ex: latest/stable/dev)
+
+        Returns:
+            dict: Dictionary of label key-values (like {"version": "1.2.3", "neuron.version": "1.2.3"})
+        """
+        try:
+            inspect_cmd = [
+                "docker",
+                "inspect",
+                "--format",
+                "{{ json .Config.Labels }}",
+                f"{repo_name}:{tag}",
+            ]
+            result = subprocess.run(
+                inspect_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=True,
+            )
+
+            labels_raw = result.stdout.strip()
+
+            if not labels_raw or labels_raw == "null":
+                return {}
+
+            import json
+
+            labels = json.loads(labels_raw)
+
+            if not isinstance(labels, dict):
+                return {}
+
+            return labels
+
+        except subprocess.CalledProcessError as e:
+            btul.logging.warning(
+                f"Failed to inspect image {repo_name}:{tag} - {e}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return {}
+        except json.JSONDecodeError as e:
+            btul.logging.warning(
+                f"Failed to parse JSON labels for image {repo_name}:{tag} - {e}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return {}
