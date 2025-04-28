@@ -44,34 +44,6 @@ printf "    dev     → %s\n" "${DEV_TAG:-<none>}"
 printf "    stable  → %s\n" "${STABLE_TAG:-<none>}"
 printf "    latest  → %s\n" "${LATEST_TAG:-<none>}"
 
-# Function to delete a tag via Docker Hub API
-delete_docker_tag() {
-  local tag="$1"
-
-  echo "🗑️ Attempting to delete $IMAGE:$tag from GHCR..."
-
-  # Find version ID
-  VERSION_ID=$(gh api "user/packages/container/${REPO_NAME}/versions" \
-    -H "Authorization: Bearer $GHCR_TOKEN" \
-    | jq -r ".[] | select(.metadata.container.tags[]? == \"$tag\") | .id")
-
-  if [[ -z "$VERSION_ID" ]]; then
-    echo "⚠️ No version ID found for tag $tag — skipping delete."
-    return
-  fi
-
-  RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-    -H "Authorization: Bearer $GHCR_TOKEN" \
-    -H "Accept: application/vnd.github.v3+json" \
-    "https://api.github.com/user/packages/container/${REPO_NAME}/versions/${VERSION_ID}")
-
-  case "$RESPONSE" in
-    204) echo "✅ Deleted $IMAGE:$tag" ;;
-    404) echo "⚠️ Tag $IMAGE:$tag not found on GHCR" ;;
-    *)   echo "❌ Failed to delete $IMAGE:$tag (HTTP $RESPONSE)" ;;
-  esac
-}
-
 # Apply floating tags or delete if no valid target
 for FTAG in dev stable latest; do
   case "$FTAG" in
@@ -98,7 +70,6 @@ for FTAG in dev stable latest; do
       echo "✅ Floating tag '$FTAG' now points to '$TARGET'"
     else
       echo "⚠️ Image $IMAGE:$TARGET does not exist — skipping $FTAG re-tag"
-      delete_docker_tag "$FTAG"
     fi
   else
     echo "⚠️ No valid candidate for $FTAG — skipping"
