@@ -47,7 +47,7 @@ class Github:
         return version
 
     def get_latest_version(self):
-        version = self._get_latest_tag_including_prereleases()
+        version, _ = self._get_latest_tag_including_prereleases()
 
         if sauc.SV_EXECUTION_METHOD == "container":
             # Get the github registry version
