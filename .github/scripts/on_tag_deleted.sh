@@ -10,10 +10,9 @@ REPO_OWNER="${GITHUB_REPOSITORY_OWNER:-eclipsevortex}"
 REPO_NAME="subvortex-${COMPONENT//_/-}"
 IMAGE="ghcr.io/$REPO_OWNER/$REPO_NAME"
 
-GHCR_USERNAME="${GHCR_USERNAME:-}"
-GHCR_TOKEN="${GHCR_TOKEN:-}"
+GH_TOKEN="${GH_TOKEN:-}"
 
-if [[ -z "$GHCR_USERNAME" || -z "$GHCR_TOKEN" ]]; then
+if [[ -z "$GH_TOKEN" ]]; then
     echo "❌ Missing Docker credentials (GHCR_USERNAME / GHCR_TOKEN)"
     exit 1
 fi
@@ -22,7 +21,6 @@ echo "🔍 Searching for Version ID corresponding to tag: $VERSION..."
 
 # Step 1: Find the Version ID from the tag
 VERSION_ID=$(gh api "user/packages/container/${REPO_NAME}/versions" \
-  -H "Authorization: Bearer $GHCR_TOKEN" \
   | jq -r --arg VERSION "$VERSION" ".[] | select(.metadata.container.tags[]? == \"$VERSION\") | .id")
 
 if [[ -z "$VERSION_ID" ]]; then
@@ -36,7 +34,7 @@ echo "🔍 Found Version ID: $VERSION_ID"
 echo "🗑️ Deleting $IMAGE:$VERSION (Version ID: $VERSION_ID) from GitHub Container Registry..."
 
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-    -H "Authorization: Bearer $GHCR_TOKEN" \
+    -H "Authorization: Bearer $GH_TOKEN" \
     -H "Accept: application/vnd.github.v3+json" \
     "https://api.github.com/user/packages/container/${REPO_NAME}/versions/${VERSION_ID}")
 
