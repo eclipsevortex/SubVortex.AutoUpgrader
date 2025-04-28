@@ -58,6 +58,24 @@ class Github:
 
         return version
 
+    def get_latest_container_versions(self, name: str):
+        # Get the default versions
+        default_versions = self._get_default_versions(name=name)
+
+        # Get the service versions
+        versions = self.latest_versions.get(name, default_versions)
+
+        return versions
+
+    def get_local_container_versions(self, name: str):
+        # Get the default versions
+        default_versions = self._get_default_versions(name=name)
+
+        # Get the service versions
+        versions = self.local_versions.get(name, default_versions)
+
+        return versions
+
     def download_and_unzip_assets(self, version: str, role: str):
         # Download the version
         archive_path = self._download_assets(role=role, version=version)
@@ -305,6 +323,13 @@ class Github:
         if not all_versions:
             return None, None
 
+        # Step 5: Store the versions
+        self.latest_versions = all_versions
+        btul.logging.trace(
+            f"Latest versions (from GitHub registry): {self.latest_versions}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
         # Sort by creation date descending
         all_versions = sorted(all_versions, key=lambda x: x["created_at"], reverse=True)
 
@@ -487,3 +512,12 @@ class Github:
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return {}
+
+    def _get_default_versions(self, name: str):
+        component = sauc.SV_EXECUTION_ROLE
+        service = f"{component}.{name}"
+        return {
+            "version": sauc.DEFAULT_LAST_RELEASE.get("global"),
+            f"{component}.version": sauc.DEFAULT_LAST_RELEASE.get(component),
+            service: sauc.DEFAULT_LAST_RELEASE.get(service),
+        }

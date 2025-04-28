@@ -53,7 +53,6 @@ class Orchestrator:
         self.latest_services: List[saus.Service] = []
 
         self.github = saug.Github()
-        self.docker = saud.Docker()
         self.metadata_resolver = saumr.MetadataResolver()
 
     async def run_plan(self):
@@ -265,16 +264,6 @@ class Orchestrator:
         # Get the latest version
         version = self.github.get_local_version()
 
-        # Set the current version in a denormlized wayt
-        # version = sauv.denormalize_version(version)
-
-        # if sauc.SV_EXECUTION_METHOD == "container":
-        #     # Get the version in docker hub
-        #     docker_version = await self.docker.get_local_version()
-
-        #     # Set verison to be the docker one if they are different as github is always the source of truth
-        #     version = docker_version if docker_version != version else version
-
         # Store the current version
         self.current_version = version or sauc.DEFAULT_LAST_RELEASE.get("global")
 
@@ -285,28 +274,7 @@ class Orchestrator:
     async def _get_latest_version(self):
         # Get the latest version
         version = self.github.get_latest_version()
-        # btul.logging.debug(
-        #     f"Latest github release: {version}", prefix=sauc.SV_LOGGER_NAME
-        # )
-
-        # Set the current version in a denormlized wayt
-        # version = sauv.denormalize_version(version)
-
-        # if sauc.SV_EXECUTION_METHOD == "container":
-        #     # Get the version in docker hub
-        #     docker_version = await self.docker.get_latest_version()
-        #     btul.logging.debug(
-        #         f"Latest docker tag: {docker_version}", prefix=sauc.SV_LOGGER_NAME
-        #     )
-
-        #     if Version(version) != Version(docker_version):
-        #         # Keep the docker version until it changes once ci/cd finished
-        #         version = docker_version
-
-        #         btul.logging.debug(
-        #             f"Upgrade conditions not yet met.", prefix=sauc.SV_LOGGER_NAME
-        #         )
-
+        
         if version is None:
             raise saue.MissingVersionError(name="global", type="latest")
 
@@ -366,7 +334,7 @@ class Orchestrator:
     def _load_current_services(self):
         # Get the version of all services for container, for the other it will come from the metadata loaded locally
         versions = (
-            self.docker.get_local_service_version
+            self.github.get_local_container_versions
             if sauc.SV_EXECUTION_METHOD == "container"
             else lambda: {}
         )
@@ -389,7 +357,7 @@ class Orchestrator:
     def _load_latest_services(self):
         # Get the version of all services for container, for the other it will come from the metadata loaded locally
         versions = (
-            self.docker.get_latest_service_version
+            self.github.get_latest_container_versions
             if sauc.SV_EXECUTION_METHOD == "container"
             else lambda: {}
         )
