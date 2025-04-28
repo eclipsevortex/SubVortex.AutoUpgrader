@@ -92,7 +92,10 @@ class Orchestrator:
             self._pull_latest_assets,
         )
 
-        if self.current_version == self.latest_version:
+        if (
+            sauc.SV_EXECUTION_METHOD != "container"
+            and self.current_version == self.latest_version
+        ):
             btul.logging.debug(
                 "🟢 No new release available. All services are up-to-date.",
                 prefix=sauc.SV_LOGGER_NAME,
@@ -274,7 +277,7 @@ class Orchestrator:
     async def _get_latest_version(self):
         # Get the latest version
         version = self.github.get_latest_version()
-        
+
         if version is None:
             raise saue.MissingVersionError(name="global", type="latest")
 
@@ -435,6 +438,14 @@ class Orchestrator:
                 )
 
             self.services.append(latest)
+
+        # Check if services have changed
+        has_changed = any(x for x in self.services if x.must_remove or x.needs_update)
+        if not has_changed:
+            btul.logging.debug(
+                "🟢 All services are up-to-date.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
     def _rollout_service(self):
         # Create the dependency resolver

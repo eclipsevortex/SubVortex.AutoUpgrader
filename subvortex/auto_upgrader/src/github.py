@@ -35,10 +35,10 @@ class Github:
     def __init__(self, repo_owner="eclipsevortex", repo_name="SubVortex"):
         self.repo_owner = repo_owner
         self.repo_name = repo_name
-        self.latest_version = None
-        self.published_at = None
 
     def get_local_version(self):
+        version = None
+
         if sauc.SV_EXECUTION_METHOD == "container":
             version = self._get_local_container_version()
         else:
@@ -47,14 +47,11 @@ class Github:
         return version
 
     def get_latest_version(self):
-        version, _ = self._get_latest_tag_including_prereleases()
-
+        version = None
         if sauc.SV_EXECUTION_METHOD == "container":
-            # Get the github registry version
-            container_version, _ = self._get_latest_container_version()
-
-            # Set verison to be the docker one if they are different as github is always the source of truth
-            version = container_version if container_version != version else version
+            version = self._get_latest_container_version()
+        else:
+            version = self._get_latest_version()
 
         return version
 
@@ -100,47 +97,6 @@ class Github:
             )
 
         return asset_path
-
-    def _get_latest_tag_including_prereleases(self):
-        url = (
-            f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
-        )
-        headers = (
-            {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
-            if sauc.SV_GITHUB_TOKEN
-            else {}
-        )
-
-        response = requests.get(url, headers=headers)
-        if response.status_code == 404:
-            return None
-
-        response.raise_for_status()
-
-        releases = response.json()
-
-        if not releases:
-            return self.latest_version, self.published_at
-
-        # Sort releases by published_at descending (most recent first)
-        releases = sorted(
-            releases, key=lambda r: r.get("published_at", ""), reverse=True
-        )
-
-        # Get the first release/pre release
-        last_release = next(
-            (x for x in releases if self._is_valid_release_or_prerelease(x["tag_name"]))
-        )
-        if not last_release:
-            return self.latest_version, self.published_at
-
-        # Optionally sort by semantic version if needed
-        self.published_at = last_release["published_at"]
-
-        # Optionally sort by semantic version if needed
-        tag = last_release["tag_name"]
-        self.latest_version = tag[1:] if tag.startswith("v") else tag
-        return self.latest_version, self.published_at
 
     def _is_valid_release_or_prerelease(self, tag_name: str) -> bool:
         try:
@@ -270,35 +226,88 @@ class Github:
 
         return target_dir
 
-    def _get_latest_container_version(self):
-        url = f"https://api.github.com/users/{self.repo_owner}/packages?package_type=container"
+    def _get_latest_version(self):
+        # Build the url to get the list of releases
+        url = (
+            f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases"
+        )
+
+        # Build the headers
         headers = (
             {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
             if sauc.SV_GITHUB_TOKEN
             else {}
         )
 
+        # Send the request
         response = requests.get(url, headers=headers)
+
+        # Check the the releases have not be found
         if response.status_code == 404:
-            return None, None
+            raise saue.ReleaseNotFoundError(url=url)
+
+        # Raise any failed response
+        response.raise_for_status()
+
+        # Deseralized the resposne
+        releases = response.json()
+
+        if not releases:
+            raise saue.NoReleaseAvailableError()
+
+        # Sort releases by published_at descending (most recent first)
+        releases = sorted(
+            releases, key=lambda r: r.get("published_at", ""), reverse=True
+        )
+
+        # Get the first release/pre release
+        last_release = next(
+            (x for x in releases if self._is_valid_release_or_prerelease(x["tag_name"]))
+        )
+
+        # Optionally sort by semantic version if needed
+        tag = last_release["tag_name"]
+        version = tag[1:] if tag.startswith("v") else tag
+        return version
+
+    def _get_latest_container_version(self):
+        """
+        Get the latest container version from GitHub registry,
+        inspecting the labels of the remote images.
+        """
+        # Build the URL to list packages in GitHub registry
+        url = f"https://api.github.com/users/{self.repo_owner}/packages?package_type=container"
+
+        # Build the header to use the GitHub token if available
+        headers = (
+            {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
+            if sauc.SV_GITHUB_TOKEN
+            else {}
+        )
+
+        # Send the request
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 404:
+            raise saue.PackageNotFoundError(url=url)
 
         response.raise_for_status()
+
+        # Deserialize the response
         packages = response.json()
 
-        subvortex_packages = [
+        # Filter to only matching packages
+        packages = [
             package
             for package in packages
             if package["name"].startswith(f"subvortex-{sauc.SV_EXECUTION_ROLE}")
         ]
 
-        if not subvortex_packages:
-            return None, None
-
-        all_versions = []
-
-        for package in subvortex_packages:
+        versions = {}
+        for package in packages:
             package_name = package["name"]
             version_url = f"https://api.github.com/users/{self.repo_owner}/packages/container/{package_name}/versions"
+
             version_response = requests.get(version_url, headers=headers)
             if version_response.status_code != 200:
                 continue
@@ -306,44 +315,126 @@ class Github:
             package_versions = version_response.json()
 
             for v in package_versions:
-                created_at = v.get("created_at", "")
                 tags = v.get("metadata", {}).get("container", {}).get("tags", [])
 
                 for tag in tags:
                     if tag in {"latest", "stable", "dev"}:
                         continue  # 🚫 Skip floating tags
 
-                    all_versions.append(
-                        {
-                            "tag": tag,
-                            "created_at": created_at,
-                        }
+                    # Build full image name
+                    full_image = f"ghcr.io/{self.repo_owner}/{package_name}:{tag}"
+
+                    # Pull the image quietly
+                    pull_result = subprocess.run(
+                        [
+                            "docker",
+                            "pull",
+                            "--quiet",
+                            full_image,
+                        ],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                    )
+                    if pull_result.returncode != 0:
+                        continue
+
+                    # Inspect labels
+                    inspect_result = subprocess.run(
+                        [
+                            "docker",
+                            "inspect",
+                            "--format",
+                            "{{ json .Config.Labels }}",
+                            full_image,
+                        ],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                    )
+                    if inspect_result.returncode != 0 or not inspect_result.stdout:
+                        continue
+
+                    try:
+                        labels = eval(inspect_result.stdout)
+                    except Exception:
+                        continue
+
+                    if not labels:
+                        continue
+
+                    # Collect service-specific versions
+                    service_versions = {}
+                    for key, value in labels.items():
+                        if value:
+                            service_versions[key] = value
+
+                    # Extract service name from package
+                    service_name = package_name.replace(
+                        f"subvortex-{sauc.SV_EXECUTION_ROLE}-", ""
                     )
 
-        if not all_versions:
-            return None, None
+                    if service_versions:
+                        versions[service_name] = service_versions
 
-        # Step 5: Store the versions
-        self.latest_versions = all_versions
+        # Determine the global version
+        global_versions = list(
+            {v.get("version") for v in versions.values() if v.get("version")}
+        )
+
+        versions["version"] = str(max(global_versions)) if global_versions else None
+
+        # Store the versions
+        self.latest_versions = versions
         btul.logging.trace(
-            f"Latest versions (from GitHub registry): {self.latest_versions}",
+            f"Latest container versions (from GitHub registry): {self.latest_versions}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
-        # Sort by creation date descending
-        all_versions = sorted(all_versions, key=lambda x: x["created_at"], reverse=True)
+        return versions.get("version")
 
-        # Find the first valid version based on _is_valid_release_or_prerelease
-        for version_info in all_versions:
-            tag = version_info["tag"]
+    def _get_local_version(self):
+        versions = []
 
-            if self._is_valid_release_or_prerelease(tag):
-                self.published_at = version_info["created_at"]
-                version = tag[1:] if tag.startswith("v") else tag
-                self.latest_version = version
-                return self.latest_version, self.published_at
+        # Check if base_dir exists
+        if not os.path.isdir(sauc.SV_ASSET_DIR):
+            btul.logging.warning(
+                f"Directory {sauc.SV_ASSET_DIR} does not exist",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return None
 
-        return None, None
+        # List all directories
+        for entry in os.listdir(sauc.SV_ASSET_DIR):
+            entry_path = os.path.join(sauc.SV_ASSET_DIR, entry)
+            if not os.path.isdir(entry_path):
+                continue
+
+            # Match directory name pattern
+            match = re.match(r"subvortex-(\d+\.\d+\.\d+(?:[ab]|rc)?\d*)", entry)
+            if not match:
+                continue
+
+            version_str = match.group(1)
+
+            # Try to parse version
+            try:
+                parsed_version = Version(version_str)
+                versions.append(parsed_version)
+            except InvalidVersion:
+                continue
+
+        # Check if there are versions or not
+        if not versions:
+            return None
+
+        # Get the latest verison locally
+        latest_version = str(max(versions))
+
+        # Denormalize the version
+        latest_version_denormalized = sauv.denormalize_version(latest_version)
+
+        return latest_version_denormalized
 
     def _get_local_container_version(self):
         """
@@ -356,7 +447,7 @@ class Github:
             # Get the floating tag (like dev/stable/latest)
             ftag = sauu.get_tag()
 
-            # Step 1: List all local images with their tags
+            # List all local images with their tags
             result = subprocess.run(
                 ["docker", "image", "ls", "--format", "{{.Repository}}:{{.Tag}}"],
                 stdout=subprocess.PIPE,
@@ -366,7 +457,7 @@ class Github:
             )
             images = result.stdout.strip().split("\n")
 
-            # Step 2: Filter matching images
+            # Filter matching images
             for image in images:
                 if ":" not in image:
                     continue
@@ -381,83 +472,35 @@ class Github:
                 if not repo.startswith(prefix) or tag != ftag:
                     continue
 
-                # Step 3: Inspect labels of the local image
-                local_versions = self._get_local_container_versions(
+                # Inspect labels of the local image
+                container_versions = self._get_local_container_versions(
                     repo_name=repo, tag=ftag
                 )
 
                 # Extract service name from the repo name
                 service_name = repo.replace(prefix, "")
 
-                versions[service_name] = local_versions
+                versions[service_name] = container_versions
 
         except subprocess.CalledProcessError as e:
             btul.logging.warning(
                 f"Failed to list docker images: {e}", prefix=sauc.SV_LOGGER_NAME
             )
 
-        # Step 4: Determine the global "version"
+        # Determine the global "version"
         global_versions = list(
             {v.get("version") for v in versions.values() if v.get("version")}
         )
 
-        versions["version"] = global_versions[0] if global_versions else None
+        versions["version"] = str(max(global_versions)) if global_versions else None
 
-        # Step 5: Store the versions
+        # Store the versions
         self.local_versions = versions
         btul.logging.trace(
-            f"Local versions (from GitHub registry): {self.local_versions}",
-            prefix=sauc.SV_LOGGER_NAME,
+            f"Local versions: {self.local_versions}", prefix=sauc.SV_LOGGER_NAME
         )
 
-        return self.local_versions["version"]
-
-    def _get_local_version(self):
-        base_dir = "/var/tmp/subvortex"
-        versions = []
-
-        # Step 1: Check if base_dir exists
-        if not os.path.isdir(base_dir):
-            btul.logging.warning(
-                f"Directory {base_dir} does not exist", prefix=sauc.SV_LOGGER_NAME
-            )
-            return None
-
-        # Step 2: List all directories
-        for entry in os.listdir(base_dir):
-            entry_path = os.path.join(base_dir, entry)
-            if not os.path.isdir(entry_path):
-                continue
-
-            # Step 3: Match directory name pattern
-            match = re.match(r"subvortex-(\d+\.\d+\.\d+(?:[ab]|rc)?\d*)", entry)
-            if not match:
-                continue
-
-            version_str = match.group(1)
-
-            # Step 4: Try to parse version
-            try:
-                parsed_version = Version(version_str)
-                versions.append(parsed_version)
-            except InvalidVersion:
-                continue
-
-        # Step 5: Find latest version
-        if not versions:
-            return None
-
-        latest_version = str(max(versions))
-
-        # Step 6: Denormalize
-        latest_version_denormalized = sauv.denormalize_version(latest_version)
-
-        btul.logging.trace(
-            f"Latest local version found: {latest_version_denormalized}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-
-        return latest_version_denormalized
+        return versions["version"]
 
     def _get_local_container_versions(self, repo_name: str, tag: str) -> dict:
         """
