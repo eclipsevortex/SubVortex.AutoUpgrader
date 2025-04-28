@@ -4,7 +4,7 @@ services:
       context: ../../
       dockerfile: ./subvortex/auto_upgrader/Dockerfile
       additional_contexts:
-        wheelbuilder: docker-image://subvortex/subvortex-wheel-builder:latest
+        wheelbuilder: docker-image://ghcr.io/eclipsevortex/subvortex-wheel-builder:latest
     container_name: subvortex-auto-upgrader
     restart: unless-stopped
     env_file:

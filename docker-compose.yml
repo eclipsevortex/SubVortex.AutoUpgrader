@@ -1,6 +1,6 @@
 services:
   auto_upgrader:
-    image: subvortex/subvortex-auto-upgrader:latest
+    image: ghcr.io/eclipsevortex/subvortex-auto-upgrader:latest
     container_name: subvortex-auto-upgrader
     restart: unless-stopped
     env_file:
