@@ -63,12 +63,16 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     STASHED=1
 fi
 
-# Check if branch is tracking a remote
+# Check if branch is tracking remote
 UPSTREAM=$(git rev-parse --abbrev-ref "$BRANCH@{upstream}" 2>/dev/null || true)
 
 if [[ -z "$UPSTREAM" ]]; then
-    echo "❌ Branch '$BRANCH' is not tracking any remote branch. Cannot pull safely."
-    exit 1
+    echo "⚠️ Branch '$BRANCH' is not tracking a remote. Setting upstream to 'origin/$BRANCH'..."
+    git branch --set-upstream-to=origin/"$BRANCH" "$BRANCH" || {
+        echo "❌ Failed to set upstream for branch '$BRANCH'."
+        exit 1
+    }
+    UPSTREAM="origin/$BRANCH"
 fi
 
 # Pull latest changes from upstream
