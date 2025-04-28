@@ -45,9 +45,6 @@ class Orchestrator:
         self.rollback_steps: List[Tuple[str, callable]] = []
         self.previously_started_services: List[str] = []
 
-        self.current_version = None
-        self.latest_version = None
-
         self.services: List[saus.Service] = []
         self.current_services: List[saus.Service] = []
         self.latest_services: List[saus.Service] = []
@@ -61,6 +58,10 @@ class Orchestrator:
         btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
         self.rollback_steps.clear()
         self.previously_started_services.clear()
+        self.current_services.clear()
+        self.latest_services.clear()
+        self.current_version = None
+        self.latest_version = None
 
         # Get version before auto upgrader
         last_version_before_auto_upgrader = sauc.DEFAULT_LAST_RELEASE.get("global")
