@@ -14,59 +14,12 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import typing
-from abc import ABC, abstractmethod
+import pytest 
+from unittest.mock import MagicMock, patch
 
-
-class BaseUpgrader(ABC):
-    @abstractmethod
-    def should_skip(self):
-        pass
-
-    @abstractmethod
-    def is_upgrade(self):
-        pass
-
-    @abstractmethod
-    async def get_latest_version(self):
-        pass
-
-    @abstractmethod
-    def get_current_version(self):
-        pass
-
-    @abstractmethod
-    def get_latest_components(self) -> typing.Dict[str, str]:
-        pass
-
-    @abstractmethod
-    def get_current_components(self) -> typing.Dict[str, str]:
-        pass
-
-    @abstractmethod
-    def get_latest_component_version(self, name: str, path: str):
-        pass
-
-    @abstractmethod
-    def get_current_component_version(self, name: str, path: str):
-        pass
-
-    @abstractmethod
-    def upgrade(self):
-        pass
-
-    @abstractmethod
-    def downgrade(self):
-        pass
-
-    @abstractmethod
-    def teardown(self):
-        pass
-
-    @abstractmethod
-    def pre_upgrade(self, previous_version: str, version: str):
-        pass
-
-    @abstractmethod
-    def copy_env_file(self, component_name: str, component_path: str):
-        pass
+@pytest.fixture
+def mock_github():
+    with patch("subvortex.auto_upgrader.src.orchestrator.saug.Github") as MockGithub:
+        mock_instance = MagicMock()
+        MockGithub.return_value = mock_instance
+        yield mock_instance

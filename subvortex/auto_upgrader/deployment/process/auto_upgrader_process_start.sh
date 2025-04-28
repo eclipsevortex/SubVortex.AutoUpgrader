@@ -14,32 +14,43 @@ source venv/bin/activate
 # Load environment variables
 export $(grep -v '^#' .env | xargs)
 
-# Start building the argument list
+# Build CLI args from SUBVORTEX_ environment variables
 ARGS=()
-
-# Prefix to look for
 PREFIX="SUBVORTEX_"
 
-# Loop through all environment variables starting with SUBVORTEX_
-while IFS='=' read -r key value; do
-  if [[ $key == ${PREFIX}* ]]; then
-    # Remove prefix and convert to CLI format: UPPER_SNAKE → --lower.dotted
-    key_suffix="${key#$PREFIX}"                      # Strip prefix
-    cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"
-
-    # Check if value is boolean true
-    if [[ "$(echo "$value" | tr '[:upper:]' '[:lower:]')" == "true" ]]; then
-      ARGS+=("$cli_key")
-    else
-      ARGS+=("$cli_key" "$value")
+while IFS= read -r line; do
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [[ $key == ${PREFIX}* ]]; then
+        key_suffix="${key#$PREFIX}"
+        cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"
+        value_lower="$(echo "$value" | tr '[:upper:]' '[:lower:]')"
+        
+        if [[ "$value_lower" == "true" ]]; then
+            ARGS+=("$cli_key")
+            elif [[ $value_lower == "false" ]]; then
+            continue
+        else
+            ARGS+=("$cli_key" "$value")
+        fi
     fi
-  fi
 done < <(env)
 
-# Start with PM2
-pm2 start src/main.py \
-  --name $SERVICE_NAME \
-  --interpreter python3 -- \
-  "${ARGS[@]}"
+# Start or reload PM2
+if pm2 list | grep -q "$SERVICE_NAME"; then
+    if [[ ${#ARGS[@]} -eq 0 ]]; then
+        echo "🔁  No additional CLI args, reloading service normally..."
+        pm2 reload "$SERVICE_NAME" --update-env
+    else
+        echo "🔁  Restarting $SERVICE_NAME with updated CLI args: ${ARGS[*]}"
+        pm2 restart "$SERVICE_NAME" --update-env -- "${ARGS[@]}"
+    fi
+else
+    echo "🚀 Starting $SERVICE_NAME"
+    pm2 start src/main.py \
+    --name "$SERVICE_NAME" \
+    --interpreter python3 -- \
+    "${ARGS[@]}"
+fi
 
 echo "✅ Auto Upgrader started successfully"

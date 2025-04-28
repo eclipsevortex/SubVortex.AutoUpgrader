@@ -14,14 +14,13 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import pytest 
-from unittest.mock import MagicMock, patch
+from tests.unit_tests.mock.github import mock_github
 
-import subvortex.auto_upgrader.src.github
 
-@pytest.fixture
-def mocked_github():
-    with patch("subvortex.auto_upgrader.src.github.Github") as MockGithub:
-        mock_instance = MagicMock()
-        MockGithub.return_value = mock_instance
-        yield mock_instance
+def make_async(method):
+    """Wraps a mock's return value in an async function."""
+
+    async def async_wrapper(*args, **kwargs):
+        return method(*args, **kwargs)
+
+    return async_wrapper

@@ -117,19 +117,17 @@ pip install ".[$SUBVORTEX_EXECUTION_ROLE]"
 # Install SubVortex in Editable Mode
 pip install -e ../../
 
-# Check if the service exists
-if ! systemctl list-units --type=service --all | grep -qw "$SERVICE_NAME"; then
-  echo "❌ Service $SERVICE_NAME not found."
-  exit 1
-fi
-
 # Check if the service is active
-if systemctl is-active --quiet "$SERVICE_NAME"; then
-  echo "🔄 Restarting $SERVICE_NAME..."
-  sudo systemctl restart "$SERVICE_NAME"
+if systemctl list-unit-files | grep "$SERVICE_NAME.service"; then
+  if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "🔄 Restarting $SERVICE_NAME..."
+    sudo systemctl restart "$SERVICE_NAME"
+  else
+    echo "🚀 Starting $SERVICE_NAME..."
+    sudo systemctl start "$SERVICE_NAME"
+  fi
 else
-  echo "🚀 Starting $SERVICE_NAME..."
-  sudo systemctl start "$SERVICE_NAME"
+  echo "⚠️  Service $SERVICE_NAME is not installed or not recognized by systemd."
 fi
 
 echo "✅ Auto Upgrader setup successfully"

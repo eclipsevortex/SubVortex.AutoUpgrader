@@ -14,15 +14,25 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import subvortex.auto_upgrader.src.upgraders.asset_upgrader as sauuau
-import subvortex.auto_upgrader.src.upgraders.container_upgrader as sauucu
+import os
+import json
 
 
-def create_upgrader(executor: str):
-    if executor in ["service", "process"]:
-        return sauuau.AssetUpgrader()
+class MetadataResolver:
+    def __init__(self):
+        pass
 
-    if executor == "container":
-        return sauucu.ContainerUpgrader()
+    def list_directory(self, path):
+        return os.listdir(path)
 
-    raise Exception(f"Upgrader {executor} is not implemented")
+    def is_directory(self, path: str):
+        return os.path.isdir(path)
+
+    def get_metadata(self, path: str):
+        metadata_path = f"{path}/metadata.json"
+
+        if not os.path.exists(metadata_path):
+            return None
+
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            return json.load(f)

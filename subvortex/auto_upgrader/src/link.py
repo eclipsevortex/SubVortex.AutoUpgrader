@@ -18,25 +18,25 @@ import shutil
 from pathlib import Path
 
 
-def update_symlink(deploy_source: str, deploy_link: str):  # , temp_link: str):
-    deploy_source: Path = Path(deploy_source).resolve()
-    deploy_link: Path = Path(deploy_link)
-    temp_link: Path = Path(f"{deploy_source}.tmp")
+def update_symlink(source: str, target: str):  # , temp_link: str):
+    source: Path = Path(source).resolve()
+    target: Path = Path(target)
+    temp_link: Path = Path(f"{source}.tmp")
 
     # Create or update the temporary symlink
     if temp_link.exists() or temp_link.is_symlink():
         temp_link.unlink()
-    temp_link.symlink_to(deploy_source)
+    temp_link.symlink_to(source)
 
     # Remove the old link or directory if it exists
-    if deploy_link.exists() or deploy_link.is_symlink():
-        if deploy_link.is_symlink() or deploy_link.is_file():
-            deploy_link.unlink()
+    if target.exists() or target.is_symlink():
+        if target.is_symlink() or target.is_file():
+            target.unlink()
         else:
-            shutil.rmtree(deploy_link)
+            shutil.rmtree(target)
 
     # Move temp symlink to final location
-    temp_link.rename(deploy_link)
+    temp_link.rename(target)
 
 
 def remove_symlink(link: str):

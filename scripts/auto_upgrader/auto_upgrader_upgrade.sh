@@ -6,6 +6,9 @@ set -e
 show_help() {
     echo "Usage: $0 [--execution=process|container|service --branch=<BRANCH> --tag=<TAG>]"
     echo
+    echo "Description:"
+    echo "  This script upgrade the auto upgrader"
+    echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
     echo "  --tag         Checkout a specific Git tag before upgrading"
@@ -18,14 +21,16 @@ OPTIONS="e:t:b:h"
 LONGOPTIONS="execution:,tag:,branch:,help:"
 
 # Parse the options and their arguments
-params="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
-
-# Check for getopt errors
+PARSED="$(getopt -o $OPTIONS -l $LONGOPTIONS: --name "$0" -- "$@")"
 if [ $? -ne 0 ]; then
     exit 1
 fi
 
-METHOD=service
+# Evaluate the parsed result to reset positional parameters
+eval set -- "$PARSED"
+
+# Set defaults from env (can be overridden by arguments)
+EXECUTION="service"
 TAG=""
 BRANCH="main"
 
@@ -33,7 +38,7 @@ BRANCH="main"
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -e |--execution)
-            METHOD="$2"
+            EXECUTION="$2"
             shift 2
             ;;
         -t |--tag)
@@ -48,6 +53,10 @@ while [ "$#" -gt 0 ]; do
             show_help
             exit 0
         ;;
+        --)
+            shift
+            break
+            ;;
         *)
             echo "Unrecognized option '$1'"
             exit 1
@@ -57,7 +66,7 @@ done
 
 # 🧠 Function: Setup for process mode
 setup_process() {
-    echo "⚙️  Setting up for 'process' mode..."
+    echo "⚙️  Upgrading for 'process' mode..."
 
     # Upgrade the auto upgrader as process
     ./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_upgrade.sh --tag "$TAG" --branch "$BRANCH"
@@ -68,7 +77,7 @@ setup_process() {
 
 # 🐳 Function: Setup for container mode
 setup_container() {
-    echo "🐳 Setting up for 'container' mode..."
+    echo "🐳 Upgrading for 'container' mode..."
     
     # Start the auto upgrader as service
     ./subvortex/auto_upgrader/deployment/container/auto_upgrader_container_upgrade.sh --tag "$TAG" --branch "$BRANCH"
@@ -79,7 +88,7 @@ setup_container() {
 
 # 🧩 Function: Setup for service mode
 setup_service() {
-    echo "🧩 Setting up for 'service' mode..."
+    echo "🧩 Upgrading for 'service' mode..."
     
     # Start the auto upgrader as service
     ./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_upgrade.sh --tag "$TAG" --branch "$BRANCH"
@@ -90,7 +99,7 @@ setup_service() {
 
 # 🚀 Function: Dispatch based on method
 run_setup() {
-    case "$METHOD" in
+    case "$EXECUTION" in
         process)
             setup_process
         ;;
@@ -102,7 +111,7 @@ run_setup() {
             setup_service
         ;;
         *)
-            echo "❌ Unknown SUBVORTEX_EXECUTION_METHOD: '$METHOD'"
+            echo "❌ Unknown SUBVORTEX_EXECUTION_METHOD: '$EXECUTION'"
             exit 1
         ;;
     esac

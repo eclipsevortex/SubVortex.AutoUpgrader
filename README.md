@@ -40,6 +40,7 @@
   - [Watchtower](#installation-watchtower)
   - [Other](#installation-other)
 - [Troubleshooting](#troubleshooting)
+- [License](#license)
 
 <br />
 <br />
@@ -87,7 +88,7 @@ Here's a breakdown of the key variables:
   Set to `true` if you want the Auto Upgrader to apply both releases and pre-releases. Default is `false`.
 
 - **SUBVORTEX_EXECUTION_METHOD**:  
-  Defines how the Auto Upgrader runs. Options are `process`, `service`, or `docker`. Default is `service`.
+  Defines how the Auto Upgrader runs. Options are `process`, `service`, or `container`. Default is `service`.
 
 - **SUBVORTEX_PRERELEASE_TYPE**:  
   Specifies a single prerelease identifier you want to be notified about. Options are `alpha` (**use ONLY in DEVNET**) or `rc` (**use ONLY in TESTNET**). Remove this variable to receive notifications from `latest` (**use in MAINNET**) prerelease types. Default is an empty string, which disables prerelease notifications.
@@ -101,11 +102,23 @@ Here's a breakdown of the key variables:
 - **SUBVORTEX_CHECK_INTERVAL**:  
   Interval in seconds to check if new releases are available. Default 30 seconds.
 
+- **SUBVORTEX_REDIS_HOST**:
+  Host of the redis instance. Provide it ONLY if you are a validator. Default `localhost`
+
+- **SUBVORTEX_REDIS_PORT**:
+  Port of the redis instance. Provide it ONLY if you are a validator. Default `6379`.
+
+- **SUBVORTEX_REDIS_INDEX**:
+  Index of the redis database. Provide it ONLY if you are a validator. Default `0`
+
+- **SUBVORTEX_REDIS_PASSWORD**:
+  Password of the redis database. Provide it ONLY if you are a validator.
+
 <br />
 
 # 🔧 How It Works <a id="how-it-works"></a>
 
-When setting up the Auto Upgrader, you can choose from three execution modes: `process`, `service`, or `docker`. The default mode is `service`
+When setting up the Auto Upgrader, you can choose from three execution modes: `process`, `service`, or `container`. The default mode is `service`
 
 🧩 Process & Service Modes
 
@@ -138,6 +151,8 @@ To install the Auto Upgrader in a quick way, you can run
 It will install and start the Auto Upgrader as service which is the default mode.
 
 Use `-h` to see the options
+
+<br />
 
 # 🛑 Quick Stop <a id="quick-stop"></a>
 
@@ -188,15 +203,17 @@ For each of them, the same structure applies:
 - **`<tool|service>_stop.sh`** – stops the tool or service gracefully
 - **`<tool|service>_teardown.sh`** – fully removes and cleans up the tool or service
 
+<br />
+
 # 🔧 Troubleshooting <a id="troubleshooting"></a>
 
-### 🐛 Issue: Auto Upgrader is mixing the versions or can not upgrade
+## 🐛 Issue: Auto Upgrader is mixing the versions or can not upgrade
 
 **Cause:** The work directory may have some existing version causing an issue for the Auto Upgrader  
 **Solution:** Clean the working directory
 
 ```bash
-./scripts/clean_workspace.sh
+./scripts/quick_clean.sh
 ```
 
 The script will clean all the existing version and keep only the last one which can be removed by adding `--remove`
@@ -206,7 +223,81 @@ Use option `-h` to see the different options.
 Once clean, restart the auto upgrader by running
 
 ```bash
-./scripts/auto_upgrader/auto_upgrader_restart.sh
+./scripts/quick_restart.sh
 ```
 
 Use `-h` to see the options
+
+## 🐛 Issue: Environment variable changes aren't applied after upgrade/downgrade in miner container
+
+**Cause:** Watchtower does not refresh the var env when upgrading/downgrading
+**Solution:** Force to recreate (not rebuild) the image
+
+```bash
+./scripts/miner/quick_restart.sh
+```
+
+The script will restart all the miner's components in a way that environment variable will be reloaded
+
+## 🐛 Issue: Environment variable changes aren't applied after upgrade/downgrade in validator container
+
+**Cause:** Watchtower does not refresh the var env when upgrading/downgrading
+**Solution:** Force to recreate (not rebuild) the image
+
+```bash
+./scripts/validator/quick_restart.sh
+```
+
+The script will restart all the validator's components in a way that environment variable will be reloaded
+
+## 🐛 Issue: Working directory is not synched and I can not install any new version
+
+**Cause:** This is likely caused by a manual change or a bug that needs fixing.
+**Solution:** Clean your working directory entirely with the following command:
+
+```bash
+./scripts/quick_clean.sh --remove
+```
+
+Then, manually remove any miner and/or validator services based on the execution type you previously selected:
+
+- service
+- process
+- container
+
+To understand how each service is cleaned, set up, started, or stopped, refer to the relevant deployment folder for each neuron:
+
+```bash
+subvortex/
+  └── [miner|validator]/
+        └── [neuron|redis]/
+              └── deployment/
+                    └── [process|service|docker]
+```
+
+📘 You can find more details and actions in the [SubVortex Repo](https://github.com/eclipsevortex/SubVortex.git).
+
+<br />
+
+# 🪪 License
+
+This repository is licensed under the MIT License.
+
+```text
+# The MIT License (MIT)
+# Copyright © 2025 Eclipse Vortex
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+# the Software.
+
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+```

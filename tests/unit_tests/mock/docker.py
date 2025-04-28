@@ -17,8 +17,6 @@
 import pytest 
 from unittest.mock import MagicMock, patch
 
-import subvortex.auto_upgrader.src.github
-
 @pytest.fixture
 def mocked_github():
     with patch("subvortex.auto_upgrader.src.docker.Docker") as MockDocker:

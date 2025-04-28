@@ -14,42 +14,18 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import os
-import json
-
 import subvortex.auto_upgrader.src.constants as sauc
 
-CACHE_PATH = f"{sauc.SV_ASSET_DIR}/.subvortex-cache"
 
+def get_tag():
+    enabled = sauc.SV_PRERELEASE_ENABLED
+    prerelease_type = sauc.SV_PRERELEASE_TYPE
 
-def should_skip_version(version: str, release_time: str) -> bool:
-    cache = _load_cache()
-    if version in cache:
-        cached = cache[version]
-        return cached["status"] == "failed" and cached["timestamp"] == release_time
-    return False
-
-
-def mark_version_failed(version: str, release_time: str):
-    cache = _load_cache()
-    cache[version] = {"timestamp": release_time, "status": "failed"}
-    _save_cache(cache)
-
-
-def clear_version_status(version: str):
-    cache = _load_cache()
-    if version in cache:
-        del cache[version]
-        _save_cache(cache)
-
-
-def _load_cache():
-    if os.path.exists(CACHE_PATH):
-        with open(CACHE_PATH, "r") as f:
-            return json.load(f)
-    return {}
-
-
-def _save_cache(data):
-    with open(CACHE_PATH, "w") as f:
-        json.dump(data, f, indent=2)
+    if enabled is False or (isinstance(enabled, str) and enabled.lower() == "false"):
+        return "latest"
+    elif prerelease_type == "alpha":
+        return "dev"
+    elif prerelease_type == "rc":
+        return "stable"
+    else:
+        return "latest"
