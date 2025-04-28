@@ -56,12 +56,6 @@ class Orchestrator:
 
     async def run_plan(self):
         btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
-        self.rollback_steps.clear()
-        self.previously_started_services.clear()
-        self.current_services.clear()
-        self.latest_services.clear()
-        self.current_version = None
-        self.latest_version = None
 
         # Get version before auto upgrader
         last_version_before_auto_upgrader = sauc.DEFAULT_LAST_RELEASE.get("global")
@@ -235,6 +229,14 @@ class Orchestrator:
                 "Rollback completed succesfully",
                 prefix=sauc.SV_LOGGER_NAME,
             )
+
+    def reset(self):
+        self.rollback_steps.clear()
+        self.previously_started_services.clear()
+        self.current_services.clear()
+        self.latest_services.clear()
+        self.current_version = None
+        self.latest_version = None
 
     async def _step(
         self,
@@ -769,11 +771,13 @@ class Orchestrator:
             raise saue.RuntimeError(action="install_editable", details=str(e))
 
     def _has_migrations(self, service: saus.Service) -> bool:
+        migraton_dir = (
+            os.listdir(saup.get_migration_directory(service=service))
+            if service.migration
+            else None
+        )
         return (
             service.migration
-            and os.path.isdir(service.migration)
-            and any(
-                f.endswith(".py")
-                for f in os.listdir(saup.get_migration_directory(service=service))
-            )
+            and saup.get_migration_directory(service)
+            and any(f.endswith(".py") for f in migraton_dir)
         )

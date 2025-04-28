@@ -92,6 +92,9 @@ class Worker:
                     # The plan was not successful, rollback it
                     await self.orchestrator.run_rollback_plan()
 
+                # Clean everything
+                self.orchestrator.reset()
+
         # Signal the waiter the service has finished
         self.finished.set()
 

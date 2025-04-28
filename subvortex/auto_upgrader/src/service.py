@@ -133,8 +133,10 @@ class Service:
     def __str__(self):
         return (
             f"<Service {self.name} (id={self.id}, version={self.version}, "
+            f"component_version={self.component_version}, service_version={self.service_version}, "
             f"execution={self.execution}, needs_update={self.needs_update}, "
-            f"must_remove={self.must_remove})>"
+            f"migration={self.migration}, migration_type={self.migration_type}, "
+            f"depends_on={self.depends_on})>"
         )
 
     def __repr__(self):
