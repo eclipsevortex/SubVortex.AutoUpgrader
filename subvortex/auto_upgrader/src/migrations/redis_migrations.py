@@ -21,6 +21,7 @@ from redis import asyncio as aioredis
 
 import bittensor.utils.btlogging as btul
 import subvortex.auto_upgrader.src.constants as sauc
+import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.path as saup
 import subvortex.auto_upgrader.src.exception as saue
 from subvortex.auto_upgrader.src.service import Service
@@ -56,7 +57,11 @@ class RedisMigrations(Migration):
 
         # Load migrations
         new_revisions = self._load_migrations_from_path(self.new_migration_path)
-        old_revisions = self._load_migrations_from_path(self.old_migration_path)
+        old_revisions = (
+            self._load_migrations_from_path(self.old_migration_path)
+            if sauv.is_version_before_auto_upgrader
+            else []
+        )
 
         # Read current DB version
         current_version = await self._get_current_version(database)
