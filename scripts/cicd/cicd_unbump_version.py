@@ -45,7 +45,7 @@ def write_version_to_comp_file(path: Path, new_version):
     comp_version_file.write_text(updated)
 
 def parse_version(version):
-    pattern = r'^(\d+)\.(\d+)\.(\d+)(?:-([a-z]+)\.(\d+))?$'
+    pattern = r'^(\d+)\.(\d+)\.(\d+)(?:-([a-z]+)[.-](\d+))?$'
     match = re.match(pattern, version)
     if not match:
         print(f"❌ Invalid version format: {version}")
