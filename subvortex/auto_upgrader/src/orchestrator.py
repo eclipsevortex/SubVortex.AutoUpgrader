@@ -55,6 +55,8 @@ class Orchestrator:
         self.github = saug.Github()
         self.metadata_resolver = saumr.MetadataResolver()
 
+        self.has_changed = True
+
     async def run_plan(self):
         btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
         self.rollback_steps.clear()
@@ -123,6 +125,14 @@ class Orchestrator:
 
         # Check the latest version and the current one
         await self._step("Check versions", self._rollback_nop, self._check_versions)
+
+        # Stop if no services have changed
+        if not self.has_changed:
+            btul.logging.success(
+                f"🟢 No service changes detected. All services are up-to-date.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return True
 
         # Copy the env var file in the latest version services
         await self._step(
@@ -440,12 +450,9 @@ class Orchestrator:
             self.services.append(latest)
 
         # Check if services have changed
-        has_changed = any(x for x in self.services if x.must_remove or x.needs_update)
-        if not has_changed:
-            btul.logging.debug(
-                "🟢 All services are up-to-date.",
-                prefix=sauc.SV_LOGGER_NAME,
-            )
+        self.has_changed = any(
+            x for x in self.services if x.must_remove or x.needs_update
+        )
 
     def _rollout_service(self):
         # Create the dependency resolver
