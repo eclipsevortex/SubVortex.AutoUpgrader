@@ -761,7 +761,11 @@ class Orchestrator:
             raise saue.RuntimeError(action="install_editable", details=str(e))
 
     def _has_migrations(self, service: saus.Service) -> bool:
-        migration_dir = saup.get_migration_directory(service=service)
-        return os.path.isdir(service.migration) and any(
-            f.endswith(".py") for f in os.listdir(migration_dir)
+        return (
+            service.migration
+            and os.path.isdir(service.migration)
+            and any(
+                f.endswith(".py")
+                for f in os.listdir(saup.get_migration_directory(service=service))
+            )
         )

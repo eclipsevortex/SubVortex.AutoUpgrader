@@ -50,6 +50,12 @@ class Worker:
             prefix=sauc.SV_LOGGER_NAME,
         )
 
+        # Display the execution method
+        btul.logging.info(
+            f"execution: {sauc.SV_EXECUTION_METHOD}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
         first_run = True
         while not self.should_exit.is_set():
             # Reset success

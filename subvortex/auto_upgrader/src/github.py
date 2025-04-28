@@ -273,30 +273,32 @@ class Github:
     def _get_latest_container_version(self):
         """
         Get the latest container version from GitHub registry,
-        inspecting the labels of the remote images.
+        inspecting the floating tag (latest/stable/dev) of each service.
         """
+        import json
+
+        # Determine the floating tag based on prerelease config
+        floating_tag = sauu.get_tag()
+
         # Build the URL to list packages in GitHub registry
         url = f"https://api.github.com/users/{self.repo_owner}/packages?package_type=container"
 
-        # Build the header to use the GitHub token if available
         headers = (
             {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
             if sauc.SV_GITHUB_TOKEN
             else {}
         )
 
-        # Send the request
+        # Fetch list of container packages
         response = requests.get(url, headers=headers)
 
         if response.status_code == 404:
             raise saue.PackageNotFoundError(url=url)
 
         response.raise_for_status()
-
-        # Deserialize the response
         packages = response.json()
 
-        # Filter to only matching packages
+        # Filter packages matching the execution role
         packages = [
             package
             for package in packages
@@ -304,6 +306,126 @@ class Github:
         ]
 
         versions = {}
+
+        for package in packages:
+            package_name = package["name"]
+
+            # Build the full image name with the floating tag
+            full_image = f"ghcr.io/{self.repo_owner}/{package_name}:{floating_tag}"
+
+            # Pull the floating tag image
+            pull_result = subprocess.run(
+                ["docker", "pull", "--quiet", full_image],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if pull_result.returncode != 0:
+                btul.logging.warning(
+                    f"Failed to pull image {full_image}", prefix=sauc.SV_LOGGER_NAME
+                )
+                continue
+
+            # Inspect labels
+            inspect_result = subprocess.run(
+                [
+                    "docker",
+                    "inspect",
+                    "--format",
+                    "{{ json .Config.Labels }}",
+                    full_image,
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            if inspect_result.returncode != 0 or not inspect_result.stdout:
+                btul.logging.warning(
+                    f"Failed to inspect image {full_image}", prefix=sauc.SV_LOGGER_NAME
+                )
+                continue
+
+            try:
+                labels = json.loads(inspect_result.stdout)
+            except json.JSONDecodeError:
+                btul.logging.warning(
+                    f"Failed to decode labels for {full_image}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                continue
+
+            if not labels:
+                continue
+
+            # Collect service-specific versions
+            service_versions = {}
+            for key, value in labels.items():
+                if value:
+                    service_versions[key] = value
+
+            # Extract service name from package
+            service_name = package_name.replace(
+                f"subvortex-{sauc.SV_EXECUTION_ROLE}-", ""
+            )
+
+            if service_versions:
+                versions[service_name] = service_versions
+
+        # Determine the global version (keep original strings)
+        global_versions = [
+            (Version(v.get("version")), v.get("version"))
+            for v in versions.values()
+            if v.get("version")
+        ]
+
+        if global_versions:
+            # Take the highest version based on Version(), but return original string
+            highest = max(global_versions, key=lambda x: x[0])
+            versions["version"] = highest[1]
+        else:
+            versions["version"] = None
+
+        # Store the versions
+        self.latest_versions = versions
+        btul.logging.trace(
+            f"Latest container versions (from GitHub registry using floating tag {floating_tag}): {self.latest_versions}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        return versions.get("version")
+
+    def _get_latest_container_version_old(self):
+        """
+        Get the latest container version from GitHub registry,
+        inspecting the labels of the remote images.
+        """
+        # Build the URL to list packages in GitHub registry
+        url = f"https://api.github.com/users/{self.repo_owner}/packages?package_type=container"
+
+        headers = (
+            {"Authorization": f"token {sauc.SV_GITHUB_TOKEN}"}
+            if sauc.SV_GITHUB_TOKEN
+            else {}
+        )
+
+        # Fetch list of container packages
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 404:
+            raise saue.PackageNotFoundError(url=url)
+
+        response.raise_for_status()
+        packages = response.json()
+
+        # Filter packages matching the execution role
+        packages = [
+            package
+            for package in packages
+            if package["name"].startswith(f"subvortex-{sauc.SV_EXECUTION_ROLE}")
+        ]
+
+        versions = {}
+
         for package in packages:
             package_name = package["name"]
             version_url = f"https://api.github.com/users/{self.repo_owner}/packages/container/{package_name}/versions"
@@ -314,75 +436,92 @@ class Github:
 
             package_versions = version_response.json()
 
-            for v in package_versions:
-                tags = v.get("metadata", {}).get("container", {}).get("tags", [])
+            # Sort versions by creation date descending (newest first)
+            package_versions.sort(key=lambda v: v.get("created_at", ""), reverse=True)
 
-                for tag in tags:
-                    if tag in {"latest", "stable", "dev"}:
-                        continue  # 🚫 Skip floating tags
+            # Try to find the highest non-floating tag
+            for package_version in package_versions:
+                tags = (
+                    package_version.get("metadata", {})
+                    .get("container", {})
+                    .get("tags", [])
+                )
 
-                    # Build full image name
-                    full_image = f"ghcr.io/{self.repo_owner}/{package_name}:{tag}"
+                # Skip invalid or floating tags
+                tags = [tag for tag in tags if tag not in {"latest", "stable", "dev"}]
 
-                    # Pull the image quietly
-                    pull_result = subprocess.run(
-                        [
-                            "docker",
-                            "pull",
-                            "--quiet",
-                            full_image,
-                        ],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                    )
-                    if pull_result.returncode != 0:
-                        continue
+                if not tags:
+                    continue
 
-                    # Inspect labels
-                    inspect_result = subprocess.run(
-                        [
-                            "docker",
-                            "inspect",
-                            "--format",
-                            "{{ json .Config.Labels }}",
-                            full_image,
-                        ],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                    )
-                    if inspect_result.returncode != 0 or not inspect_result.stdout:
-                        continue
+                # Take the first valid tag (newest)
+                latest_tag = tags[0]
 
-                    try:
-                        labels = eval(inspect_result.stdout)
-                    except Exception:
-                        continue
+                # Pull the image quietly
+                full_image = f"ghcr.io/{self.repo_owner}/{package_name}:{latest_tag}"
 
-                    if not labels:
-                        continue
+                pull_result = subprocess.run(
+                    ["docker", "pull", "--quiet", full_image],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                if pull_result.returncode != 0:
+                    continue
 
-                    # Collect service-specific versions
-                    service_versions = {}
-                    for key, value in labels.items():
-                        if value:
-                            service_versions[key] = value
+                # Inspect labels
+                inspect_result = subprocess.run(
+                    [
+                        "docker",
+                        "inspect",
+                        "--format",
+                        "{{ json .Config.Labels }}",
+                        full_image,
+                    ],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                if inspect_result.returncode != 0 or not inspect_result.stdout:
+                    continue
 
-                    # Extract service name from package
-                    service_name = package_name.replace(
-                        f"subvortex-{sauc.SV_EXECUTION_ROLE}-", ""
-                    )
+                try:
+                    import json
 
-                    if service_versions:
-                        versions[service_name] = service_versions
+                    labels = json.loads(inspect_result.stdout)
+                except Exception:
+                    continue
 
-        # Determine the global version
-        global_versions = list(
-            {v.get("version") for v in versions.values() if v.get("version")}
-        )
+                if not labels:
+                    continue
 
-        versions["version"] = str(max(global_versions)) if global_versions else None
+                # Collect service-specific versions
+                service_versions = {}
+                for key, value in labels.items():
+                    if value:
+                        service_versions[key] = value
+
+                service_name = package_name.replace(
+                    f"subvortex-{sauc.SV_EXECUTION_ROLE}-", ""
+                )
+
+                if service_versions:
+                    versions[service_name] = service_versions
+
+                break  # Stop after the latest valid tag for this package
+
+        # Determine the global version (keep original strings)
+        global_versions = [
+            (Version(v.get("version")), v.get("version"))
+            for v in versions.values()
+            if v.get("version")
+        ]
+
+        if global_versions:
+            # Take the highest version based on Version(), but return original string
+            highest = max(global_versions, key=lambda x: x[0])
+            versions["version"] = highest[1]  # Use original version string
+        else:
+            versions["version"] = None
 
         # Store the versions
         self.latest_versions = versions
@@ -487,12 +626,19 @@ class Github:
                 f"Failed to list docker images: {e}", prefix=sauc.SV_LOGGER_NAME
             )
 
-        # Determine the global "version"
-        global_versions = list(
-            {v.get("version") for v in versions.values() if v.get("version")}
-        )
+        # Determine the global version (keep original strings)
+        global_versions = [
+            (Version(v.get("version")), v.get("version"))
+            for v in versions.values()
+            if v.get("version")
+        ]
 
-        versions["version"] = str(max(global_versions)) if global_versions else None
+        if global_versions:
+            # Take the highest version based on Version(), but return original string
+            highest = max(global_versions, key=lambda x: x[0])
+            versions["version"] = highest[1]  # Use original version string
+        else:
+            versions["version"] = None
 
         # Store the versions
         self.local_versions = versions

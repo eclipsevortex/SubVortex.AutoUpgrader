@@ -181,18 +181,8 @@ def test_get_latest_version_container_returns_version(
         {"name": "subvortex-miner-neuron"},
     ]
 
-    versions_response = MagicMock()
-    versions_response.status_code = 200
-    versions_response.json.return_value = [
-        {
-            "created_at": "2025-04-21T12:34:56Z",
-            "metadata": {"container": {"tags": ["v1.2.3", "latest"]}},
-        }
-    ]
-
     mock_requests_get.side_effect = [
         packages_response,  # First: list packages
-        versions_response,  # Second: package versions
     ]
 
     # Mock subprocess.run() for docker pull and inspect
@@ -209,7 +199,6 @@ def test_get_latest_version_container_returns_version(
 
     # Assert
     assert version == "1.2.3"
-    assert mock_requests_get.call_count == 2
     assert mock_subprocess_run.call_count == 2
 
 
@@ -257,7 +246,9 @@ def test_get_latest_version_container_raise_package_url_not_found(mock_requests_
 
 @patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
 @patch("subvortex.auto_upgrader.src.github.requests.get")
-def test_get_latest_version_container_skip_package_if_no_versions_found(mock_requests_get):
+def test_get_latest_version_container_skip_package_if_no_versions_found(
+    mock_requests_get,
+):
     # Arrange
     github = Github()
 
@@ -327,3 +318,53 @@ def test_get_local_container_versions_returns_default_if_missing():
     default_versions = github.get_local_container_versions(name="neuron")
 
     assert default_versions["version"] is not None
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.github.requests.get")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+@pytest.mark.parametrize(
+    "floating_tag,expected_version",
+    [
+        ("latest", "3.0.0"),
+        ("stable", "3.0.0-rc.1"),
+        ("dev", "3.0.0-alpha.21"),
+    ],
+)
+def test_get_latest_container_version_different_tags(
+    mock_subprocess_run,
+    mock_requests_get,
+    floating_tag,
+    expected_version,
+):
+    github = Github()
+
+    # Mock sauu.get_tag() to return the floating_tag (latest, stable, dev)
+    with patch(
+        "subvortex.auto_upgrader.src.github.sauu.get_tag", return_value=floating_tag
+    ):
+
+        # Mock requests.get to return a list of container packages
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {"name": "subvortex-miner-neuron"},
+        ]
+        mock_requests_get.return_value = mock_response
+
+        # Mock docker pull and inspect
+        mock_subprocess_run.side_effect = [
+            MagicMock(returncode=0),  # docker pull success
+            MagicMock(
+                returncode=0,
+                stdout=f'{{"version": "{expected_version}", "miner.version": "{expected_version}", "miner.neuron.version": "{expected_version}"}}',
+            ),  # docker inspect output
+        ]
+
+        # Act
+        version = github.get_latest_version()
+
+        # Assert
+        assert version == expected_version
+        assert mock_requests_get.call_count == 1
+        assert mock_subprocess_run.call_count == 2  # pull + inspect
