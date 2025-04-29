@@ -98,6 +98,6 @@ fi
 # ./../../scripts/watchtower/watchtower_start.sh
 
 # Start or restart the container
-./deployment/process/auto_upgrader_container_start.sh
+./deployment/container/auto_upgrader_container_start.sh
 
 echo "✅ Auto Upgrader upgraded successfully"

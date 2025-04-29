@@ -110,6 +110,6 @@ pip install ".[$SUBVORTEX_EXECUTION_ROLE]"
 pip install -e ../../
 
 # Check if the service is active
-./deployment/process/auto_upgrader_service_start.sh
+./deployment/service/auto_upgrader_service_start.sh
 
 echo "✅ Auto Upgrader setup successfully"
