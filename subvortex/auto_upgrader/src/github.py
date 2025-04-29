@@ -668,57 +668,50 @@ class Github:
 
     def _get_local_container_versions(self, repo_name: str, tag: str) -> dict:
         """
-        Inspect a local docker image and extract version labels.
+        Inspect a local Docker container (if running) or image and extract version labels.
 
         Args:
-            repo_name (str): Full docker repository name (ex: ghcr.io/eclipsevortex/subvortex-miner-neuron)
-            tag (str): Floating tag (ex: latest/stable/dev)
+            repo_name (str): Full Docker repository name (e.g., ghcr.io/eclipsevortex/subvortex-miner-neuron)
+            tag (str): Floating tag (e.g., latest/stable/dev)
 
         Returns:
-            dict: Dictionary of label key-values (like {"version": "1.2.3", "neuron.version": "1.2.3"})
+            dict: Dictionary of label key-values (e.g., {"version": "1.2.3", "neuron.version": "1.2.3"})
         """
-        try:
-            inspect_cmd = [
-                "docker",
-                "inspect",
-                "--format",
-                "{{ json .Config.Labels }}",
-                f"{repo_name}:{tag}",
-            ]
-            result = subprocess.run(
-                inspect_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=True,
-            )
 
-            labels_raw = result.stdout.strip()
-
-            if not labels_raw or labels_raw == "null":
+        def inspect(target: str) -> dict:
+            try:
+                cmd = [
+                    "docker",
+                    "inspect",
+                    "--format",
+                    "{{ json .Config.Labels }}",
+                    target,
+                ]
+                result = subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=True,
+                )
+                raw = result.stdout.strip()
+                if not raw or raw == "null":
+                    return {}
+                labels = json.loads(raw)
+                return labels if isinstance(labels, dict) else {}
+            except subprocess.CalledProcessError:
                 return {}
 
-            import json
+        # Build the container name
+        container_name = repo_name.replace(f"ghcr.io/{self.repo_owner}/", "")
 
-            labels = json.loads(labels_raw)
-
-            if not isinstance(labels, dict):
-                return {}
-
+        # Step 1: Try inspecting container by name
+        labels = inspect(container_name)
+        if labels:
             return labels
 
-        except subprocess.CalledProcessError as e:
-            btul.logging.warning(
-                f"Failed to inspect image {repo_name}:{tag} - {e}",
-                prefix=sauc.SV_LOGGER_NAME,
-            )
-            return {}
-        except json.JSONDecodeError as e:
-            btul.logging.warning(
-                f"Failed to parse JSON labels for image {repo_name}:{tag} - {e}",
-                prefix=sauc.SV_LOGGER_NAME,
-            )
-            return {}
+        # Step 2: Fallback to image inspection
+        return inspect(f"{repo_name}:{tag}")
 
     def _get_default_versions(self, name: str):
         component = sauc.SV_EXECUTION_ROLE

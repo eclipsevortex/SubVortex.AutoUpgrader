@@ -379,6 +379,42 @@ def test_get_local_version_container_returns_version(mock_subprocess_run):
             stdout='{"version": "1.2.3", "neuron": { "version": "1.2.3", "miner.version": "1.2.3", "miner.neuron.version": "1.2.3" }}',
             returncode=0,
         ),
+        MagicMock(
+            stdout='{"version": "1.2.4", "neuron": { "version": "1.2.4", "miner.version": "1.2.3", "miner.neuron.version": "1.2.4" }}',
+            returncode=0,
+        ),
+    ]
+
+    # Patch get_tag to return the expected floating tag
+    with patch("subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="dev"):
+        version = github.get_local_version()
+
+    # Assert
+    assert version == "1.2.3"
+    assert mock_subprocess_run.call_count == 2
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+def test_get_local_version_image_returns_version(mock_subprocess_run):
+    # Arrange
+    github = Github()
+
+    # Mock subprocess.run() behavior:
+    # First call: docker image ls
+    # Second call: docker inspect
+    mock_subprocess_run.side_effect = [
+        MagicMock(
+            stdout="ghcr.io/eclipsevortex/subvortex-miner-neuron:dev\n", returncode=0
+        ),
+        MagicMock(
+            stdout="",
+            returncode=0,
+        ),
+        MagicMock(
+            stdout='{"version": "1.2.3", "neuron": { "version": "1.2.3", "miner.version": "1.2.3", "miner.neuron.version": "1.2.3" }}',
+            returncode=0,
+        ),
     ]
 
     # Patch get_tag to return the expected floating tag
