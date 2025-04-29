@@ -500,16 +500,30 @@ class Orchestrator:
         self.migration_manager = MigrationManager(service_pairs)
 
         # Start services that are new and have migrations
+        has_migrations = False
         for new_service, _ in service_pairs:
-            if new_service.upgrade_type == "install" and self._has_migrations(
+            # Check if there are any migrations to install
+            if new_service.upgrade_type != "install" or not self._has_migrations(
                 new_service
             ):
-                btul.logging.info(
-                    f"⚙️ Preparing new service {new_service.name} before migrations",
-                    prefix=sauc.SV_LOGGER_NAME,
-                )
-                self._execute_start(service=new_service)
-                self.previously_started_services.append(new_service.id)
+                continue
+
+            btul.logging.info(
+                f"⚙️ Preparing new service {new_service.name} before migrations",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
+            # Flag migrations exist
+            has_migrations = True
+
+            # Execute the start script
+            self._execute_start(service=new_service)
+
+            # Add the service in the list
+            self.previously_started_services.append(new_service.id)
+
+        if not has_migrations:
+            return
 
         self.migration_manager.collect_migrations()
         await self.migration_manager.apply()

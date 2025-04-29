@@ -210,6 +210,9 @@ class Github:
 
             # Build the target directory
             target_dir = os.path.join(sauc.SV_ASSET_DIR, top_level_dir)
+            if os.path.exists(target_dir):
+                # The asset has already been unzipped
+                return target_dir
 
             # If target directory exists, remove it to allow clean overwrite
             if os.path.exists(target_dir):
