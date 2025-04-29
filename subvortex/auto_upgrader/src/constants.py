@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SV_LOGGER_NAME = "Auto Updater"
+SV_LOGGER_NAME = "Auto Upgrader"
 
 # Directories
 SV_EXECUTION_DIR = os.path.abspath(os.path.expanduser("~/subvortex"))
