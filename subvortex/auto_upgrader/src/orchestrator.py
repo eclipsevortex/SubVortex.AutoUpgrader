@@ -350,7 +350,7 @@ class Orchestrator:
         versions = (
             self.github.get_local_container_versions
             if sauc.SV_EXECUTION_METHOD == "container"
-            else lambda: {}
+            else lambda name: {}
         )
 
         # Load the services of the current version
@@ -373,7 +373,7 @@ class Orchestrator:
         versions = (
             self.github.get_latest_container_versions
             if sauc.SV_EXECUTION_METHOD == "container"
-            else lambda: {}
+            else lambda name: {}
         )
 
         # Load the services of the latest version
