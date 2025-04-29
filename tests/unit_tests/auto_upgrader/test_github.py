@@ -423,7 +423,7 @@ def test_get_local_version_image_returns_version(mock_subprocess_run):
 
     # Assert
     assert version == "1.2.3"
-    assert mock_subprocess_run.call_count == 2
+    assert mock_subprocess_run.call_count == 3
 
 
 def test_get_latest_container_versions_returns_default_if_missing():
