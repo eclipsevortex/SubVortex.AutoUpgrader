@@ -32,8 +32,6 @@ import subvortex.auto_upgrader.src.utils as sauu
 import subvortex.auto_upgrader.src.exception as saue
 import subvortex.auto_upgrader.src.resolvers.dependency_resolver as saudr
 import subvortex.auto_upgrader.src.github as saug
-import subvortex.auto_upgrader.src.docker as saud
-import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.resolvers.metadata_resolver as saumr
 from subvortex.auto_upgrader.src.migration_manager import MigrationManager
 
@@ -479,10 +477,11 @@ class Orchestrator:
         sorted_services = dependency_resolver.resolve_order(reverse=True)
 
         for service in sorted_services:
-            if not service.needs_update:
+            if not service.needs_update or service.upgrade_type != "install":
                 continue
 
             # Execute the setup
+            print("TEARDOWN SERVICE")
             self._execute_teardown(service=service)
 
     async def _rollout_migrations(self):
@@ -521,60 +520,88 @@ class Orchestrator:
 
     def _stop_current_services(self, service_filter: Callable = None):
         # Create the dependency resolver
-        dependency_resolver = saudr.DependencyResolver(services=self.current_services)
+        dependency_resolver = saudr.DependencyResolver(services=self.services)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order(reverse=True)
 
         for service in sorted_services:
+            if not service.needs_update and not service.must_remove:
+                continue
+
             if service_filter and not service_filter(service):
                 continue
 
-            self._execute_stop(service=service)
+            current_service = next(
+                (x for x in self.current_services if x.id == service.id), None
+            )
+            if not current_service:
+                continue
+
+            self._execute_stop(service=current_service)
 
     def _rollback_stop_current_services(self, service_filter: Callable = None):
         # Create the dependency resolver
-        dependency_resolver = saudr.DependencyResolver(services=self.current_services)
+        dependency_resolver = saudr.DependencyResolver(services=self.services)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order()
 
         for service in sorted_services:
+            if not service.needs_update and not service.must_remove:
+                continue
+
             if service_filter and not service_filter(service):
                 continue
 
-            self._execute_start(service=service)
+            current_service = next(
+                (x for x in self.current_services if x.id == service.id), None
+            )
+            if not current_service:
+                continue
+
+            print(f"START SERVICE: {current_service}")
+            self._execute_start(service=current_service)
 
     def _switch_services(self):
         # Create the dependency resolver
-        dependency_resolver = saudr.DependencyResolver(services=self.latest_services)
+        dependency_resolver = saudr.DependencyResolver(services=self.services)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order()
 
         for service in sorted_services:
+            if not service.needs_update:
+                continue
+
             # Switch to new version
             service.switch_to_version(version=service.version)
 
     def _rollback_switch_services(self):
         # Create the dependency resolver
-        dependency_resolver = saudr.DependencyResolver(services=self.current_version)
+        dependency_resolver = saudr.DependencyResolver(services=self.services)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order(reverse=True)
 
         for service in sorted_services:
+            if not service.needs_update:
+                continue
+
             # Switch to previous version
             service.switch_to_version(version=service.version)
 
     def _start_latest_services(self, service_filter: Callable = None):
         # Create the dependency resolver
-        dependency_resolver = saudr.DependencyResolver(services=self.latest_services)
+        dependency_resolver = saudr.DependencyResolver(services=self.services)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order()
 
         for service in sorted_services:
+            if not service.needs_update:
+                continue
+
             if service_filter and not service_filter(service):
                 continue
 
@@ -589,15 +616,19 @@ class Orchestrator:
 
     def _rollback_start_latest_services(self, service_filter: Callable = None):
         # Create the dependency resolver
-        dependency_resolver = saudr.DependencyResolver(services=self.latest_services)
+        dependency_resolver = saudr.DependencyResolver(services=self.services)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order(reverse=True)
 
         for service in sorted_services:
+            if not service.needs_update:
+                continue
+
             if service_filter and not service_filter(service):
                 continue
 
+            print(f"STOP SERVICE: {service}")
             self._execute_stop(service=service)
 
     def _prune_services(self):
@@ -626,6 +657,7 @@ class Orchestrator:
                 continue
 
             # Execute the setup
+            print(f"SETUP SERVICE: {service}")
             self._execute_setup(service=service)
 
     def _remove_services(self):
@@ -635,6 +667,7 @@ class Orchestrator:
         self._pull_assets(version=self.current_version)
 
     def _finalize_versions(self):
+        # Update the new version
         for service in self.services:
             service.version = service.rollback_version
             service.rollback_version = None
@@ -693,13 +726,15 @@ class Orchestrator:
         # Run the script
         self._run(action="stop", service=service)
 
-    def _execute_teardown(self, service: saus.Service, rollback: bool = False):
+    def _execute_teardown(self, service: saus.Service):
         # Run the script
         self._run(action="teardown", service=service)
 
     def _run(self, action: str, service: saus.Service, args: List[str] = []):
         # Build the setup script path
-        script_file = saup.get_service_script(service=service, action=action)
+        script_file = saup.get_service_script(
+            service=service, action=action, version=self.latest_version
+        )
         if not os.path.exists(script_file):
             raise saue.MissingFileError(file_path=script_file)
 
@@ -745,30 +780,6 @@ class Orchestrator:
 
         # Notify the success
         btul.logging.info("Assets removed", prefix=sauc.SV_LOGGER_NAME)
-
-    def _install_in_editable_mode(self):
-        btul.logging.info(
-            "Installating the subnet in editable mode", prefix=sauc.SV_LOGGER_NAME
-        )
-
-        # Get the version directory
-        version_dir = saup.get_version_directory(version=self.latest_version)
-
-        # Check if the pyproject is there
-        if not os.path.exists(f"{version_dir}/pyproject.toml"):
-            raise saue.MissingFileError(file_path=f"{version_dir}/pyproject.toml")
-
-        # Install the subnet
-        try:
-            subprocess.run(
-                ["pip", "install", "-e", "."],
-                cwd=version_dir,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        except subprocess.CalledProcessError as e:
-            raise saue.RuntimeError(action="install_editable", details=str(e))
 
     def _has_migrations(self, service: saus.Service) -> bool:
         migraton_dir = (

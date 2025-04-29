@@ -40,7 +40,7 @@ def get_version_directory(version: str):
 def get_role_directory(version: str):
     if not version:
         return None
-    
+
     # Get the version directory
     version_path = get_version_directory(version=version)
 
@@ -50,12 +50,12 @@ def get_role_directory(version: str):
     return path
 
 
-def get_service_directory(service: saus.Service):
+def get_service_directory(service: saus.Service, version: str = None):
     if not service.version:
         return None
-    
+
     # Get the version directory
-    version_path = get_version_directory(version=service.version)
+    version_path = get_version_directory(version=version or service.version)
 
     # Build the path of the role (miner/validator) directory
     path = f"{version_path}/subvortex/{sauc.SV_EXECUTION_ROLE}/{service.key}"
@@ -76,7 +76,7 @@ def get_au_environment_file(service: saus.Service):
 def get_environment_file(service: saus.Service):
     if not service.version:
         return None
-    
+
     # Build the env directory
     service_dir = get_service_directory(service=service)
 
@@ -89,7 +89,7 @@ def get_environment_file(service: saus.Service):
 def get_migration_directory(service: saus.Service):
     if not service.version:
         return None
-    
+
     # Get the version directory
     service_dir = get_service_directory(service=service)
 
@@ -99,12 +99,12 @@ def get_migration_directory(service: saus.Service):
     return path
 
 
-def get_service_script(service: saus.Service, action: str):
+def get_service_script(service: saus.Service, action: str, version: str = None):
     if not service.version:
         return None
-    
+
     # Get the version directory
-    service_dir = get_service_directory(service=service)
+    service_dir = get_service_directory(service=service, version=version)
 
     # Get the execution method
     # TODO: rename docker to container in SubVOrtex to remove the following

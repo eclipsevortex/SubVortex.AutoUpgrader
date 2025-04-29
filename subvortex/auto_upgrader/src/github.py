@@ -17,6 +17,7 @@
 import os
 import re
 import time
+import json
 import shutil
 import tarfile
 import requests
@@ -35,6 +36,7 @@ class Github:
     def __init__(self, repo_owner="eclipsevortex", repo_name="SubVortex"):
         self.repo_owner = repo_owner
         self.repo_name = repo_name
+        self.latest_versions = {}
 
     def get_local_version(self):
         version = None
@@ -275,8 +277,6 @@ class Github:
         Get the latest container version from GitHub registry,
         inspecting the floating tag (latest/stable/dev) of each service.
         """
-        import json
-
         # Determine the floating tag based on prerelease config
         floating_tag = sauu.get_tag()
 
@@ -371,19 +371,37 @@ class Github:
             if service_versions:
                 versions[service_name] = service_versions
 
-        # Determine the global version (keep original strings)
-        global_versions = [
-            (Version(v.get("version")), v.get("version"))
-            for v in versions.values()
-            if v.get("version")
+        # # Determine the global version (keep original strings)
+        # global_versions = [
+        #     (Version(v.get("version")), v.get("version"))
+        #     for v in versions.values()
+        #     if v.get("version")
+        # ]
+
+        # if global_versions:
+        #     # Take the highest version based on Version(), but return original string
+        #     highest = max(global_versions, key=lambda x: x[0])
+        #     versions["version"] = highest[1]
+        # else:
+        #     versions["version"] = None
+
+        # Extract versions from all services
+        service_versions_list = [
+            v.get("version") for v in versions.values() if v.get("version")
         ]
 
-        if global_versions:
-            # Take the highest version based on Version(), but return original string
-            highest = max(global_versions, key=lambda x: x[0])
-            versions["version"] = highest[1]
+        unique_versions = set(service_versions_list)
+
+        if len(unique_versions) == 1:
+            # ✅ All services have exactly the same version
+            only_version = next(iter(unique_versions))
+            versions["version"] = only_version
         else:
-            versions["version"] = None
+            # ❌ Services have different versions or missing versions, fallback to previous
+            if self.latest_versions:
+                versions["version"] = self.latest_versions.get("version")
+            else:
+                versions["version"] = None
 
         # Store the versions
         self.latest_versions = versions

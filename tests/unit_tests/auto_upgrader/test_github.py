@@ -203,6 +203,94 @@ def test_get_latest_version_container_returns_version(
 
 
 @patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_ROLE", "validator")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+@patch("subvortex.auto_upgrader.src.github.requests.get")
+def test_get_latest_version_container_returns_old_version_if_version_for_all_service_has_not_same_global_version(
+    mock_requests_get, mock_subprocess_run
+):
+    # Arrange
+    github = Github()
+
+    # Mock responses for GitHub API
+    packages_response = MagicMock()
+    packages_response.status_code = 200
+    packages_response.json.return_value = [
+        {"name": "subvortex-validator-neuron"},
+        {"name": "subvortex-validator-redis"},
+    ]
+
+    mock_requests_get.side_effect = [
+        packages_response,  # First: list packages
+    ]
+
+    # Mock subprocess.run() for docker pull and inspect
+    mock_subprocess_run.side_effect = [
+        MagicMock(returncode=0),  # docker pull --quiet ...
+        MagicMock(
+            returncode=0,
+            stdout='{"version": "1.2.3", "version.validator": "1.2.3", "version.validator.neuron": "1.2.3"}',
+        ),
+        MagicMock(returncode=0),
+        MagicMock(
+            returncode=0,
+            stdout='{"version": "1.2.2", "version.redis": "1.2.2", "version.validator.redis": "1.2.2"}',
+        ),
+    ]
+
+    # Act
+    version = github.get_latest_version()
+
+    # Assert
+    assert version is None
+    assert mock_subprocess_run.call_count == 4
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_ROLE", "validator")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+@patch("subvortex.auto_upgrader.src.github.requests.get")
+def test_get_latest_version_container_returns_new_version_if_all_service_has_same_global_version(
+    mock_requests_get, mock_subprocess_run
+):
+    # Arrange
+    github = Github()
+
+    # Mock responses for GitHub API
+    packages_response = MagicMock()
+    packages_response.status_code = 200
+    packages_response.json.return_value = [
+        {"name": "subvortex-validator-neuron"},
+        {"name": "subvortex-validator-redis"},
+    ]
+
+    mock_requests_get.side_effect = [
+        packages_response,  # First: list packages
+    ]
+
+    # Mock subprocess.run() for docker pull and inspect
+    mock_subprocess_run.side_effect = [
+        MagicMock(returncode=0),  # docker pull --quiet ...
+        MagicMock(
+            returncode=0,
+            stdout='{"version": "1.2.3", "version.validator": "1.2.3", "version.validator.neuron": "1.2.3"}',
+        ),
+        MagicMock(returncode=0),
+        MagicMock(
+            returncode=0,
+            stdout='{"version": "1.2.3", "version.redis": "1.2.3", "version.validator.redis": "1.2.3"}',
+        ),
+    ]
+
+    # Act
+    version = github.get_latest_version()
+
+    # Assert
+    assert version == "1.2.3"
+    assert mock_subprocess_run.call_count == 4
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
 @patch("subvortex.auto_upgrader.src.github.requests.get")
 def test_get_latest_version_container_returns_none_when_no_packages(mock_requests_get):
     # Arrange

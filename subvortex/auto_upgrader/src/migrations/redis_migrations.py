@@ -60,9 +60,9 @@ class RedisMigrations(Migration):
         old_revisions = (
             self._load_migrations_from_path(self.old_migration_path)
             if self.previous_service
-            and sauv.is_version_before_auto_upgrader(
-                version=self.previous_service.version
-            )
+            # and sauv.is_version_before_auto_upgrader(
+            #     version=self.previous_service.version
+            # )
             else []
         )
 
@@ -82,8 +82,8 @@ class RedisMigrations(Migration):
 
         # Determine the highest old revions
         highest_old_revision = (
-            sorted(new_revisions, key=lambda v: Version(v))[-1]
-            if len(new_revisions) > 0
+            sorted(old_revisions, key=lambda v: Version(v))[-1]
+            if len(old_revisions) > 0
             else "0.0.0"
         )
 
@@ -97,7 +97,7 @@ class RedisMigrations(Migration):
             await self._downgrade(
                 database=database,
                 revisions=old_revisions,
-                current_version=highest_old_revision,
+                current_version=highest_revision,
             )
         else:
             btul.logging.info(
