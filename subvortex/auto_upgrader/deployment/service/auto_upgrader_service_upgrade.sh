@@ -110,16 +110,6 @@ pip install ".[$SUBVORTEX_EXECUTION_ROLE]"
 pip install -e ../../
 
 # Check if the service is active
-if systemctl list-unit-files | grep "$SERVICE_NAME.service"; then
-  if systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo "🔄 Restarting $SERVICE_NAME..."
-    sudo systemctl restart "$SERVICE_NAME"
-  else
-    echo "🚀 Starting $SERVICE_NAME..."
-    sudo systemctl start "$SERVICE_NAME"
-  fi
-else
-  echo "⚠️  Service $SERVICE_NAME is not installed or not recognized by systemd."
-fi
+./deployment/process/auto_upgrader_service_start.sh
 
 echo "✅ Auto Upgrader setup successfully"

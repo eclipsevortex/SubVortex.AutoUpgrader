@@ -97,10 +97,7 @@ fi
 # Install watchtower
 # ./../../scripts/watchtower/watchtower_start.sh
 
-echo "📥 Pulling latest image for $SERVICE_NAME..."
-docker compose pull "$SERVICE_NAME"
-
-echo "🔄 Recreating container with updated image..."
-$DOCKER_CMD -f ../../docker-compose.yml up auto_upgrader -d --no-deps --force-recreate
+# Start or restart the container
+./deployment/process/auto_upgrader_container_start.sh
 
 echo "✅ Auto Upgrader upgraded successfully"
