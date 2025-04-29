@@ -481,7 +481,6 @@ class Orchestrator:
                 continue
 
             # Execute the setup
-            print("TEARDOWN SERVICE")
             self._execute_teardown(service=service)
 
     async def _rollout_migrations(self):
@@ -560,7 +559,6 @@ class Orchestrator:
             if not current_service:
                 continue
 
-            print(f"START SERVICE: {current_service}")
             self._execute_start(service=current_service)
 
     def _switch_services(self):
@@ -628,7 +626,6 @@ class Orchestrator:
             if service_filter and not service_filter(service):
                 continue
 
-            print(f"STOP SERVICE: {service}")
             self._execute_stop(service=service)
 
     def _prune_services(self):
@@ -657,7 +654,6 @@ class Orchestrator:
                 continue
 
             # Execute the setup
-            print(f"SETUP SERVICE: {service}")
             self._execute_setup(service=service)
 
     def _remove_services(self):

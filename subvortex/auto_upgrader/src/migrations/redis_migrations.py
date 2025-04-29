@@ -187,6 +187,13 @@ class RedisMigrations(Migration):
             self.applied_revisions.append(rev)
 
     def _create_redis_instance(self):
+        password = os.getenv("SUBVORTEX_DATABASE_PASSWORD")
+        if not password:
+            btul.logging.warning(
+                f"No password configured. It is recommended to have one.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
         return aioredis.StrictRedis(
             host=os.getenv("SUBVORTEX_DATABASE_HOST", "localhost"),
             port=int(os.getenv("SUBVORTEX_DATABASE_PORT", 6379)),
