@@ -142,11 +142,6 @@ class Orchestrator:
             self._rollout_service,
         )
 
-        # Rollout migrations
-        await self._step(
-            "Run migrations", self._rollback_migrations, self._rollout_migrations
-        )
-
         # Stop previous services
         await self._step(
             "Stop previous services",
@@ -166,6 +161,11 @@ class Orchestrator:
             "Start new services",
             self._rollback_start_latest_services,
             self._start_latest_services,
+        )
+
+        # Rollout migrations
+        await self._step(
+            "Run migrations", self._rollback_migrations, self._rollout_migrations
         )
 
         # Remove prune services
@@ -533,21 +533,6 @@ class Orchestrator:
 
             # Add the service to apply migrations
             service_pairs_to_apply.append((new_service, old_service))
-
-            # If the service is not new, it is already up and running
-            if new_service.upgrade_type != "install":
-                continue
-
-            btul.logging.info(
-                f"⚙️ Preparing new service {new_service.name} before migrations",
-                prefix=sauc.SV_LOGGER_NAME,
-            )
-
-            # Execute the start script
-            self._execute_start(service=new_service)
-
-            # Add the service in the list
-            self.previously_started_services.append(new_service.id)
 
         if len(service_pairs_to_apply) == 0:
             return
