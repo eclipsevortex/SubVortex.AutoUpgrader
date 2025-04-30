@@ -502,19 +502,17 @@ class Orchestrator:
         # Start services that are new and have migrations
         has_migrations = False
         for new_service, _ in service_pairs:
+            # Check if there is any migrations to apply
+            has_migrations = self._has_migrations(new_service)
+
             # Check if there are any migrations to install
-            if new_service.upgrade_type != "install" or not self._has_migrations(
-                new_service
-            ):
+            if new_service.upgrade_type != "install" or not has_migrations:
                 continue
 
             btul.logging.info(
                 f"⚙️ Preparing new service {new_service.name} before migrations",
                 prefix=sauc.SV_LOGGER_NAME,
             )
-
-            # Flag migrations exist
-            has_migrations = True
 
             # Execute the start script
             self._execute_start(service=new_service)
@@ -576,6 +574,9 @@ class Orchestrator:
             self._execute_start(service=current_service)
 
     def _switch_services(self):
+        # Ensure the working directory exists
+        os.makedirs(sauc.SV_EXECUTION_DIR, exist_ok=True)
+        
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.services)
 
@@ -798,7 +799,7 @@ class Orchestrator:
             else None
         )
         return (
-            service.migration
-            and saup.get_migration_directory(service)
+            service.migration is not None
+            and migraton_dir is not None
             and any(f.endswith(".py") for f in migraton_dir)
         )

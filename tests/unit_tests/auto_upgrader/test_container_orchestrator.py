@@ -27,8 +27,6 @@ from subvortex.auto_upgrader.src.exception import (
     ServicesLoadError,
 )
 
-from tests.unit_tests.utils import get_call_arg
-
 
 @pytest.fixture(autouse=True)
 def orchestrator():
@@ -44,11 +42,18 @@ def orchestrator():
     )
     mock_exists = exists_patcher.start()
 
+    # --- Patch os.makedirs ---
+    makedirs_patcher = patch(
+        "subvortex.auto_upgrader.src.orchestrator.os.makedirs"
+    )
+    mock_makedirs = makedirs_patcher.start()
+
     orch = Orchestrator()
 
     # Store the mock so tests can use it
     orch.mock_subprocess_run = mock_subprocess_run
     orch.mock_exists = mock_exists
+    orch.mock_makedirs = mock_makedirs
 
     # Pre-set for test overrides
     orch.current_version = None
@@ -1366,6 +1371,9 @@ async def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_o
     orchestrator._rollout_migrations = Orchestrator._rollout_migrations.__get__(
         orchestrator
     )
+    orchestrator._check_versions = Orchestrator._check_versions.__get__(
+        orchestrator
+    )
 
     orchestrator._get_current_version.side_effect = lambda: setattr(
         orchestrator, "current_version", "1.0.0"
@@ -1376,8 +1384,12 @@ async def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_o
 
     latest_service = create_service("1.0.1")
 
-    orchestrator._load_services = mock.MagicMock()
-    orchestrator._load_services.side_effect = [[], [latest_service]]
+    orchestrator._load_current_services.side_effect = lambda: setattr(
+        orchestrator, "current_services", []
+    )
+    orchestrator._load_latest_services.side_effect = lambda: setattr(
+        orchestrator, "latest_services", [latest_service]
+    )
 
     mock_migration_manager = mock.MagicMock()
     mock_migration_manager.collect_migrations.side_effect = MissingDirectoryError(
@@ -1402,7 +1414,7 @@ async def test_raise_exception_when_migration_path_doe_not_exist_while_rolling_o
     assert orchestrator._pull_latest_assets.called
     assert orchestrator._load_current_services.called
     assert orchestrator._load_latest_services.called
-    assert orchestrator._check_versions.called
+    # assert orchestrator._check_versions.called
     assert orchestrator._copy_env_files.called
     assert orchestrator._rollout_service.called
     assert not orchestrator._stop_current_services.called

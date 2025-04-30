@@ -49,7 +49,7 @@ else
     echo "🚀 Starting $SERVICE_NAME"
     pm2 start src/main.py \
     --name "$SERVICE_NAME" \
-    --interpreter python3 -- \
+    --interpreter venv/bin/python3 -- \
     "${ARGS[@]}"
 fi
 

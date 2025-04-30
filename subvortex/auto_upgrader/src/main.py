@@ -71,8 +71,13 @@ class Worker:
                 # Rollout the plan
                 success = await self.orchestrator.run_plan()
 
-            except KeyboardInterrupt:
-                btul.logging.debug("KeyboardInterrupt", prefix=sauc.SV_LOGGER_NAME)
+            except asyncio.TimeoutError:
+                # Normal cycle timeout, no problem
+                pass
+
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                btul.logging.debug("Shutdown requested", prefix=sauc.SV_LOGGER_NAME)
+                success = True
 
             except saue.AutoUpgraderError as e:
                 btul.logging.error(e, prefix=sauc.SV_LOGGER_NAME)
