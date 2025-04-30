@@ -86,6 +86,7 @@ class Orchestrator:
             "Pull latest version",
             self._rollback_pull_latest_assets,
             self._pull_latest_assets,
+            condition=lambda: self.current_version != self.latest_version,
         )
 
         if (
@@ -202,7 +203,8 @@ class Orchestrator:
         success = True
         for description, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(
-                f"↩️ \033[35mRolling back: {description}\033[0m", prefix=sauc.SV_LOGGER_NAME
+                f"↩️ \033[35mRolling back: {description}\033[0m",
+                prefix=sauc.SV_LOGGER_NAME,
             )
 
             try:
@@ -560,13 +562,13 @@ class Orchestrator:
             # Check if there are any migrations to install
             if not has_migrations:
                 btul.logging.debug(
-                    f"⚙️ Migrations found for {new_service.name}",
+                    f"⏩ No migrations for {new_service.name}",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
                 continue
 
             btul.logging.debug(
-                f"⏩ No migrations for {new_service.name}", prefix=sauc.SV_LOGGER_NAME
+                f"⚙️ Migrations found for {new_service.name}",
             )
 
             # Add the service to apply migrations
@@ -577,7 +579,7 @@ class Orchestrator:
             return
 
         # Create the migration manager with service pairs
-        self.migration_manager = MigrationManager(service_pairs)
+        self.migration_manager = MigrationManager(service_pairs_to_apply)
         self.migration_manager.collect_migrations()
         await self.migration_manager.apply()
 
