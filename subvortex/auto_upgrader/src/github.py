@@ -157,8 +157,13 @@ class Github:
 
         # Build the target path
         target_path = os.path.join(sauc.SV_ASSET_DIR, archive_name)
-        if os.path.exists(target_path):
-            # The asset has lready been downloaded
+
+        # Ensure valid archive
+        if self.validate_archive_or_remove(target_path):
+            btul.logging.debug(
+                f"✅ Valid archive already exists at {target_path}, skipping download.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             return target_path
 
         url = f"https://github.com/eclipsevortex/SubVortex/releases/download/v{version}/{archive_name}"
@@ -743,3 +748,21 @@ class Github:
             f"{component}.version": sauc.DEFAULT_LAST_RELEASE.get(component),
             service: sauc.DEFAULT_LAST_RELEASE.get(service),
         }
+
+    def validate_archive_or_remove(self, archive_path: str):
+        if not os.path.exists(archive_path):
+            return False
+
+        try:
+            with tarfile.open(archive_path, "r:gz") as tar:
+                tar.getmembers()
+
+            return True
+        except tarfile.ReadError:
+            btul.logging.warning(
+                f"⚠️ Corrupted archive at {archive_path}. Removing it.",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            os.remove(archive_path)
+
+        return False

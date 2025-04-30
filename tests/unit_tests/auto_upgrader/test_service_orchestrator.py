@@ -354,6 +354,56 @@ async def test_rollback_calls_all_steps_in_reverse_order(orchestrator):
 
 
 @pytest.mark.asyncio
+async def test_run_plan_when_migrate_for_the_first_time_after_releasing_auto_upragder(
+    orchestrator,
+):
+    # Arrange
+    # mock_all_steps(orchestrator)
+
+    # Fake _get_current_version and _get_latest_version behavior
+    orchestrator.github.get_local_version.return_value = None
+    orchestrator.github.get_latest_version.return_value = "1.0.1"
+
+    # Create fake services
+    latest_service_1 = create_service(
+        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+    )
+    latest_service_2 = create_service(
+        id="subvortex-validator-redis", version="1.0.0", name="redis"
+    )
+
+    orchestrator._load_current_services.side_effect = lambda: setattr(
+        orchestrator, "current_services", []
+    )
+    orchestrator._load_latest_services.side_effect = lambda: setattr(
+        orchestrator, "latest_services", [latest_service_1, latest_service_2]
+    )
+
+    # Action
+    await orchestrator.run_plan()
+
+    # Assert
+    assert 14 == len(orchestrator.rollback_steps)
+    steps = [x[0] for x in orchestrator.rollback_steps]
+    assert [
+        "Get current version",
+        "Get latest version",
+        "Pull latest version",
+        "Load latest services",
+        "Check versions",
+        "Copying environement variables",
+        "Downgrade services",
+        "Run migrations",
+        "Stop previous services",
+        "Switching to new version",
+        "Start new services",
+        "Remove prune services",
+        "Remove previous version",
+        "Finalize service versions",
+    ] == steps
+
+
+@pytest.mark.asyncio
 async def test_run_plan_when_no_new_version_should_execute_until_load_current_services_step(
     orchestrator,
 ):
