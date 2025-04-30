@@ -54,7 +54,7 @@ class Orchestrator:
         self.has_changed = True
 
     async def run_plan(self):
-        btul.logging.info("Running the plan...", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.info("🚀 Running the upgrade plan...", prefix=sauc.SV_LOGGER_NAME)
 
         # Get version before auto upgrader
         last_version_before_auto_upgrader = sauc.DEFAULT_LAST_RELEASE.get("global")
@@ -123,88 +123,88 @@ class Orchestrator:
         # Stop if no services have changed
         if not self.has_changed:
             btul.logging.success(
-                f"🟢 No service changes detected. All services are up-to-date.",
+                "🟢 No service changes detected. All services are up-to-date.",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return True
 
         # Copy the env var file in the latest version services
         await self._step(
-            "Copying environement variables",
+            "📦 Copying environment variables",
             self._rollback_nop,
             self._copy_env_files,
         )
 
         # Upgrade the services that have changed
         await self._step(
-            f"{action} services".capitalize(),
+            f"{action.capitalize()} services".capitalize(),
             self._rollback_services,
             self._rollout_service,
         )
 
         # Stop previous services
         await self._step(
-            "Stop previous services",
+            "🛑 Stop previous services",
             self._rollback_stop_current_services,
             self._stop_current_services,
         )
 
         # Switch services to new version
         await self._step(
-            "Switching to new version",
+            "🔁 Switching to new version",
             self._rollback_switch_services,
             self._switch_services,
         )
 
         # Start latest services
         await self._step(
-            "Start new services",
+            "🚀 Start new services",
             self._rollback_start_latest_services,
             self._start_latest_services,
         )
 
         # Rollout migrations
         await self._step(
-            "Run migrations", self._rollback_migrations, self._rollout_migrations
+            "🛠️ Run migrations", self._rollback_migrations, self._rollout_migrations
         )
 
         # Remove prune services
         await self._step(
-            "Remove prune services",
+            "🧹 Remove pruned services",
             self._rollback_prune_services,
             self._prune_services,
         )
 
         # Remove previous services
         await self._step(
-            "Remove previous version",
+            "🗑️ Remove previous version",
             self._rollback_remove_services,
             self._remove_services,
         )
 
         # Finalize service versions
         await self._step(
-            "Finalize service versions",
+            "✅ Finalize service versions",
             self._rollback_nop,
             self._finalize_versions,
         )
 
         btul.logging.success(
-            f"{emoji} {action} {self.current_version} -> {self.latest_version} completed succesfully".capitalize(),
+            f"{emoji} {action.capitalize()} {self.current_version} -> {self.latest_version} completed successfully.",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
         return True
 
     async def run_rollback_plan(self):
-        btul.logging.info("Rolling back the plan...", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.info("🔄 Rolling back upgrade plan...", prefix=sauc.SV_LOGGER_NAME)
 
         success = True
         for description, rollback_func in reversed(self.rollback_steps):
             btul.logging.info(
-                f"▶️ \033[35mRolling back: {description}\033[0m",
-                prefix=sauc.SV_LOGGER_NAME,
+                f"↩️ \033[35mRolling back: {description}\033[0m", prefix=sauc.SV_LOGGER_NAME
             )
+
             try:
                 if asyncio.iscoroutinefunction(rollback_func):
                     await rollback_func()
@@ -212,7 +212,7 @@ class Orchestrator:
                     rollback_func()
 
                 btul.logging.info(
-                    f"✅ \033[32mCompleted: {description}\033[0m",
+                    f"✅ \033[32mRolled back: {description}: {description}\033[0m",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
             except Exception as e:
@@ -225,7 +225,7 @@ class Orchestrator:
 
         if success:
             btul.logging.success(
-                "Rollback completed succesfully",
+                "✅ Rollback completed successfully",
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
@@ -247,7 +247,7 @@ class Orchestrator:
     ):
         if condition and not condition():
             btul.logging.debug(
-                f"⏩ Skipping: {description} (condition not met)",
+                f"⏩ Skipping step: {description} (condition not met)",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             return
@@ -273,7 +273,9 @@ class Orchestrator:
         )
 
     def _rollback_nop(self):
-        pass  # For steps that don't change state
+        btul.logging.trace(
+            "No rollback action for this step", prefix=sauc.SV_LOGGER_NAME
+        )
 
     async def _get_current_version(self):
         # Get the latest version
@@ -283,7 +285,7 @@ class Orchestrator:
         self.current_version = version or sauc.DEFAULT_LAST_RELEASE.get("global")
 
         btul.logging.debug(
-            f"Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
+            f"📌 Current version: {self.current_version}", prefix=sauc.SV_LOGGER_NAME
         )
 
     async def _get_latest_version(self):
@@ -297,7 +299,7 @@ class Orchestrator:
         self.latest_version = version
 
         btul.logging.debug(
-            f"Latest version: {self.latest_version}", prefix=sauc.SV_LOGGER_NAME
+            f"📌 Latest version: {self.latest_version}", prefix=sauc.SV_LOGGER_NAME
         )
 
     def _pull_current_assets(self):
@@ -311,16 +313,26 @@ class Orchestrator:
         is_exist = os.path.exists(version_path)
         if is_exist:
             btul.logging.debug(
-                f"Version {self.current_version} already pulled in {version_path}",
+                f"📦 Current assets already exist at: {version_path}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
             return
 
+        btul.logging.info(
+            f"📥 Pulling current assets (version {self.current_version})",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
         # Download and unzip the latest version
         self._pull_assets(version=self.current_version)
 
     def _pull_latest_assets(self):
+        btul.logging.info(
+            f"📥 Pulling latest assets (version {self.latest_version})",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
         # Download and unzip the latest version
         self._pull_assets(version=self.latest_version)
 
@@ -328,6 +340,18 @@ class Orchestrator:
         path = saup.get_version_directory(version=self.latest_version)
         if not os.path.exists(path):
             raise saue.MissingDirectoryError(directory_path=path)
+
+        btul.logging.debug(
+            f"📁 Latest version assets extracted to: {path}", prefix=sauc.SV_LOGGER_NAME
+        )
+
+    def _rollback_pull_latest_assets(self):
+        btul.logging.info(
+            "♻️ Rolling back pulled latest assets...", prefix=sauc.SV_LOGGER_NAME
+        )
+
+        # Remove the latest version
+        self._remove_assets(version=self.latest_version)
 
     def _copy_env_files(self):
         for service in self.latest_services:
@@ -352,15 +376,9 @@ class Orchestrator:
                 raise saue.MissingFileError(file_path=env_file)
 
             btul.logging.trace(
-                f"Env file {source_file} copied to {env_file}",
+                f"📤 Copied env: {source_file} -> {env_file}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
-
-    def _rollback_pull_latest_assets(self):
-        # Remove the latest version
-        self._remove_assets(version=self.latest_version)
-
-        btul.logging.debug("Latest assets removed", prefix=sauc.SV_LOGGER_NAME)
 
     def _load_current_services(self):
         # Get the version of all services for container, for the other it will come from the metadata loaded locally
@@ -376,14 +394,16 @@ class Orchestrator:
         )
 
         # Display the list of services
-        services = [
-            f"{x.name} (v:{x.version}, comp:{x.component_version}, svc:{x.service_version})"
-            for x in self.current_services
-        ]
-        btul.logging.debug(
-            f"Current services loaded ({len(self.current_services)}): {', '.join(services)}",
-            prefix=sauc.SV_LOGGER_NAME,
+        self.current_services = self._load_services(
+            version=self.current_version, versions=versions
         )
+
+        # Display the list of services
+        for svc in self.current_services:
+            btul.logging.trace(
+                f"🔍 Current service loaded: {svc.name} (v:{svc.version}, comp:{svc.component_version}, svc:{svc.service_version})",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
     def _load_latest_services(self):
         # Get the version of all services for container, for the other it will come from the metadata loaded locally
@@ -401,16 +421,17 @@ class Orchestrator:
             raise saue.ServicesLoadError(version=self.latest_version)
 
         # Display the list of services
-        services = [
-            f"{x.name} (v:{x.version}, comp:{x.component_version}, svc:{x.service_version})"
-            for x in self.latest_services
-        ]
-        btul.logging.debug(
-            f"Latest services loaded ({len(self.latest_services)}): {', '.join(services)}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
+        for svc in self.latest_services:
+            btul.logging.trace(
+                f"🔍 Current service loaded: {svc.name} (v:{svc.version}, comp:{svc.component_version}, svc:{svc.service_version})",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
     def _check_versions(self):
+        btul.logging.info(
+            "🔎 Checking version differences...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         latest_map = {s.id: s for s in self.latest_services}
         current_map = {s.id: s for s in self.current_services}
 
@@ -427,8 +448,7 @@ class Orchestrator:
                 current.needs_update = False
                 current.upgrade_type = None
                 btul.logging.info(
-                    f"{current.name} no longer exists in latest release. Marked for removal.",
-                    prefix=sauc.SV_LOGGER_NAME,
+                    f"🗑️ Service removed: {current.name}", prefix=sauc.SV_LOGGER_NAME
                 )
                 self.services.append(current)
                 continue
@@ -437,9 +457,8 @@ class Orchestrator:
                 # New service in latest
                 latest.needs_update = True
                 latest.upgrade_type = "install"
-                btul.logging.debug(
-                    f"{latest.name} is a new service in latest version. Marked for installation.",
-                    prefix=sauc.SV_LOGGER_NAME,
+                btul.logging.info(
+                    f"🆕 New service: {latest.name}", prefix=sauc.SV_LOGGER_NAME
                 )
                 self.services.append(latest)
                 continue
@@ -453,15 +472,15 @@ class Orchestrator:
                 latest.upgrade_type = (
                     "upgrade" if latest_version > current_version else "downgrade"
                 )
-                btul.logging.debug(
-                    f"{latest.name} version change detected: {current.version} -> {latest.version} ({latest.upgrade_type})",
+                btul.logging.info(
+                    f"🔁 Service {latest.name}: {current.version} -> {latest.version} ({latest.upgrade_type})",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
             else:
                 latest.needs_update = False
                 latest.upgrade_type = None
                 btul.logging.debug(
-                    f"{latest.name} is already up-to-date at version {latest.version}.",
+                    f"✔️ Service {latest.name} is up-to-date.",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
 
@@ -473,6 +492,8 @@ class Orchestrator:
         )
 
     def _rollout_service(self):
+        btul.logging.info("🚧 Rolling out services...", prefix=sauc.SV_LOGGER_NAME)
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.latest_services)
 
@@ -483,10 +504,18 @@ class Orchestrator:
             if not service.needs_update:
                 continue
 
+            btul.logging.debug(
+                f"🔧 Setting up service: {service.name}", prefix=sauc.SV_LOGGER_NAME
+            )
+
             # Execute the setup
             self._execute_setup(service=service)
 
     def _rollback_services(self):
+        btul.logging.info(
+            "♻️ Rolling back service installations...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.latest_services)
 
@@ -497,10 +526,19 @@ class Orchestrator:
             if not service.needs_update or service.upgrade_type != "install":
                 continue
 
+            btul.logging.debug(
+                f"🧨 Tearing down newly installed service: {service.name}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
             # Execute the setup
             self._execute_teardown(service=service)
 
     async def _rollout_migrations(self):
+        btul.logging.info(
+            "📦 Checking for service migrations...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Filter services that need update
         services_to_update = [s for s in self.services if s.needs_update]
 
@@ -522,19 +560,20 @@ class Orchestrator:
             # Check if there are any migrations to install
             if not has_migrations:
                 btul.logging.debug(
-                    f"Skipping migrations for {new_service.name} (upgrade_type={new_service.upgrade_type}, has_migrations={has_migrations})",
+                    f"⚙️ Migrations found for {new_service.name}",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
                 continue
 
             btul.logging.debug(
-                f"Migrations found for {new_service.name}", prefix=sauc.SV_LOGGER_NAME
+                f"⏩ No migrations for {new_service.name}", prefix=sauc.SV_LOGGER_NAME
             )
 
             # Add the service to apply migrations
             service_pairs_to_apply.append((new_service, old_service))
 
         if len(service_pairs_to_apply) == 0:
+            btul.logging.debug("No migrations to apply", prefix=sauc.SV_LOGGER_NAME)
             return
 
         # Create the migration manager with service pairs
@@ -542,30 +581,46 @@ class Orchestrator:
         self.migration_manager.collect_migrations()
         await self.migration_manager.apply()
 
+        btul.logging.info(
+            "✅ Migrations applied successfully", prefix=sauc.SV_LOGGER_NAME
+        )
+
     async def _rollback_migrations(self):
+        btul.logging.info("↩️ Rolling back migrations...", prefix=sauc.SV_LOGGER_NAME)
         await self.migration_manager.rollback()
 
     def _stop_current_services(self, service_filter: Callable = None):
+        btul.logging.info(
+            "🛑 Stopping outdated/removed services...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.services)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order(reverse=True)
 
-        for service in sorted_services:
-            if not service.needs_update and not service.must_remove:
-                continue
+        # Create services mapping
+        current_services_map = {s.id: s for s in self.current_services}
 
-            if service_filter and not service_filter(service):
-                continue
+        # Build the list of services to stop
+        services_to_stop = [
+            service
+            for service in sorted_services
+            if (service.needs_update or service.must_remove)
+            and (not service_filter or service_filter(service))
+            and service.id in current_services_map
+        ]
 
-            current_service = next(
-                (x for x in self.current_services if x.id == service.id), None
+        if not services_to_stop:
+            btul.logging.debug("No services to stop", prefix=sauc.SV_LOGGER_NAME)
+            return
+
+        for service in services_to_stop:
+            btul.logging.debug(
+                f"✋ Stopping service: {service.name}", prefix=sauc.SV_LOGGER_NAME
             )
-            if not current_service:
-                continue
-
-            self._execute_stop(service=current_service)
+            self._execute_stop(service=current_services_map[service.id])
 
     def _rollback_stop_current_services(self, service_filter: Callable = None):
         # Create the dependency resolver
@@ -574,22 +629,35 @@ class Orchestrator:
         # Sort the services
         sorted_services = dependency_resolver.resolve_order()
 
-        for service in sorted_services:
-            if not service.needs_update and not service.must_remove:
-                continue
+        # Create services mapping
+        current_services_map = {s.id: s for s in self.current_services}
 
-            if service_filter and not service_filter(service):
-                continue
+        # Build the list of services to start
+        services_to_start = [
+            service
+            for service in sorted_services
+            if (service.needs_update or service.must_remove)
+            and (not service_filter or service_filter(service))
+            and service.id in current_services_map
+        ]
 
-            current_service = next(
-                (x for x in self.current_services if x.id == service.id), None
+        if not services_to_start:
+            btul.logging.debug(
+                "No services to start during rollback", prefix=sauc.SV_LOGGER_NAME
             )
-            if not current_service:
-                continue
+            return
 
-            self._execute_start(service=current_service)
+        for service in services_to_start:
+            btul.logging.debug(
+                f"🔁 Restarting service: {service.name}", prefix=sauc.SV_LOGGER_NAME
+            )
+            self._execute_start(service=current_services_map[service.id])
 
     def _switch_services(self):
+        btul.logging.info(
+            "🔁 Switching service links to new versions...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Ensure the working directory exists
         os.makedirs(sauc.SV_EXECUTION_DIR, exist_ok=True)
 
@@ -603,10 +671,19 @@ class Orchestrator:
             if not service.needs_update:
                 continue
 
+            btul.logging.debug(
+                f"🔗 Switching to version {service.version} for {service.name}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
             # Switch to new version
             service.switch_to_version(version=service.version)
 
     def _rollback_switch_services(self):
+        btul.logging.info(
+            "↩️ Reverting service version switches...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.services)
 
@@ -617,10 +694,19 @@ class Orchestrator:
             if not service.needs_update:
                 continue
 
+            btul.logging.debug(
+                f"⏪ Switching {service.name} back to rollback version {service.rollback_version}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
             # Switch to previous version
             service.switch_to_version(version=service.version)
 
     def _start_latest_services(self, service_filter: Callable = None):
+        btul.logging.info(
+            "🚀 Starting new/updated services...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.services)
 
@@ -636,7 +722,7 @@ class Orchestrator:
 
             if service.id in self.previously_started_services:
                 btul.logging.debug(
-                    f"⏩ Skipping start for {service.name} (already started before migration)",
+                    f"⏩ Skipping {service.name} (already started before migration)",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
                 continue
@@ -644,6 +730,11 @@ class Orchestrator:
             self._execute_start(service=service)
 
     def _rollback_start_latest_services(self, service_filter: Callable = None):
+        btul.logging.info(
+            "🛑 Stopping newly started services (rollback)...",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.services)
 
@@ -657,9 +748,15 @@ class Orchestrator:
             if service_filter and not service_filter(service):
                 continue
 
+            btul.logging.debug(
+                f"✋ Stopping service: {service.name}", prefix=sauc.SV_LOGGER_NAME
+            )
+
             self._execute_stop(service=service)
 
     def _prune_services(self):
+        btul.logging.info("🧹 Pruning removed services...", prefix=sauc.SV_LOGGER_NAME)
+
         if sauc.SV_EXECUTION_METHOD == "container":
             # Prune useless images
             self.github.prune_images()
@@ -677,13 +774,21 @@ class Orchestrator:
 
             has_turndown_services = True
 
+            btul.logging.debug(
+                f"🗑️ Tearing down service: {service.name}", prefix=sauc.SV_LOGGER_NAME
+            )
+
             # Execute the setup
             self._execute_teardown(service=service)
 
         if not has_turndown_services:
-            btul.logging.debug(f"No services to teardown", prefix=sauc.SV_LOGGER_NAME)
+            btul.logging.debug("No services to prune", prefix=sauc.SV_LOGGER_NAME)
 
     def _rollback_prune_services(self):
+        btul.logging.info(
+            "♻️ Re-installing previously pruned services...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.current_services)
 
@@ -697,6 +802,10 @@ class Orchestrator:
 
             has_turndown_services = True
 
+            btul.logging.debug(
+                f"📦 Re-setting up service: {service.name}", prefix=sauc.SV_LOGGER_NAME
+            )
+
             # Execute the setup
             self._execute_setup(service=service)
 
@@ -704,14 +813,31 @@ class Orchestrator:
             btul.logging.debug(f"No services to teardown", prefix=sauc.SV_LOGGER_NAME)
 
     def _remove_services(self):
+        btul.logging.info(
+            f"🗑️ Removing current version assets: {self.current_version}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
         self._remove_assets(version=self.current_version)
 
     def _rollback_remove_services(self):
+        btul.logging.info(
+            f"♻️ Re-pulling current version assets: {self.current_version}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
         self._pull_assets(version=self.current_version)
 
     def _finalize_versions(self):
+        btul.logging.info(
+            "🔐 Finalizing versions and cleanup...", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Update the new version
         for service in self.services:
+            btul.logging.trace(
+                f"🔁 Finalizing {service.name}: {service.version} -> rollback cleared",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
             service.version = service.rollback_version
             service.rollback_version = None
 
@@ -791,13 +917,24 @@ class Orchestrator:
         env["SUBVORTEX_FLOATTING_FLAG"] = sauu.get_tag()
 
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["bash", script_file] + args,
                 env=env,
                 capture_output=True,
                 text=True,
                 check=False,
             )
+
+            if True or btul.logging.level <= btul.TRACE:
+                btul.logging.debug(
+                    f"📝 {service.name} {action} stdout:\n{result.stdout.strip()}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                if result.stderr.strip():
+                    btul.logging.debug(
+                        f"⚠️ {service.name} {action} stderr:\n{result.stderr.strip()}",
+                        prefix=sauc.SV_LOGGER_NAME,
+                    )
         except subprocess.CalledProcessError as e:
             raise saue.RuntimeError(action=action, details=str(e))
 

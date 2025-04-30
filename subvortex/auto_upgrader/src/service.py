@@ -17,8 +17,6 @@
 import subprocess
 from typing import List, Literal
 
-import bittensor.utils.btlogging as btul
-
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.link as saul
@@ -63,7 +61,9 @@ class Service:
     def create(metadata: dict):
         service_name = metadata.get("id").split("-")[-1]
         component_version = metadata.get(f"{sauc.SV_EXECUTION_ROLE}.version")
-        service_version = metadata.get(f"{sauc.SV_EXECUTION_ROLE}.{service_name}.version")
+        service_version = metadata.get(
+            f"{sauc.SV_EXECUTION_ROLE}.{service_name}.version"
+        )
         return Service(
             id=metadata.get("id"),
             name=metadata.get("name"),
@@ -101,11 +101,6 @@ class Service:
         return details[-1]
 
     def switch_to_version(self, version: str):
-        btul.logging.info(
-            f"🔀 Switching for {self.name} to upgraded version.",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-
         # Get the root path of the version
         version_path = self._get_root_path(version=version)
 
