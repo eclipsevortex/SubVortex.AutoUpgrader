@@ -102,7 +102,7 @@ class Service:
 
     def switch_to_version(self, version: str):
         btul.logging.info(
-            f"🔀 [{self.name}] Switching to upgraded version.",
+            f"🔀 Switching for {self.name} to upgraded version.",
             prefix=sauc.SV_LOGGER_NAME,
         )
 

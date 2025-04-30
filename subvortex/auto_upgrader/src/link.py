@@ -33,7 +33,7 @@ def update_symlink(source: str, target: str):  # , temp_link: str):
         if target.is_symlink() or target.is_file():
             target.unlink()
         else:
-            shutil.rmtree(target)
+            shutil.rmtree(target, onerror=lambda *args, **kwargs: None)
 
     # Move temp symlink to final location
     temp_link.rename(target)

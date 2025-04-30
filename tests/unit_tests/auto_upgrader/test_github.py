@@ -206,7 +206,7 @@ def test_get_latest_version_container_returns_version(
 @patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_ROLE", "validator")
 @patch("subvortex.auto_upgrader.src.github.subprocess.run")
 @patch("subvortex.auto_upgrader.src.github.requests.get")
-def test_get_latest_version_container_returns_old_version_if_version_for_all_service_has_not_same_global_version(
+def test_get_latest_version_container_returns_new_version_if_at_least_one_service_has_the_new_version(
     mock_requests_get, mock_subprocess_run
 ):
     # Arrange
@@ -242,7 +242,7 @@ def test_get_latest_version_container_returns_old_version_if_version_for_all_ser
     version = github.get_latest_version()
 
     # Assert
-    assert version is None
+    assert version == "1.2.3"
     assert mock_subprocess_run.call_count == 4
 
 

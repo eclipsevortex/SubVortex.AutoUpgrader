@@ -34,6 +34,11 @@ load_dotenv(dotenv_path=env_path)
 
 
 class RedisMigrations(Migration):
+    @property
+    def service_name(self):
+        service = self.previous_service or self.new_service
+        return service.name if service else None
+
     def __init__(self, service: Service, previous_service: Service = None):
         self.new_service = service
         self.previous_service = previous_service
@@ -60,16 +65,13 @@ class RedisMigrations(Migration):
         old_revisions = (
             self._load_migrations_from_path(self.old_migration_path)
             if self.previous_service
-            # and sauv.is_version_before_auto_upgrader(
-            #     version=self.previous_service.version
-            # )
             else []
         )
 
         # Read current DB version
         current_version = await self._get_current_version(database)
         btul.logging.debug(
-            f"🔍 Current database version: {current_version}",
+            f"🔍 Current database version for {self.service_name}: {current_version}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
@@ -77,13 +79,6 @@ class RedisMigrations(Migration):
         highest_revision = (
             sorted(new_revisions, key=lambda v: Version(v))[-1]
             if len(new_revisions) > 0
-            else "0.0.0"
-        )
-
-        # Determine the highest old revions
-        highest_old_revision = (
-            sorted(old_revisions, key=lambda v: Version(v))[-1]
-            if len(old_revisions) > 0
             else "0.0.0"
         )
 
@@ -101,7 +96,8 @@ class RedisMigrations(Migration):
             )
         else:
             btul.logging.info(
-                "✅ Database already at target version.", prefix=sauc.SV_LOGGER_NAME
+                f"✅ Database already at target version for {self.service_name}",
+                prefix=sauc.SV_LOGGER_NAME,
             )
 
     async def rollback(self):
@@ -114,14 +110,14 @@ class RedisMigrations(Migration):
         database = self._create_redis_instance()
 
         btul.logging.info(
-            f"↩️ Rolling back applied migrations: {self.applied_revisions}",
+            f"↩️ Rolling back applied migrations for {self.service_name}: {self.applied_revisions}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
         # Rollback in reverse order
         for rev in reversed(self.applied_revisions):
             btul.logging.info(
-                f"⬇️  Rolling back migration: {rev}",
+                f"⬇️  Rolling back migration for {self.service_name}: {rev}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             await database.set(f"migration_mode:{rev}", "dual")
@@ -139,7 +135,8 @@ class RedisMigrations(Migration):
 
     async def _upgrade(self, database, revisions, current_version):
         btul.logging.info(
-            "⬆️  Running upgrade migrations...", prefix=sauc.SV_LOGGER_NAME
+            f"⬆️  Running upgrade migrations for {self.service_name}...",
+            prefix=sauc.SV_LOGGER_NAME,
         )
 
         # Sort correctly
@@ -152,7 +149,8 @@ class RedisMigrations(Migration):
                 continue  # skip until current_version is reached
 
             btul.logging.info(
-                f"⬆️  Applying migration: {rev}", prefix=sauc.SV_LOGGER_NAME
+                f"⬆️  Applying migration for {self.service_name}: {rev}",
+                prefix=sauc.SV_LOGGER_NAME,
             )
 
             await database.set(f"migration_mode:{rev}", "dual")
@@ -164,7 +162,8 @@ class RedisMigrations(Migration):
 
     async def _downgrade(self, database, revisions, current_version):
         btul.logging.info(
-            "⬇️  Running downgrade migrations...", prefix=sauc.SV_LOGGER_NAME
+            f"⬇️  Running downgrade migrations for {self.service_name}...",
+            prefix=sauc.SV_LOGGER_NAME,
         )
 
         for rev in sorted(revisions, key=lambda v: Version(v), reverse=True):
@@ -172,7 +171,8 @@ class RedisMigrations(Migration):
                 break
 
             btul.logging.info(
-                f"⬇️  Rolling back migration: {rev}", prefix=sauc.SV_LOGGER_NAME
+                f"⬇️  Rolling back migration for {self.service_name}: {rev}",
+                prefix=sauc.SV_LOGGER_NAME,
             )
             await database.set(f"migration_mode:{rev}", "dual")
             await self.modules[rev].rollback(database)

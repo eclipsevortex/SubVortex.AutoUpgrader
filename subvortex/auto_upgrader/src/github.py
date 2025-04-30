@@ -100,6 +100,18 @@ class Github:
 
         return asset_path
 
+    def prune_images(self):
+        # Pull the floating tag image
+        btul.logging.debug(f"Prune images", prefix=sauc.SV_LOGGER_NAME)
+        pull_result = subprocess.run(
+            ["docker", "image", "prune", "-f"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if pull_result.returncode != 0:
+            btul.logging.warning(f"Failed to prune images", prefix=sauc.SV_LOGGER_NAME)
+
     def _is_valid_release_or_prerelease(self, tag_name: str) -> bool:
         try:
             version = Version(tag_name)
@@ -210,13 +222,13 @@ class Github:
 
             # Build the target directory
             target_dir = os.path.join(sauc.SV_ASSET_DIR, top_level_dir)
-            if os.path.exists(target_dir):
-                # The asset has already been unzipped
-                return target_dir
+            # if os.path.exists(target_dir):
+            #     # The asset has already been unzipped
+            #     return target_dir
 
             # If target directory exists, remove it to allow clean overwrite
             if os.path.exists(target_dir):
-                shutil.rmtree(target_dir)
+                shutil.rmtree(target_dir, onerror=lambda *args, **kwargs: None)
 
             # Extract archive
             tar.extractall(path=sauc.SV_ASSET_DIR)
@@ -317,6 +329,9 @@ class Github:
             full_image = f"ghcr.io/{self.repo_owner}/{package_name}:{floating_tag}"
 
             # Pull the floating tag image
+            btul.logging.debug(
+                f"Pull the image {full_image}", prefix=sauc.SV_LOGGER_NAME
+            )
             pull_result = subprocess.run(
                 ["docker", "pull", "--quiet", full_image],
                 stdout=subprocess.PIPE,
@@ -330,6 +345,10 @@ class Github:
                 continue
 
             # Inspect labels
+            btul.logging.debug(
+                f"Getting the labels of the image {full_image}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             inspect_result = subprocess.run(
                 [
                     "docker",
@@ -374,37 +393,37 @@ class Github:
             if service_versions:
                 versions[service_name] = service_versions
 
-        # # Determine the global version (keep original strings)
-        # global_versions = [
-        #     (Version(v.get("version")), v.get("version"))
-        #     for v in versions.values()
-        #     if v.get("version")
-        # ]
-
-        # if global_versions:
-        #     # Take the highest version based on Version(), but return original string
-        #     highest = max(global_versions, key=lambda x: x[0])
-        #     versions["version"] = highest[1]
-        # else:
-        #     versions["version"] = None
-
-        # Extract versions from all services
-        service_versions_list = [
-            v.get("version") for v in versions.values() if v.get("version")
+        # Determine the global version (keep original strings)
+        global_versions = [
+            (Version(v.get("version")), v.get("version"))
+            for v in versions.values()
+            if v.get("version")
         ]
 
-        unique_versions = set(service_versions_list)
-
-        if len(unique_versions) == 1:
-            # ✅ All services have exactly the same version
-            only_version = next(iter(unique_versions))
-            versions["version"] = only_version
+        if global_versions:
+            # Take the highest version based on Version(), but return original string
+            highest = max(global_versions, key=lambda x: x[0])
+            versions["version"] = highest[1]
         else:
-            # ❌ Services have different versions or missing versions, fallback to previous
-            if self.latest_versions:
-                versions["version"] = self.latest_versions.get("version")
-            else:
-                versions["version"] = None
+            versions["version"] = None
+
+        # # Extract versions from all services
+        # service_versions_list = [
+        #     v.get("version") for v in versions.values() if v.get("version")
+        # ]
+
+        # unique_versions = set(service_versions_list)
+
+        # if len(unique_versions) == 1:
+        #     # ✅ All services have exactly the same version
+        #     only_version = next(iter(unique_versions))
+        #     versions["version"] = only_version
+        # else:
+        #     # ❌ Services have different versions or missing versions, fallback to previous
+        #     if self.latest_versions:
+        #         versions["version"] = self.latest_versions.get("version")
+        #     else:
+        #         versions["version"] = None
 
         # Store the versions
         self.latest_versions = versions

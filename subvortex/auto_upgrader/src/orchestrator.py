@@ -30,6 +30,7 @@ import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.path as saup
 import subvortex.auto_upgrader.src.utils as sauu
 import subvortex.auto_upgrader.src.exception as saue
+import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.resolvers.dependency_resolver as saudr
 import subvortex.auto_upgrader.src.github as saug
 import subvortex.auto_upgrader.src.resolvers.metadata_resolver as saumr
@@ -300,6 +301,22 @@ class Orchestrator:
         )
 
     def _pull_current_assets(self):
+        # Normalized the current version
+        denormalized_version = sauv.normalize_version(version=self.current_version)
+
+        # Check if the current assets have already been download and unzipped
+        version_path = os.path.join(
+            sauc.SV_ASSET_DIR, f"subvortex-{denormalized_version}"
+        )
+        is_exist = os.path.exists(version_path)
+        if is_exist:
+            btul.logging.debug(
+                f"Version {self.current_version} already pulled in {version_path}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
+            return
+
         # Download and unzip the latest version
         self._pull_assets(version=self.current_version)
 
@@ -420,7 +437,7 @@ class Orchestrator:
                 # New service in latest
                 latest.needs_update = True
                 latest.upgrade_type = "install"
-                btul.logging.info(
+                btul.logging.debug(
                     f"{latest.name} is a new service in latest version. Marked for installation.",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
@@ -436,14 +453,14 @@ class Orchestrator:
                 latest.upgrade_type = (
                     "upgrade" if latest_version > current_version else "downgrade"
                 )
-                btul.logging.info(
+                btul.logging.debug(
                     f"{latest.name} version change detected: {current.version} -> {latest.version} ({latest.upgrade_type})",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
             else:
                 latest.needs_update = False
                 latest.upgrade_type = None
-                btul.logging.info(
+                btul.logging.debug(
                     f"{latest.name} is already up-to-date at version {latest.version}.",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
@@ -496,17 +513,29 @@ class Orchestrator:
             old_service = current_services_map.get(new_service.id)
             service_pairs.append((new_service, old_service))
 
-        # Create the migration manager with service pairs
-        self.migration_manager = MigrationManager(service_pairs)
-
         # Start services that are new and have migrations
-        has_migrations = False
-        for new_service, _ in service_pairs:
+        service_pairs_to_apply: List[Tuple[saus.Service, saus.Service]] = []
+        for new_service, old_service in service_pairs:
             # Check if there is any migrations to apply
             has_migrations = self._has_migrations(new_service)
 
             # Check if there are any migrations to install
-            if new_service.upgrade_type != "install" or not has_migrations:
+            if not has_migrations:
+                btul.logging.debug(
+                    f"Skipping migrations for {new_service.name} (upgrade_type={new_service.upgrade_type}, has_migrations={has_migrations})",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                continue
+
+            btul.logging.debug(
+                f"Migrations found for {new_service.name}", prefix=sauc.SV_LOGGER_NAME
+            )
+
+            # Add the service to apply migrations
+            service_pairs_to_apply.append((new_service, old_service))
+
+            # If the service is not new, it is already up and running
+            if new_service.upgrade_type != "install":
                 continue
 
             btul.logging.info(
@@ -520,9 +549,11 @@ class Orchestrator:
             # Add the service in the list
             self.previously_started_services.append(new_service.id)
 
-        if not has_migrations:
+        if len(service_pairs_to_apply) == 0:
             return
 
+        # Create the migration manager with service pairs
+        self.migration_manager = MigrationManager(service_pairs)
         self.migration_manager.collect_migrations()
         await self.migration_manager.apply()
 
@@ -576,7 +607,7 @@ class Orchestrator:
     def _switch_services(self):
         # Ensure the working directory exists
         os.makedirs(sauc.SV_EXECUTION_DIR, exist_ok=True)
-        
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.services)
 
@@ -644,18 +675,28 @@ class Orchestrator:
             self._execute_stop(service=service)
 
     def _prune_services(self):
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Prune useless images
+            self.github.prune_images()
+
         # Create the dependency resolver
         dependency_resolver = saudr.DependencyResolver(services=self.current_services)
 
         # Sort the services
         sorted_services = dependency_resolver.resolve_order(reverse=True)
 
+        has_turndown_services = False
         for service in sorted_services:
             if not service.must_remove:
                 continue
 
+            has_turndown_services = True
+
             # Execute the setup
             self._execute_teardown(service=service)
+
+        if not has_turndown_services:
+            btul.logging.debug(f"No services to teardown", prefix=sauc.SV_LOGGER_NAME)
 
     def _rollback_prune_services(self):
         # Create the dependency resolver
@@ -664,12 +705,18 @@ class Orchestrator:
         # Sort the services
         sorted_services = dependency_resolver.resolve_order()
 
+        has_turndown_services = False
         for service in sorted_services:
             if not service.must_remove:
                 continue
 
+            has_turndown_services = True
+
             # Execute the setup
             self._execute_setup(service=service)
+
+        if not has_turndown_services:
+            btul.logging.debug(f"No services to teardown", prefix=sauc.SV_LOGGER_NAME)
 
     def _remove_services(self):
         self._remove_assets(version=self.current_version)
@@ -749,7 +796,7 @@ class Orchestrator:
         if not os.path.exists(script_file):
             raise saue.MissingFileError(file_path=script_file)
 
-        btul.logging.info(
+        btul.logging.debug(
             f"⚙️ Running {action} for {service.name} (version: {service.version})",
             prefix=sauc.SV_LOGGER_NAME,
         )
@@ -787,10 +834,13 @@ class Orchestrator:
             return
 
         # Remove the directory
-        shutil.rmtree(asset_dir)
+        shutil.rmtree(asset_dir, onerror=lambda *args, **kwargs: None)
 
         # Notify the success
-        btul.logging.info("Assets removed", prefix=sauc.SV_LOGGER_NAME)
+        btul.logging.debug(
+            f"Assets for version {version} have been removed",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
     def _has_migrations(self, service: saus.Service) -> bool:
         migraton_dir = (
