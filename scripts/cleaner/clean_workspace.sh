@@ -9,18 +9,18 @@ cd "$SCRIPT_DIR/../.."
 source ./scripts/utils/utils.sh
 
 show_help() {
-    echo "Usage: $0 [--execution=process|service]"
+    echo "Usage: $0 [--version <x.x.x>] [--remove] [--dry-run]"
     echo
     echo "Description:"
-    echo "  Clean all contents under /var/tmp/subvortex,"
-    echo "  preserving only the latest versioned directory and all non-versioned ones."
-    echo "  With --remove, remove everything."
+    echo "  Clean all contents under /var/tmp/subvortex."
+    echo "  With --remove, remove everything including symlink and latest version."
+    echo "  With --version, remove only the specific version and its symlink if pointing to it."
     echo
     echo "Options:"
-    echo "  -v, --version      Remove the version (e.g x.x.x, x.x.x-alpha.x or x.x.x-rc.x)"
+    echo "  -v, --version      Remove the version (e.g. x.x.x or x.x.x-alpha.x)"
     echo "  -r, --remove       Remove all versioned and non-versioned directories"
     echo "  -d, --dry-run      Preview the actions without actually deleting anything"
-    echo "  -h, --help         Show this help message and exit"
+    echo "  -h, --help         Show this help message"
     exit 0
 }
 
@@ -37,10 +37,10 @@ version_sort() {
     fi
 }
 
-OPTIONS="e:v:rdh"
-LONGOPTIONS="execute:version:,remove,dry-run,help"
+OPTIONS="v:rdh"
+LONGOPTIONS="version:,remove,dry-run,help"
 
-REMOVE_LATEST=false
+REMOVE_ALL=false
 VERSION=""
 DRY_RUN=false
 
@@ -52,7 +52,7 @@ while [ "$#" -ge 1 ]; do
             shift 2
         ;;
         -r|--remove)
-            REMOVE_LATEST=true
+            REMOVE_ALL=true
             shift
         ;;
         -d|--dry-run)
@@ -61,17 +61,11 @@ while [ "$#" -ge 1 ]; do
         ;;
         -h|--help)
             show_help
-            exit 0
-        ;;
-        --)
-            shift
-            break
-        ;;
+            ;;
         *)
             echo "❌ Unexpected argument: $1"
             show_help
-            exit 1
-        ;;
+            ;;
     esac
 done
 
@@ -119,43 +113,21 @@ fi
 echo "🧹 Cleaning up: $TARGET_BASE"
 
 for dir in "${all_dirs[@]}"; do
-    keep=false
+    keep=true
 
-    if [ -n "$VERSION" ]; then
-        # Remove only the versioned directory that matches the normalized target
-        if [ "$dir" == "$target_normalized" ]; then
-            if [[ "$DRY_RUN" == "false" ]]; then
-                echo "🔥 Removing: $dir"
-                rm -rf "$dir"
-
-                # Remove symlink if it points to this version
-                if [ "$symlink_target" == "$dir" ]; then
-                    echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
-                    rm -f "$SYMLINK_PATH"
-                fi
-            else
-                echo "💡 Simulating removal: $dir"
-                if [ "$symlink_target" == "$dir" ]; then
-                    echo "💡 Simulating symlink removal: $SYMLINK_PATH (targeted $dir)"
-                fi
-            fi
-        else
-            echo "🛡️  Preserving: $dir"
-        fi
-        continue
-    fi
-
-    if [ "$REMOVE_LATEST" = false ]; then
+    if [ "$REMOVE_ALL" = true ]; then
+        keep=false
+    elif [ -n "$VERSION" ] && [ "$dir" == "$target_normalized" ]; then
+        keep=false
+    elif [ "$dir" == "$latest_version" ]; then
+        keep=true
+    else
         for nvd in "${non_versioned_dirs[@]}"; do
             if [ "$dir" == "$nvd" ]; then
                 keep=true
                 break
             fi
         done
-
-        if [ "$dir" == "$latest_version" ]; then
-            keep=true
-        fi
     fi
 
     if [ "$keep" = true ]; then
@@ -165,9 +137,9 @@ for dir in "${all_dirs[@]}"; do
             echo "🔥 Removing: $dir"
             sudo rm -rf "$dir"
 
-            if [ "$symlink_target" == "$dir" ]; then
+            if [ "$symlink_target" == "$dir" ] && [ -L "$SYMLINK_PATH" ]; then
                 echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
-                sudo rm -rf "$SYMLINK_PATH"
+                sudo rm -f "$SYMLINK_PATH"
             fi
         else
             echo "💡 Simulating removal: $dir"
@@ -177,5 +149,15 @@ for dir in "${all_dirs[@]}"; do
         fi
     fi
 done
+
+# Extra check: If --remove is passed and the symlink still exists
+if [ "$REMOVE_ALL" = true ] && [ -L "$SYMLINK_PATH" ]; then
+    echo "🔗 Removing lingering symlink: $SYMLINK_PATH"
+    if [[ "$DRY_RUN" == "false" ]]; then
+        sudo rm -f "$SYMLINK_PATH"
+    else
+        echo "💡 Simulating symlink removal: $SYMLINK_PATH"
+    fi
+fi
 
 echo "✅ Cleanup workspace complete."

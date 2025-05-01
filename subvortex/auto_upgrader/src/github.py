@@ -21,6 +21,7 @@ import json
 import shutil
 import tarfile
 import requests
+import importlib
 import subprocess
 from packaging.version import Version, InvalidVersion
 
@@ -579,6 +580,9 @@ class Github:
 
     def _get_local_version(self):
         versions = []
+
+        # Force Python to re-read the directory
+        importlib.reload(os)
 
         # Check if base_dir exists
         if not os.path.isdir(sauc.SV_ASSET_DIR):
