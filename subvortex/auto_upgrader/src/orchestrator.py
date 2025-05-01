@@ -394,11 +394,9 @@ class Orchestrator:
         for service in self.latest_services:
             # Get all matching template files
             source_files = saup.get_au_template_file(service=service)
-
-            if not source_files:
-                raise saue.MissingFileError(
-                    file_path=f"template-subvortex-{service.role}-{service.key}.*"
-                )
+            if len(source_files):
+                btul.logging.debug(f"No templates to copy for {service.name}", prefix=sauc.SV_LOGGER_NAME)
+                continue
 
             # Get target directory
             target_dir = saup.get_service_template(service=service)
