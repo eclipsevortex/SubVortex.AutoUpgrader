@@ -178,4 +178,4 @@ for dir in "${all_dirs[@]}"; do
     fi
 done
 
-echo "✅ Cleanup complete."
+echo "✅ Cleanup workspace complete."
