@@ -77,15 +77,12 @@ def get_service_directory(service: saus.Service, version: str = None):
     return path
 
 
-def get_au_template_file(service: saus.Service):
+def get_au_template_files():
     # Build the env directory
-    env_dir = os.path.join(here, "../templates")
-
-    # Build the glob pattern for all matching files
-    pattern = os.path.join(env_dir, f"template-subvortex-{service.role}-{service.key}.*")
+    template_dir = os.path.join(here, "../templates")
 
     # Return all matching files
-    return glob.glob(pattern)
+    return glob.glob(template_dir)
 
 
 def get_au_environment_file(service: saus.Service):

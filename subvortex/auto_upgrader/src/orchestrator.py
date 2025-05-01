@@ -400,7 +400,7 @@ class Orchestrator:
     def _copy_templates_files(self):
         for service in self.latest_services:
             # Get all matching template files
-            source_files = saup.get_au_template_file(service=service)
+            source_files = saup.get_au_template_files()
             if len(source_files) == 0:
                 btul.logging.debug(
                     f"No templates to copy for {service.name}",

@@ -103,7 +103,7 @@ def test_get_au_template_file(fake_service):
                 with open(os.path.join(template_dir, fname), "w") as f:
                     f.write("# dummy content")
 
-            result = saup.get_au_template_file(fake_service)
+            result = saup.get_au_template_files(fake_service)
             found_files = [os.path.basename(f) for f in result]
 
             assert len(result) == 2
