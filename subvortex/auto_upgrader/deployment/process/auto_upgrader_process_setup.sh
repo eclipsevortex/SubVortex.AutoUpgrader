@@ -71,6 +71,14 @@ if ! git pull --ff-only; then
     git reset --hard origin/"$BRANCH"
 fi
 
+# Restore stashed changes if we made one
+if [[ "$STASHED" -eq 1 ]]; then
+    echo "🧵 Restoring stashed local changes..."
+    git stash pop || {
+        echo "⚠️ Conflicts while restoring stash. You may need to resolve manually."
+    }
+fi
+
 # Create virtual environment
 python3 -m venv venv
 
