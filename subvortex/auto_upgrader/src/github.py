@@ -595,7 +595,13 @@ class Github:
         # List all directories
         for entry in os.listdir(sauc.SV_ASSET_DIR):
             entry_path = os.path.join(sauc.SV_ASSET_DIR, entry)
-            if not os.path.isdir(entry_path):
+
+            # Skip if not a real directory (symlink with missing target, etc.)
+            if (
+                not os.path.isdir(entry_path)
+                or os.path.islink(entry_path)
+                and not os.path.exists(entry_path)
+            ):
                 continue
 
             # Match directory name pattern
