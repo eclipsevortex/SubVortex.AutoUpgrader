@@ -394,8 +394,11 @@ class Orchestrator:
         for service in self.latest_services:
             # Get all matching template files
             source_files = saup.get_au_template_file(service=service)
-            if len(source_files):
-                btul.logging.debug(f"No templates to copy for {service.name}", prefix=sauc.SV_LOGGER_NAME)
+            if len(source_files) == 0:
+                btul.logging.debug(
+                    f"No templates to copy for {service.name}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
                 continue
 
             # Get target directory
@@ -968,8 +971,12 @@ class Orchestrator:
             prefix=sauc.SV_LOGGER_NAME,
         )
 
-        # Add the flag as env var to be consumed by the script
-        env = os.environ.copy()
+        # Add the flag as env var to be consumed by the script but remove any SUBVORTEX_* env var that are for the auto upgrader
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith("SUBVORTEX_")
+        }
         env["SUBVORTEX_FLOATTING_FLAG"] = sauu.get_tag()
 
         try:
