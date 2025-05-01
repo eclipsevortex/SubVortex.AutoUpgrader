@@ -387,7 +387,7 @@ async def test_run_plan_when_migrate_for_the_first_time_after_releasing_auto_upr
     await orchestrator.run_plan()
 
     # Assert
-    assert 15 == len(orchestrator.rollback_steps)
+    assert 16 == len(orchestrator.rollback_steps)
     steps = [x[0] for x in orchestrator.rollback_steps]
     assert [
         "Get current version",
@@ -399,6 +399,7 @@ async def test_run_plan_when_migrate_for_the_first_time_after_releasing_auto_upr
         "📦 Copying templates",
         "Downgrade services",
         "🛑 Stop previous services",
+        "🔧 Pre-migration setup",
         "🔁 Switching to new version",
         "🚀 Start new services",
         "🛠️ Run migrations",
@@ -501,7 +502,7 @@ async def test_run_plan_when_new_version_for_all_services_should_execute_all_ste
     await orchestrator.run_plan()
 
     # Assert
-    assert 17 == len(orchestrator.rollback_steps)
+    assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["neuron", "redis"],
@@ -547,7 +548,7 @@ async def test_run_plan_when_new_version_for_few_services_should_execute_all_ste
     await orchestrator.run_plan()
 
     # Assert
-    assert 17 == len(orchestrator.rollback_steps)
+    assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["neuron"],
@@ -590,7 +591,7 @@ async def test_run_plan_when_new_version_removes_an_old_service_should_call_the_
     await orchestrator.run_plan()
 
     # Assert
-    assert 17 == len(orchestrator.rollback_steps)
+    assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=[],
@@ -633,7 +634,7 @@ async def test_run_plan_when_new_version_removes_an_old_service_and_update_anoth
     await orchestrator.run_plan()
 
     # Assert
-    assert 17 == len(orchestrator.rollback_steps)
+    assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["neuron"],
@@ -676,7 +677,7 @@ async def test_run_plan_when_new_version_creates_a_new_service_should_call_the_r
     await orchestrator.run_plan()
 
     # Assert
-    assert 17 == len(orchestrator.rollback_steps)
+    assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["redis"],
@@ -719,7 +720,7 @@ async def test_run_plan_when_new_version_creates_a_new_service_and_update_anothe
     await orchestrator.run_plan()
 
     # Assert
-    assert 17 == len(orchestrator.rollback_steps)
+    assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["neuron", "redis"],
@@ -769,7 +770,7 @@ async def test_run_rollback_plan_when_new_version_for_all_services_and_exception
         await orchestrator.run_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["neuron", "redis"],
@@ -786,7 +787,7 @@ async def test_run_rollback_plan_when_new_version_for_all_services_and_exception
     await orchestrator.run_rollback_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     orchestrator._pull_assets.assert_called_with(version="1.0.0")
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
@@ -836,7 +837,7 @@ async def test_run_rollback_plan_when_new_version_for_few_services_and_exception
         await orchestrator.run_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["neuron", "redis"],
@@ -853,7 +854,7 @@ async def test_run_rollback_plan_when_new_version_for_few_services_and_exception
     await orchestrator.run_rollback_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     orchestrator._pull_assets.assert_called_with(version="1.0.0")
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
@@ -900,7 +901,7 @@ async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_exc
         await orchestrator.run_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["neuron"],
@@ -917,7 +918,7 @@ async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_exc
     await orchestrator.run_rollback_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     orchestrator._pull_assets.assert_called_with(version="1.0.0")
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
@@ -964,7 +965,7 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
         await orchestrator.run_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["redis"],
@@ -981,7 +982,7 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
     await orchestrator.run_rollback_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     orchestrator._pull_assets.assert_called_with(version="1.0.0")
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
@@ -1028,7 +1029,7 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
         await orchestrator.run_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=["neuron", "redis"],
@@ -1045,7 +1046,7 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
     await orchestrator.run_rollback_plan()
 
     # Assert
-    assert 16 == len(orchestrator.rollback_steps)
+    assert 17 == len(orchestrator.rollback_steps)
     orchestrator._pull_assets.assert_called_with(version="1.0.0")
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,

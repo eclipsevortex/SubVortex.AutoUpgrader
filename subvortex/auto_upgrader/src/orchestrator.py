@@ -158,6 +158,13 @@ class Orchestrator:
             self._stop_current_services,
         )
 
+        # Pre-migration setup
+        await self._step(
+            "🔧 Pre-migration setup",
+            self._rollback_nop,
+            self._pre_migrations,
+        )
+
         # Switch services to new version
         await self._step(
             "🔁 Switching to new version",
@@ -574,7 +581,7 @@ class Orchestrator:
             # Execute the setup
             self._execute_teardown(service=service)
 
-    async def _rollout_migrations(self):
+    async def _pre_migrations(self):
         btul.logging.info(
             "📦 Checking for service migrations...", prefix=sauc.SV_LOGGER_NAME
         )
@@ -614,10 +621,17 @@ class Orchestrator:
 
         if len(service_pairs_to_apply) == 0:
             btul.logging.debug("No migrations to apply", prefix=sauc.SV_LOGGER_NAME)
-            return
 
         # Create the migration manager with service pairs
         self.migration_manager = MigrationManager(service_pairs_to_apply)
+        await self.migration_manager.prepare()
+
+    async def _rollout_migrations(self):
+        btul.logging.info(
+            "📦 Checking for service migrations...", prefix=sauc.SV_LOGGER_NAME
+        )
+
+        # Create the migration manager with service pairs
         self.migration_manager.collect_migrations()
         await self.migration_manager.apply()
 

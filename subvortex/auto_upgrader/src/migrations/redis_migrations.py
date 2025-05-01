@@ -15,6 +15,8 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import os
+import re
+import shutil
 import importlib
 from dotenv import load_dotenv
 from redis import asyncio as aioredis
@@ -31,6 +33,10 @@ from packaging.version import Version
 # Resolve the path two levels up from the current file
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../../.env"))
 load_dotenv(dotenv_path=env_path)
+
+
+SV_REDIS_DIR = "/var/tmp/subvortex-dump"
+SV_REDIS_DB_FILENAME = "subvortex-validator-redis.dump"
 
 
 class RedisMigrations(Migration):
@@ -56,6 +62,52 @@ class RedisMigrations(Migration):
         self.graph = {}  # revision -> down_revision
         self.sorted_revisions = []
         self.applied_revisions = []  # Keep track of what we applied during apply()
+
+    async def prepare(self):
+        config_name = f"template-subvortex-{sauc.SV_EXECUTION_ROLE}-redis"
+
+        # Get the config of the previous config
+        previous_config = next(
+            (
+                x
+                for x in saup.get_service_template(self.previous_service)
+                if x == config_name
+            ),
+            None,
+        )
+
+        # Get the config of the new config
+        new_config = next(
+            (
+                x
+                for x in saup.get_service_template(self.new_service)
+                if x == config_name
+            ),
+            None,
+        )
+
+        # Get the dump dir of the previous version
+        previous_dump_dir, previous_dump_filename = self._get_redis_dump_config(
+            previous_config
+        )
+        if not os.path.exists(f"{previous_dump_dir}/{previous_dump_filename}"):
+            return
+
+        # Get the dump dir of the new version
+        new_dump_dir, new_dump_filename = self._get_redis_dump_config(new_config)
+
+        # Compare the dir
+        if previous_dump_dir == new_dump_dir:
+            return
+
+        # Ensure the destination exists
+        os.makedirs(new_dump_dir, exist_ok=True)
+
+        # Copy the dump from previous to new
+        shutil.copy2(
+            f"{previous_dump_dir}/{previous_dump_filename}",
+            f"{new_dump_dir}/{new_dump_filename}",
+        )
 
     async def apply(self):
         database = self._create_redis_instance()
@@ -248,3 +300,25 @@ class RedisMigrations(Migration):
             return module
         except Exception as e:
             raise saue.ModuleMigrationError(name=name, details=str(e))
+
+    def _get_redis_dump_config(self, conf_path: str) -> str | None:
+        dump_dir = SV_REDIS_DIR
+        db_filename = SV_REDIS_DB_FILENAME
+
+        with open(conf_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                dir_match = re.match(r"^\s*dir\s+(.+)", line)
+                if dir_match:
+                    dump_dir = dir_match.group(1).strip()
+                    continue
+
+                file_match = re.match(r"^\s*dbfilename\s+(.+)", line)
+                if file_match:
+                    db_filename = file_match.group(1).strip()
+                    continue
+
+        return dump_dir, db_filename

@@ -57,6 +57,10 @@ class MigrationManager:
             migration_class = MIGRATION_TYPES[migration_type]
             self.migrations.append(migration_class(new_service, previous_service))
 
+    async def prepare(self):
+        for migration in self.migrations:
+            await migration.prepare()
+            
     async def apply(self):
         for migration in self.migrations:
             await migration.apply()

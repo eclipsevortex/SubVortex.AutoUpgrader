@@ -27,7 +27,6 @@ from subvortex.auto_upgrader.src.exception import (
     MalformedMigrationFileError,
     InvalidRevisionError,
     RevisionNotFoundError,
-    DownRevisionNotFoundError,
 )
 from subvortex.auto_upgrader.src.migrations.redis_migrations import RedisMigrations
 
@@ -404,3 +403,85 @@ async def test_raise_exception_when_revision_is_invalid(redis_service):
     assert "[AU1006] Invalid revision: Revision: 0.0.1, Down revision: 0.0.1" == str(
         exc.value
     )
+
+
+@pytest.mark.asyncio
+@patch("shutil.copy2")
+@patch("os.makedirs")
+@patch("os.path.exists")
+@patch(
+    "subvortex.auto_upgrader.src.migrations.redis_migrations.RedisMigrations._get_redis_dump_config"
+)
+async def test_prepare_copies_dump_if_dirs_differ(
+    mock_get_dump_config, mock_path_exists, mock_makedirs, mock_copy2, redis_service
+):
+    # Arrange
+    previous_service = copy.deepcopy(redis_service)
+    new_service = copy.deepcopy(redis_service)
+
+    redis = RedisMigrations(new_service, previous_service)
+
+    previous_config = "/etc/redis/old_redis.conf"
+    new_config = "/etc/redis/new_redis.conf"
+
+    # Patch saup.get_service_template to return mocked config paths
+    with patch(
+        "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_service_template"
+    ) as mock_get_template:
+        mock_get_template.side_effect = lambda svc: (
+            [previous_config] if svc == previous_service else [new_config]
+        )
+
+        # Mock _get_redis_dump_config responses
+        mock_get_dump_config.side_effect = [
+            ("/old/dir", "dump.rdb"),
+            ("/new/dir", "dump.rdb"),
+        ]
+
+        mock_path_exists.return_value = True
+
+        # Act
+        await redis.prepare()
+
+        # Assert
+        mock_makedirs.assert_called_once_with("/new/dir", exist_ok=True)
+        mock_copy2.assert_called_once_with("/old/dir/dump.rdb", "/new/dir/dump.rdb")
+
+
+@pytest.mark.asyncio
+@patch("shutil.copy2")
+@patch("os.makedirs")
+@patch("os.path.exists")
+@patch(
+    "subvortex.auto_upgrader.src.migrations.redis_migrations.RedisMigrations._get_redis_dump_config"
+)
+async def test_prepare_does_nothing_if_dirs_are_same(
+    mock_get_dump_config, mock_path_exists, mock_makedirs, mock_copy2, redis_service
+):
+    # Arrange
+    previous_service = copy.deepcopy(redis_service)
+    new_service = copy.deepcopy(redis_service)
+
+    redis = RedisMigrations(new_service, previous_service)
+
+    config_path = "/etc/redis/shared_redis.conf"
+
+    with patch(
+        "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_service_template"
+    ) as mock_get_template:
+        mock_get_template.return_value = [config_path]
+
+        # Both configs return the same dir and filename
+        mock_get_dump_config.side_effect = [
+            ("/shared/dir", "dump.rdb"),
+            ("/shared/dir", "dump.rdb"),
+        ]
+
+        mock_path_exists.return_value = True
+
+        # Act
+        await redis.prepare()
+
+        # Assert
+        mock_makedirs.assert_not_called()
+        mock_copy2.assert_not_called()
