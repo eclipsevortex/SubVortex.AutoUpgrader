@@ -117,20 +117,19 @@ for dir in "${all_dirs[@]}"; do
     if [ -n "$VERSION" ]; then
         if [ "$dir" == "$target_normalized" ]; then
             if [[ "$DRY_RUN" == "false" ]]; then
-                echo "🔥 Removing: $dir"
-                rm -rf "$dir" || true
-                if [ -d "$dir" ]; then
-                    echo "⚠️  Directory $dir still exists — retrying with sudo"
-                    sudo rm -rf "$dir"
-                fi
+                echo "📎 Marking for reinstall: $dir"
+                touch "$dir/force_reinstall"
 
-                if [ "$symlink_target" == "$dir" ]; then
-                    echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
-                    rm -f "$SYMLINK_PATH" || sudo rm -f "$SYMLINK_PATH"
+                if [ "$symlink_target" != "$dir" ]; then
+                    echo "🔥 Removing version $dir (not current symlink)"
+                    rm -rf "$dir" || true
+                    [ -d "$dir" ] && echo "⚠️  Directory still exists — retrying with sudo" && sudo rm -rf "$dir"
+                else
+                    echo "🛡️  Preserving current symlink target $dir (marked for reinstall only)"
                 fi
             else
-                echo "💡 Simulating removal: $dir"
-                [ "$symlink_target" == "$dir" ] && echo "💡 Simulating symlink removal: $SYMLINK_PATH"
+                echo "💡 Simulating: mark $dir with force_reinstall"
+                [ "$symlink_target" != "$dir" ] && echo "💡 Simulating removal of $dir"
             fi
         else
             echo "🛡️  Preserving: $dir"
@@ -140,12 +139,8 @@ for dir in "${all_dirs[@]}"; do
 
     if [ "$REMOVE_LATEST" = false ]; then
         for nvd in "${non_versioned_dirs[@]}"; do
-            if [ "$dir" == "$nvd" ]; then
-                keep=true
-                break
-            fi
+            [ "$dir" == "$nvd" ] && keep=true && break
         done
-
         [ "$dir" == "$latest_version" ] && keep=true
     fi
 
@@ -153,20 +148,19 @@ for dir in "${all_dirs[@]}"; do
         echo "🛡️  Preserving: $dir"
     else
         if [[ "$DRY_RUN" == "false" ]]; then
-            echo "🔥 Removing: $dir"
-            rm -rf "$dir" || true
-            if [ -d "$dir" ]; then
-                echo "⚠️  Directory $dir still exists — retrying with sudo"
-                sudo rm -rf "$dir"
-            fi
+            echo "📎 Marking for reinstall: $dir"
+            touch "$dir/force_reinstall"
 
-            if [ "$symlink_target" == "$dir" ]; then
-                echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
-                rm -f "$SYMLINK_PATH" || sudo rm -f "$SYMLINK_PATH"
+            if [ "$symlink_target" != "$dir" ]; then
+                echo "🔥 Removing: $dir"
+                rm -rf "$dir" || true
+                [ -d "$dir" ] && echo "⚠️  Directory still exists — retrying with sudo" && sudo rm -rf "$dir"
+            else
+                echo "🛡️  Preserving current symlink target $dir (marked for reinstall only)"
             fi
         else
-            echo "💡 Simulating removal: $dir"
-            [ "$symlink_target" == "$dir" ] && echo "💡 Simulating symlink removal: $SYMLINK_PATH"
+            echo "💡 Simulating: mark $dir with force_reinstall"
+            [ "$symlink_target" != "$dir" ] && echo "💡 Simulating removal of $dir"
         fi
     fi
 done

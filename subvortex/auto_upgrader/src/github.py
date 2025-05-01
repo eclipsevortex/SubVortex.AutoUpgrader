@@ -581,9 +581,6 @@ class Github:
     def _get_local_version(self):
         versions = []
 
-        # Force Python to re-read the directory
-        importlib.reload(os)
-
         # Check if base_dir exists
         if not os.path.isdir(sauc.SV_ASSET_DIR):
             btul.logging.warning(
@@ -597,11 +594,7 @@ class Github:
             entry_path = os.path.join(sauc.SV_ASSET_DIR, entry)
 
             # Skip if not a real directory (symlink with missing target, etc.)
-            if (
-                not os.path.isdir(entry_path)
-                or os.path.islink(entry_path)
-                and not os.path.exists(entry_path)
-            ):
+            if not os.path.isdir(entry_path):
                 continue
 
             # Match directory name pattern
@@ -622,12 +615,23 @@ class Github:
         if not versions:
             return None
 
-        btul.logging.debug(
-            f"# of versions: {len(versions)}", prefix=sauc.SV_LOGGER_NAME
-        )
-
         # Get the latest verison locally
         latest_version = str(max(versions))
+
+        # Check if force reinstall marker exists
+        force_install_file = os.path.join(
+            sauc.SV_ASSET_DIR, f"subvortex-{latest_version}", "force_reinstall"
+        )
+        if os.path.isfile(force_install_file):
+            btul.logging.warning(
+                f"⚠️ Force reinstall marker found for version {latest_version}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
+            # Remove the marker immediately to make it one-time
+            os.remove(force_install_file)
+
+            return None
 
         # Denormalize the version
         latest_version_denormalized = sauv.denormalize_version(latest_version)
