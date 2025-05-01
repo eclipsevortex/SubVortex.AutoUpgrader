@@ -21,7 +21,6 @@ import json
 import shutil
 import tarfile
 import requests
-import importlib
 import subprocess
 from packaging.version import Version, InvalidVersion
 
