@@ -1003,7 +1003,7 @@ class Orchestrator:
                 check=False,
             )
 
-            if btul.logging.level <= logging.CRITICAL:
+            if btul.logging.current_state == btul.logging.Trace:
                 btul.logging.debug(
                     f"📝 {service.name} {action} stdout:\n{result.stdout.strip()}",
                     prefix=sauc.SV_LOGGER_NAME,
