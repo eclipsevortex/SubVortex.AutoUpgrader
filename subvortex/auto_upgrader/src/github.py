@@ -21,6 +21,7 @@ import json
 import shutil
 import tarfile
 import requests
+import importlib
 import subprocess
 from packaging.version import Version, InvalidVersion
 
@@ -580,6 +581,10 @@ class Github:
     def _get_local_version(self):
         versions = []
 
+        # Force Python to re-read the directory
+        importlib.reload(os)
+        importlib.invalidate_caches()
+
         # Check if base_dir exists
         if not os.path.isdir(sauc.SV_ASSET_DIR):
             btul.logging.warning(
@@ -593,7 +598,9 @@ class Github:
             entry_path = os.path.join(sauc.SV_ASSET_DIR, entry)
 
             # Skip if not a real directory (symlink with missing target, etc.)
-            if not os.path.isdir(entry_path):
+            if not os.path.isdir(entry_path) or (
+                os.path.islink(entry_path) and not os.path.exists(entry_path)
+            ):
                 continue
 
             # Match directory name pattern
