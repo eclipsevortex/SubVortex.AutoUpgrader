@@ -16,6 +16,7 @@
 # DEALINGS IN THE SOFTWARE.
 import os
 import pytest
+import shutil
 import tempfile
 from unittest import mock
 from unittest.mock import patch
@@ -98,6 +99,23 @@ def orchestrator():
 def patch_execution_method():
     with patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "process"):
         yield
+
+
+def validator_template_files(directory, filenames=None):
+    """
+    Create mock validator template files with optional filenames.
+    Returns a list of full paths to the created files.
+    """
+    filenames = filenames
+    filepaths = []
+
+    for fname in filenames:
+        fpath = os.path.join(directory, fname)
+        with open(fpath, "w") as f:
+            f.write(f"# content for {fname}")
+        filepaths.append(fpath)
+
+    return filepaths
 
 
 def create_service(
@@ -292,19 +310,24 @@ def test_has_migrations_when_no_migration_should_return_false(orchestrator):
     assert True == result
 
 
-def test_not_pull_current_version_if_different_from_the_one_of_the_auto_upgrader_release(orchestrator):
+def test_not_pull_current_version_if_different_from_the_one_of_the_auto_upgrader_release(
+    orchestrator,
+):
     # Arrange
     orchestrator._pull_latest_assets = Orchestrator._pull_latest_assets.__get__(
         orchestrator
     )
 
-    orchestrator.github.get_local_version.return_value = sauc.DEFAULT_LAST_RELEASE.get('global')
+    orchestrator.github.get_local_version.return_value = sauc.DEFAULT_LAST_RELEASE.get(
+        "global"
+    )
 
     # Action
     orchestrator.run_plan()
 
     # Assert
     assert not orchestrator._pull_current_assets.called
+
 
 @patch("subvortex.auto_upgrader.src.orchestrator.os.path.exists")
 def test_not_pull_current_version_if_already_pulled(mock_os_path_exists, orchestrator):
@@ -323,9 +346,12 @@ def test_not_pull_current_version_if_already_pulled(mock_os_path_exists, orchest
     # Assert
     assert not orchestrator._pull_current_assets.called
 
+
 @pytest.mark.asyncio
 @patch("subvortex.auto_upgrader.src.orchestrator.os.path.exists")
-async def test_not_pull_current_version_if_not_pulled_yet(mock_os_path_exists, orchestrator):
+async def test_not_pull_current_version_if_not_pulled_yet(
+    mock_os_path_exists, orchestrator
+):
     # Arrange
     orchestrator._pull_latest_assets = Orchestrator._pull_latest_assets.__get__(
         orchestrator
@@ -341,3 +367,63 @@ async def test_not_pull_current_version_if_not_pulled_yet(mock_os_path_exists, o
 
     # Assert
     assert orchestrator._pull_current_assets.called
+
+
+def test_copy_templates_files(monkeypatch):
+    # Setup temporary template and service directories
+    templates_dir = tempfile.mkdtemp()
+    service_template_dir = tempfile.mkdtemp()
+
+    # Filenames to simulate
+    filenames = [
+        "template-subvortex-validator-redis.conf",
+        "template-subvortex-validator-redis.json",
+    ]
+    template_files = validator_template_files(templates_dir, filenames)
+
+    # Mock Service
+    service = Service(
+        id="validator-redis",
+        name="redis",
+        version="v3.0.0-alpha.1",
+        component_version="v3.0.0-alpha.1",
+        service_version="v3.0.0-alpha.1",
+        execution="process",
+        migration="",
+        setup_command="",
+        start_command="",
+        stop_command="",
+        teardown_command="",
+    )
+
+    # Patch path methods
+    monkeypatch.setattr(
+        "subvortex.auto_upgrader.src.path.get_au_template_file",
+        lambda service: template_files,
+    )
+    monkeypatch.setattr(
+        "subvortex.auto_upgrader.src.path.get_service_template",
+        lambda service: service_template_dir,
+    )
+
+    # Patch logger
+    monkeypatch.setattr("subvortex.auto_upgrader.src.constants.SV_LOGGER_NAME", "test")
+
+    # Instantiate orchestrator and inject service
+    orch = Orchestrator()
+    orch.latest_services = [service]
+
+    # Run method
+    orch._copy_templates_files()
+
+    # Assert: both files were copied with correct filenames
+    for src_file in template_files:
+        fname = os.path.basename(src_file).replace("template-", "")
+        copied_file = os.path.join(service_template_dir, fname)
+        assert os.path.isfile(
+            copied_file
+        ), f"{fname} not found in {service_template_dir}"
+
+    # Clean up
+    shutil.rmtree(templates_dir)
+    shutil.rmtree(service_template_dir)

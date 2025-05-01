@@ -15,6 +15,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 import os
+import glob
 from os import path
 
 import subvortex.auto_upgrader.src.constants as sauc
@@ -50,6 +51,19 @@ def get_role_directory(version: str):
     return path
 
 
+def get_service_template(service: saus.Service, version: str = None):
+    if not service.version:
+        return None
+
+    # Get the version directory
+    version_path = get_version_directory(version=version or service.version)
+
+    # Build the path of the role (miner/validator) directory
+    path = f"{version_path}/subvortex/{sauc.SV_EXECUTION_ROLE}/{service.key}/deployment/templates"
+
+    return path
+
+
 def get_service_directory(service: saus.Service, version: str = None):
     if not service.version:
         return None
@@ -61,6 +75,17 @@ def get_service_directory(service: saus.Service, version: str = None):
     path = f"{version_path}/subvortex/{sauc.SV_EXECUTION_ROLE}/{service.key}"
 
     return path
+
+
+def get_au_template_file(service: saus.Service):
+    # Build the env directory
+    env_dir = os.path.join(here, "../templates")
+
+    # Build the glob pattern for all matching files
+    pattern = os.path.join(env_dir, f"template-subvortex-{service.role}-{service.key}.*")
+
+    # Return all matching files
+    return glob.glob(pattern)
 
 
 def get_au_environment_file(service: saus.Service):

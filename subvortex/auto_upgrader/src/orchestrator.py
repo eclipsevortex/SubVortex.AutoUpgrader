@@ -113,7 +113,7 @@ class Orchestrator:
             self._load_current_services,
             condition=lambda: self.current_version != last_version_before_auto_upgrader,
         )
-        
+
         # Load the services of the latest version
         await self._step(
             "Load latest services", self._rollback_nop, self._load_latest_services
@@ -135,6 +135,13 @@ class Orchestrator:
             "📦 Copying environment variables",
             self._rollback_nop,
             self._copy_env_files,
+        )
+
+        # Copy the template files in the latest version services
+        await self._step(
+            "📦 Copying templates",
+            self._rollback_nop,
+            self._copy_templates_files,
         )
 
         # Upgrade the services that have changed
@@ -382,6 +389,35 @@ class Orchestrator:
                 f"📤 Copied env: {source_file} -> {env_file}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
+
+    def _copy_templates_files(self):
+        for service in self.latest_services:
+            # Get all matching template files
+            source_files = saup.get_au_template_file(service=service)
+
+            if not source_files:
+                raise saue.MissingFileError(
+                    file_path=f"template-subvortex-{service.role}-{service.key}.*"
+                )
+
+            # Get target directory
+            target_dir = saup.get_service_template(service=service)
+            if not os.path.isdir(target_dir):
+                raise saue.MissingDirectoryError(directory_path=target_dir)
+
+            for source_file in source_files:
+                filename = os.path.basename(source_file).replace("template-", "")
+                target_path = os.path.join(target_dir, filename)
+
+                shutil.copy2(source_file, target_path)
+
+                if not os.path.isfile(target_path):
+                    raise saue.MissingFileError(file_path=target_path)
+
+                btul.logging.trace(
+                    f"📤 Copied template: {source_file} -> {target_path}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
 
     def _load_current_services(self):
         # Get the version of all services for container, for the other it will come from the metadata loaded locally
@@ -847,7 +883,7 @@ class Orchestrator:
     def _is_already_pulled_current_version(self):
         # Normalized the current version
         denormalized_version = sauv.normalize_version(version=self.current_version)
-        
+
         # Check if the current assets have already been download and unzipped
         version_path = os.path.join(
             sauc.SV_ASSET_DIR, f"subvortex-{denormalized_version}"
