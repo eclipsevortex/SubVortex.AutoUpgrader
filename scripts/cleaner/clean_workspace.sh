@@ -163,11 +163,11 @@ for dir in "${all_dirs[@]}"; do
     else
         if [[ "$DRY_RUN" == "false" ]]; then
             echo "🔥 Removing: $dir"
-            rm -rf "$dir"
+            sudo rm -rf "$dir"
 
             if [ "$symlink_target" == "$dir" ]; then
                 echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
-                rm -f "$SYMLINK_PATH"
+                sudo rm -rf "$SYMLINK_PATH"
             fi
         else
             echo "💡 Simulating removal: $dir"
