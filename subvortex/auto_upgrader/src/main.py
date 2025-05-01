@@ -58,7 +58,7 @@ class Worker:
 
         if sauc.SV_EXECUTION_METHOD not in ['process', 'service', 'container']:
             btul.logging.error(
-                f"Invalid execution method: '{sauc.SV_EXECUTION_METHOD}'. "
+                f"❗ Invalid execution method: '{sauc.SV_EXECUTION_METHOD}'. "
                 "Must be one of: 'process', 'service', or 'container'.",
                 prefix=sauc.SV_LOGGER_NAME
             )

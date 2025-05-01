@@ -78,7 +78,8 @@ class Orchestrator:
             "Pull current version",
             self._rollback_nop,
             self._pull_current_assets,
-            condition=lambda: self.current_version != last_version_before_auto_upgrader,
+            condition=lambda: self.current_version != last_version_before_auto_upgrader
+            and not self._is_already_pulled_current_version(),
         )
 
         # Pull the assets of the latest version for the neuron
@@ -112,7 +113,7 @@ class Orchestrator:
             self._load_current_services,
             condition=lambda: self.current_version != last_version_before_auto_upgrader,
         )
-
+        
         # Load the services of the latest version
         await self._step(
             "Load latest services", self._rollback_nop, self._load_latest_services
@@ -842,6 +843,25 @@ class Orchestrator:
 
             service.version = service.rollback_version
             service.rollback_version = None
+
+    def _is_already_pulled_current_version(self):
+        # Normalized the current version
+        denormalized_version = sauv.normalize_version(version=self.current_version)
+        
+        # Check if the current assets have already been download and unzipped
+        version_path = os.path.join(
+            sauc.SV_ASSET_DIR, f"subvortex-{denormalized_version}"
+        )
+        is_exist = os.path.exists(version_path)
+        if is_exist:
+            btul.logging.debug(
+                f"Version {self.current_version} already pulled in {version_path}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
+            return True
+
+        return False
 
     def _load_services(self, version: str, versions: Callable):
         services = []

@@ -84,6 +84,8 @@ def orchestrator():
     orch._load_current_services = mock.MagicMock()
     orch._load_latest_services = mock.MagicMock()
     orch._copy_env_files = mock.MagicMock()
+    orch._is_already_pulled_current_version = mock.MagicMock()
+    orch._is_already_pulled_current_version.return_value = False
     # orch._run = mock.MagicMock()
 
     # Removal
@@ -391,15 +393,15 @@ async def test_run_plan_when_migrate_for_the_first_time_after_releasing_auto_upr
         "Pull latest version",
         "Load latest services",
         "Check versions",
-        "Copying environement variables",
+        "📦 Copying environment variables",
         "Downgrade services",
-        "Stop previous services",
-        "Switching to new version",
-        "Start new services",
-        "Run migrations",
-        "Remove prune services",
-        "Remove previous version",
-        "Finalize service versions",
+        "🛑 Stop previous services",
+        "🔁 Switching to new version",
+        "🚀 Start new services",
+        "🛠️ Run migrations",
+        "🧹 Remove pruned services",
+        "🗑️ Remove previous version",
+        "✅ Finalize service versions",
     ] == steps
 
 
@@ -444,11 +446,11 @@ async def test_run_plan_when_no_new_version_should_execute_until_load_current_se
     await orchestrator.run_plan()
 
     # Assert
-    assert 4 == len(orchestrator.rollback_steps)
+    assert 3 == len(orchestrator.rollback_steps)
     assert orchestrator._get_current_version.called
     assert orchestrator._get_latest_version.called
     assert orchestrator._pull_current_assets.called
-    assert orchestrator._pull_latest_assets.called
+    assert not orchestrator._pull_latest_assets.called
     assert not orchestrator._load_current_services.called
     assert not orchestrator._load_latest_services.called
     assert not orchestrator._check_versions.called

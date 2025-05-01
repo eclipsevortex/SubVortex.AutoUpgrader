@@ -290,3 +290,54 @@ def test_has_migrations_when_no_migration_should_return_false(orchestrator):
 
     # Assert
     assert True == result
+
+
+def test_not_pull_current_version_if_different_from_the_one_of_the_auto_upgrader_release(orchestrator):
+    # Arrange
+    orchestrator._pull_latest_assets = Orchestrator._pull_latest_assets.__get__(
+        orchestrator
+    )
+
+    orchestrator.github.get_local_version.return_value = sauc.DEFAULT_LAST_RELEASE.get('global')
+
+    # Action
+    orchestrator.run_plan()
+
+    # Assert
+    assert not orchestrator._pull_current_assets.called
+
+@patch("subvortex.auto_upgrader.src.orchestrator.os.path.exists")
+def test_not_pull_current_version_if_already_pulled(mock_os_path_exists, orchestrator):
+    # Arrange
+    orchestrator._pull_latest_assets = Orchestrator._pull_latest_assets.__get__(
+        orchestrator
+    )
+
+    orchestrator.github.get_local_version.return_value = "1.0.0"
+
+    mock_os_path_exists.return_value = True
+
+    # Action
+    orchestrator.run_plan()
+
+    # Assert
+    assert not orchestrator._pull_current_assets.called
+
+@pytest.mark.asyncio
+@patch("subvortex.auto_upgrader.src.orchestrator.os.path.exists")
+async def test_not_pull_current_version_if_not_pulled_yet(mock_os_path_exists, orchestrator):
+    # Arrange
+    orchestrator._pull_latest_assets = Orchestrator._pull_latest_assets.__get__(
+        orchestrator
+    )
+
+    orchestrator.github.get_local_version.return_value = "1.0.0"
+    orchestrator.github.get_latest_version.return_value = "1.0.0"
+
+    mock_os_path_exists.return_value = False
+
+    # Action
+    await orchestrator.run_plan()
+
+    # Assert
+    assert orchestrator._pull_current_assets.called
