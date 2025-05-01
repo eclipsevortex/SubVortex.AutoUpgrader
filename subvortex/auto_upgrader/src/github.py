@@ -612,6 +612,10 @@ class Github:
         if not versions:
             return None
 
+        btul.logging.debug(
+            f"# of versions: {len(versions)}", prefix=sauc.SV_LOGGER_NAME
+        )
+
         # Get the latest verison locally
         latest_version = str(max(versions))
 
