@@ -374,12 +374,17 @@ def test_copy_templates_files(monkeypatch):
     templates_dir = tempfile.mkdtemp()
     service_template_dir = tempfile.mkdtemp()
 
-    # Filenames to simulate
+    # Create template files
     filenames = [
         "template-subvortex-validator-redis.conf",
         "template-subvortex-validator-redis.json",
     ]
-    template_files = validator_template_files(templates_dir, filenames)
+    template_files = []
+    for fname in filenames:
+        path = os.path.join(templates_dir, fname)
+        with open(path, "w") as f:
+            f.write("# dummy config")
+        template_files.append(path)
 
     # Mock Service
     service = Service(
@@ -396,34 +401,37 @@ def test_copy_templates_files(monkeypatch):
         teardown_command="",
     )
 
-    # Patch path methods
+    # Patch get_au_template_files to return template_files regardless of service
     monkeypatch.setattr(
-        "subvortex.auto_upgrader.src.path.get_au_template_file",
-        lambda service: template_files,
+        "subvortex.auto_upgrader.src.path.get_au_template_files",
+        lambda: template_files,
     )
+
+    # Patch get_service_template to return the target directory
     monkeypatch.setattr(
         "subvortex.auto_upgrader.src.path.get_service_template",
         lambda service: service_template_dir,
     )
 
-    # Patch logger
-    monkeypatch.setattr("subvortex.auto_upgrader.src.constants.SV_LOGGER_NAME", "test")
+    # Patch logger name
+    monkeypatch.setattr(
+        "subvortex.auto_upgrader.src.constants.SV_LOGGER_NAME",
+        "test",
+    )
 
     # Instantiate orchestrator and inject service
     orch = Orchestrator()
     orch.latest_services = [service]
 
-    # Run method
+    # Run the method
     orch._copy_templates_files()
 
-    # Assert: both files were copied with correct filenames
+    # Assert: all expected files were copied and renamed properly
     for src_file in template_files:
-        fname = os.path.basename(src_file).replace("template-", "")
-        copied_file = os.path.join(service_template_dir, fname)
-        assert os.path.isfile(
-            copied_file
-        ), f"{fname} not found in {service_template_dir}"
+        expected_filename = os.path.basename(src_file).replace("template-", "")
+        expected_path = os.path.join(service_template_dir, expected_filename)
+        assert os.path.isfile(expected_path), f"{expected_filename} not found"
 
-    # Clean up
+    # Cleanup
     shutil.rmtree(templates_dir)
     shutil.rmtree(service_template_dir)

@@ -87,6 +87,7 @@ class Worker:
             except (KeyboardInterrupt, asyncio.CancelledError):
                 btul.logging.debug("Shutdown requested", prefix=sauc.SV_LOGGER_NAME)
                 success = True
+                break
 
             except saue.AutoUpgraderError as e:
                 btul.logging.error(e, prefix=sauc.SV_LOGGER_NAME)

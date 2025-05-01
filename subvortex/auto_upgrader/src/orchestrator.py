@@ -639,10 +639,6 @@ class Orchestrator:
         self.migration_manager.collect_migrations()
         await self.migration_manager.apply()
 
-        btul.logging.info(
-            "✅ Migrations applied successfully", prefix=sauc.SV_LOGGER_NAME
-        )
-
     async def _rollback_migrations(self):
         btul.logging.info("↩️ Rolling back migrations...", prefix=sauc.SV_LOGGER_NAME)
         await self.migration_manager.rollback()

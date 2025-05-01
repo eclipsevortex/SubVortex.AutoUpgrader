@@ -98,6 +98,10 @@ class RedisMigrations(Migration):
 
         # Compare the dir
         if previous_dump_dir == new_dump_dir:
+            btul.logging.debug(
+                "Redis dump file location unchanged; no copy needed",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             return
 
         # Ensure the destination exists
@@ -107,6 +111,12 @@ class RedisMigrations(Migration):
         shutil.copy2(
             f"{previous_dump_dir}/{previous_dump_filename}",
             f"{new_dump_dir}/{new_dump_filename}",
+        )
+
+        btul.logging.debug(
+            f"Copied dump file from {previous_dump_dir}/{previous_dump_filename} "
+            f"to {new_dump_dir}/{new_dump_filename}",
+            prefix=sauc.SV_LOGGER_NAME,
         )
 
     async def apply(self):

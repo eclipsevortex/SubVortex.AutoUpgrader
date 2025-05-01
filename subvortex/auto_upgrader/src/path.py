@@ -78,11 +78,14 @@ def get_service_directory(service: saus.Service, version: str = None):
 
 
 def get_au_template_files():
-    # Build the env directory
-    template_dir = os.path.join(here, "../templates")
+    # Build the template directory
+    template_dir = os.path.join(here, "../template")
 
-    # Return all matching files
-    return glob.glob(template_dir)
+    # Match all files that start with 'template-'
+    pattern = os.path.join(template_dir, "template-*")
+
+    # Return all matching template files
+    return glob.glob(pattern)
 
 
 def get_au_environment_file(service: saus.Service):

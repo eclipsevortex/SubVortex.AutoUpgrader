@@ -89,12 +89,15 @@ def test_get_service_template(fake_service):
     assert saup.get_service_template(fake_service) == expected
 
 
-def test_get_au_template_file(fake_service):
+def test_get_au_template_file():
     with tempfile.TemporaryDirectory() as tmpdir:
+        # Patch `here` to point to our temporary base
         with mock.patch("subvortex.auto_upgrader.src.path.here", tmpdir):
-            template_dir = os.path.join(tmpdir, "../templates")
+            # Create the "../template" directory relative to `here`
+            template_dir = os.path.join(tmpdir, "../template")
             os.makedirs(template_dir, exist_ok=True)
 
+            # Create fake template files
             filenames = [
                 "template-subvortex-miner-neuron.env",
                 "template-subvortex-miner-neuron.ini",
@@ -103,9 +106,11 @@ def test_get_au_template_file(fake_service):
                 with open(os.path.join(template_dir, fname), "w") as f:
                     f.write("# dummy content")
 
-            result = saup.get_au_template_files(fake_service)
+            # Run the function
+            result = saup.get_au_template_files()
             found_files = [os.path.basename(f) for f in result]
 
+            # Assert all expected files are found
             assert len(result) == 2
             for fname in filenames:
                 assert fname in found_files
