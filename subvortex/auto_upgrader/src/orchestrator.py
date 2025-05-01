@@ -633,6 +633,7 @@ class Orchestrator:
 
         if len(self.migration_manager.service_pairs) == 0:
             btul.logging.debug("No migrations to apply", prefix=sauc.SV_LOGGER_NAME)
+            return
 
         # Create the migration manager with service pairs
         self.migration_manager.collect_migrations()
