@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2025 Eclipse Vortex
+# Copyright © 2024 Eclipse Vortex
 import pytest
 from unittest.mock import patch, MagicMock
 
