@@ -620,7 +620,7 @@ class Orchestrator:
             service_pairs_to_apply.append((new_service, old_service))
 
         if len(service_pairs_to_apply) == 0:
-            btul.logging.debug("No migrations to apply", prefix=sauc.SV_LOGGER_NAME)
+            btul.logging.debug("No migrations to prepare", prefix=sauc.SV_LOGGER_NAME)
 
         # Create the migration manager with service pairs
         self.migration_manager = MigrationManager(service_pairs_to_apply)
@@ -630,6 +630,9 @@ class Orchestrator:
         btul.logging.info(
             "📦 Checking for service migrations...", prefix=sauc.SV_LOGGER_NAME
         )
+
+        if len(self.migration_manager.service_pairs) == 0:
+            btul.logging.debug("No migrations to apply", prefix=sauc.SV_LOGGER_NAME)
 
         # Create the migration manager with service pairs
         self.migration_manager.collect_migrations()
