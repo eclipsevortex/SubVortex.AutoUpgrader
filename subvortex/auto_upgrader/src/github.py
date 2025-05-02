@@ -562,6 +562,57 @@ class Github:
         return versions.get("version")
 
     def _get_local_version(self):
+        if not os.path.islink(sauc.SV_EXECUTION_DIR):
+            btul.logging.warning(
+                f"❌ {sauc.SV_EXECUTION_DIR} is not a symlink",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            return None
+
+        try:
+            # Resolve the symlink target
+            target_path = os.readlink(sauc.SV_EXECUTION_DIR)
+
+            # Extract version from the target path
+            match = re.search(r"subvortex-(\d+\.\d+\.\d+(?:[ab]|rc)?\d*)", target_path)
+            if not match:
+                btul.logging.warning(
+                    f"⚠️ No valid version found in symlink: {target_path}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                return None
+
+            version_str = match.group(1)
+
+            try:
+                Version(version_str)  # Just to validate format
+            except InvalidVersion:
+                btul.logging.warning(
+                    f"⚠️ Invalid version format in symlink: {version_str}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                return None
+
+            # Check for optional force_reinstall flag
+            version_dir = os.path.join(sauc.SV_ASSET_DIR, f"subvortex-{version_str}")
+            marker_path = os.path.join(version_dir, "force_reinstall")
+            if os.path.isfile(marker_path):
+                btul.logging.warning(
+                    f"⚠️ Force reinstall marker found for version {version_str}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                os.remove(marker_path)
+                return None
+
+            return sauv.denormalize_version(version_str)
+
+        except OSError as e:
+            btul.logging.warning(
+                f"⚠️ Failed to read symlink: {e}", prefix=sauc.SV_LOGGER_NAME
+            )
+            return None
+
+    def _get_local_version_decommissioned(self):
         versions = []
 
         if "PYTEST_CURRENT_TEST" not in os.environ:
