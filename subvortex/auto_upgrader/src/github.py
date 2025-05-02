@@ -707,7 +707,21 @@ class Github:
         if global_versions:
             # Take the highest version based on Version(), but return original string
             highest = max(global_versions, key=lambda x: x[0])
-            versions["version"] = highest[1]  # Use original version string
+            latest_version = highest[1]
+
+            # Check for force reinstall marker file
+            force_install_file = os.path.join(
+                sauc.SV_ASSET_DIR, f"subvortex-{latest_version}", "force_reinstall"
+            )
+            if os.path.isfile(force_install_file):
+                btul.logging.warning(
+                    f"⚠️ Force reinstall marker found for version {latest_version}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                os.remove(force_install_file)
+                return None
+
+            versions["version"] = latest_version
         else:
             versions["version"] = None
 
