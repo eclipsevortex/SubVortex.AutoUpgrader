@@ -110,11 +110,6 @@ pip install ".[$SUBVORTEX_EXECUTION_ROLE]"
 pip install -e ../../
 
 # Start or restart the process
-if pm2 list | grep -qw "$SERVICE_NAME"; then
-    echo "🔄 Restarting PM2 service: $SERVICE_NAME"
-    pm2 restart "$SERVICE_NAME"
-else
-    ./deployment/process/auto_upgrader_process_start.sh
-fi
+./deployment/process/auto_upgrader_process_start.sh
 
 echo "✅ Auto Upgrader upgraded successfully"

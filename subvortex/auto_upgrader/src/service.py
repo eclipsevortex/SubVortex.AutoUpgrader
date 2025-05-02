@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2025 Eclipse Vortex
+# Copyright © 2024 Eclipse Vortex
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -16,8 +16,6 @@
 # DEALINGS IN THE SOFTWARE.
 import subprocess
 from typing import List, Literal
-
-import bittensor.utils.btlogging as btul
 
 import subvortex.auto_upgrader.src.constants as sauc
 import subvortex.auto_upgrader.src.version as sauv
@@ -63,7 +61,9 @@ class Service:
     def create(metadata: dict):
         service_name = metadata.get("id").split("-")[-1]
         component_version = metadata.get(f"{sauc.SV_EXECUTION_ROLE}.version")
-        service_version = metadata.get(f"{sauc.SV_EXECUTION_ROLE}.{service_name}.version")
+        service_version = metadata.get(
+            f"{sauc.SV_EXECUTION_ROLE}.{service_name}.version"
+        )
         return Service(
             id=metadata.get("id"),
             name=metadata.get("name"),
@@ -101,11 +101,6 @@ class Service:
         return details[-1]
 
     def switch_to_version(self, version: str):
-        btul.logging.info(
-            f"🔀 [{self.name}] Switching to upgraded version.",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-
         # Get the root path of the version
         version_path = self._get_root_path(version=version)
 
@@ -133,8 +128,10 @@ class Service:
     def __str__(self):
         return (
             f"<Service {self.name} (id={self.id}, version={self.version}, "
-            f"execution={self.execution}, needs_update={self.needs_update}, "
-            f"must_remove={self.must_remove})>"
+            f"component_version={self.component_version}, service_version={self.service_version}, "
+            f"execution={self.execution}, needs_update={self.needs_update}, must_remove={self.must_remove}, "
+            f"migration={self.migration}, migration_type={self.migration_type}, "
+            f"depends_on={self.depends_on})>"
         )
 
     def __repr__(self):

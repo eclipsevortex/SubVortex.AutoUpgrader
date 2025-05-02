@@ -63,14 +63,6 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     STASHED=1
 fi
 
-# Check if branch is tracking a remote
-UPSTREAM=$(git rev-parse --abbrev-ref "$BRANCH@{upstream}" 2>/dev/null || true)
-
-if [[ -z "$UPSTREAM" ]]; then
-    echo "❌ Branch '$BRANCH' is not tracking any remote branch. Cannot pull safely."
-    exit 1
-fi
-
 # Pull latest changes from upstream
 echo "🔄 Pulling latest changes from $UPSTREAM..."
 if ! git pull --ff-only; then

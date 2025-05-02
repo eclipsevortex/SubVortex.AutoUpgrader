@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2025 Eclipse Vortex
+# Copyright © 2024 Eclipse Vortex
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -57,6 +57,10 @@ class MigrationManager:
             migration_class = MIGRATION_TYPES[migration_type]
             self.migrations.append(migration_class(new_service, previous_service))
 
+    async def prepare(self):
+        for migration in self.migrations:
+            await migration.prepare()
+            
     async def apply(self):
         for migration in self.migrations:
             await migration.apply()

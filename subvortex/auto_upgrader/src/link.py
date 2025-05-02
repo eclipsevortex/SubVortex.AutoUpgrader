@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2025 Eclipse Vortex
+# Copyright © 2024 Eclipse Vortex
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -33,7 +33,7 @@ def update_symlink(source: str, target: str):  # , temp_link: str):
         if target.is_symlink() or target.is_file():
             target.unlink()
         else:
-            shutil.rmtree(target)
+            shutil.rmtree(target, onerror=lambda *args, **kwargs: None)
 
     # Move temp symlink to final location
     temp_link.rename(target)

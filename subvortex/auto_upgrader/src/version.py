@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2025 Eclipse Vortex
+# Copyright © 2024 Eclipse Vortex
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -36,19 +36,18 @@ def normalize_version(version: str) -> str:
         version,
     )
 
+
 def denormalize_version(version: str) -> str:
     # Revert pre-release suffixes
     version = re.sub(
         r"(a|b|rc)(\d+)",
-        lambda m: {
-            "a": "-alpha.",
-            "b": "-beta.",
-            "rc": "-rc."
-        }[m.group(1)] + m.group(2),
+        lambda m: {"a": "-alpha.", "b": "-beta.", "rc": "-rc."}[m.group(1)]
+        + m.group(2),
         version,
     )
 
     return version
+
 
 def get_local_version() -> str:
     """
@@ -77,6 +76,10 @@ def get_local_version() -> str:
     # Sort and return the highest version
     latest_version_dir = sorted(candidates, key=lambda x: x[0], reverse=True)[0][0]
     return str(latest_version_dir)
+
+
+def is_version_before_auto_upgrader(version: str):
+    return version == sauc.DEFAULT_LAST_RELEASE.get("global")
 
 
 def _get_version():

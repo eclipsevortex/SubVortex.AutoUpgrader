@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2025 Eclipse Vortex
+# Copyright © 2024 Eclipse Vortex
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -27,7 +27,6 @@ from subvortex.auto_upgrader.src.exception import (
     MalformedMigrationFileError,
     InvalidRevisionError,
     RevisionNotFoundError,
-    DownRevisionNotFoundError,
 )
 from subvortex.auto_upgrader.src.migrations.redis_migrations import RedisMigrations
 
@@ -89,21 +88,15 @@ async def _rollback(database):
         f.write(content)
 
 
-# def assert_version_calls(mocked_db, expected_versions):
-#     version_calls = [c for c in mocked_db.set.call_args_list if c.args[0] == "version"]
-#     assert version_calls == [
-#         call("version", v) for v in expected_versions
-#     ], f"Expected version calls {expected_versions}, but got {[c.args[1] for c in version_calls]}"
-
 def assert_version_calls(mocked_db, expected_versions):
     version_calls = [c for c in mocked_db.set.call_args_list if c.args[0] == "version"]
 
     actual_versions = [c.args[1] for c in version_calls]
     expected_calls = [call("version", v) for v in expected_versions]
 
-    assert actual_versions == expected_versions, (
-        f"Expected version calls {expected_versions}, but got {actual_versions}"
-    )
+    assert (
+        actual_versions == expected_versions
+    ), f"Expected version calls {expected_versions}, but got {actual_versions}"
 
 
 @pytest.mark.asyncio
@@ -214,6 +207,63 @@ async def test_rollback_migration(redis_service):
 
     # Assert
     mocked_db.set.assert_any_call("version", "0.0.2")
+
+
+@pytest.mark.asyncio
+async def test_apply_all_downgrade(redis_service):
+    # Arrange
+    create_migration_file(redis_service.migration, "0.0.1", None)
+    create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
+    create_migration_file(redis_service.migration, "0.0.3", "0.0.2")
+
+    new_redis_service = copy.deepcopy(redis_service)
+    new_redis_service.migration = tempfile.mkdtemp()
+
+    redis = RedisMigrations(new_redis_service, redis_service)
+    redis.previous_service = redis_service
+    redis.previous_service.version = "3.0.0"
+    redis.new_migration_path = new_redis_service.migration
+    redis.old_migration_path = redis_service.migration
+
+    mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.3"
+
+    # Action
+    with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
+        await redis.apply()
+
+    # Assert
+    assert_version_calls(mocked_db, ["0.0.2", "0.0.1", "0.0.0"])
+
+
+@pytest.mark.asyncio
+async def test_apply_downgrade(redis_service):
+    # Arrange
+    create_migration_file(redis_service.migration, "0.0.1", None)
+    create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
+    create_migration_file(redis_service.migration, "0.0.3", "0.0.2")
+
+    new_redis_service = copy.deepcopy(redis_service)
+    new_redis_service.migration = tempfile.mkdtemp()
+
+    create_migration_file(new_redis_service.migration, "0.0.1", None)
+    create_migration_file(new_redis_service.migration, "0.0.2", "0.0.1")
+
+    redis = RedisMigrations(new_redis_service, redis_service)
+    redis.previous_service = redis_service
+    redis.previous_service.version = "3.0.0"
+    redis.new_migration_path = new_redis_service.migration
+    redis.old_migration_path = redis_service.migration
+
+    mocked_db = AsyncMock()
+    mocked_db.get.return_value = b"0.0.3"
+
+    # Action
+    with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
+        await redis.apply()
+
+    # Assert
+    assert_version_calls(mocked_db, ["0.0.2"])
 
 
 @pytest.mark.asyncio
@@ -356,53 +406,82 @@ async def test_raise_exception_when_revision_is_invalid(redis_service):
 
 
 @pytest.mark.asyncio
-async def test_apply_all_downgrade(redis_service):
+@patch("shutil.copy2")
+@patch("os.makedirs")
+@patch("os.path.exists")
+@patch(
+    "subvortex.auto_upgrader.src.migrations.redis_migrations.RedisMigrations._get_redis_dump_config"
+)
+async def test_prepare_copies_dump_if_dirs_differ(
+    mock_get_dump_config, mock_path_exists, mock_makedirs, mock_copy2, redis_service
+):
     # Arrange
-    create_migration_file(redis_service.migration, "0.0.1", None)
-    create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
-    create_migration_file(redis_service.migration, "0.0.3", "0.0.2")
+    previous_service = copy.deepcopy(redis_service)
+    new_service = copy.deepcopy(redis_service)
 
-    new_redis_service = copy.deepcopy(redis_service)
-    new_redis_service.migration = tempfile.mkdtemp()
+    redis = RedisMigrations(new_service, previous_service)
 
-    redis = RedisMigrations(new_redis_service, redis_service)
-    redis.new_migration_path = new_redis_service.migration
-    redis.old_migration_path = redis_service.migration
+    previous_config = "/etc/redis/old_redis.conf"
+    new_config = "/etc/redis/new_redis.conf"
 
-    mocked_db = AsyncMock()
-    mocked_db.get.return_value = b"0.0.3"
+    # Patch saup.get_service_template to return mocked config paths
+    with patch(
+        "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_service_template"
+    ) as mock_get_template:
+        mock_get_template.side_effect = lambda svc: (
+            [previous_config] if svc == previous_service else [new_config]
+        )
 
-    # Action
-    with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
-        await redis.apply()
+        # Mock _get_redis_dump_config responses
+        mock_get_dump_config.side_effect = [
+            ("/old/dir", "dump.rdb"),
+            ("/new/dir", "dump.rdb"),
+        ]
 
-    # Assert
-    assert_version_calls(mocked_db, ["0.0.2", "0.0.1", "0.0.0"])
+        mock_path_exists.return_value = True
+
+        # Act
+        await redis.prepare()
+
+        # Assert
+        mock_makedirs.assert_called_once_with("/new/dir", exist_ok=True)
+        mock_copy2.assert_called_once_with("/old/dir/dump.rdb", "/new/dir/dump.rdb")
 
 
 @pytest.mark.asyncio
-async def test_apply_downgrade(redis_service):
+@patch("shutil.copy2")
+@patch("os.makedirs")
+@patch("os.path.exists")
+@patch(
+    "subvortex.auto_upgrader.src.migrations.redis_migrations.RedisMigrations._get_redis_dump_config"
+)
+async def test_prepare_does_nothing_if_dirs_are_same(
+    mock_get_dump_config, mock_path_exists, mock_makedirs, mock_copy2, redis_service
+):
     # Arrange
-    create_migration_file(redis_service.migration, "0.0.1", None)
-    create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
-    create_migration_file(redis_service.migration, "0.0.3", "0.0.2")
+    previous_service = copy.deepcopy(redis_service)
+    new_service = copy.deepcopy(redis_service)
 
-    new_redis_service = copy.deepcopy(redis_service)
-    new_redis_service.migration = tempfile.mkdtemp()
-    
-    create_migration_file(new_redis_service.migration, "0.0.1", None)
-    create_migration_file(new_redis_service.migration, "0.0.2", "0.0.1")
+    redis = RedisMigrations(new_service, previous_service)
 
-    redis = RedisMigrations(new_redis_service, redis_service)
-    redis.new_migration_path = new_redis_service.migration
-    redis.old_migration_path = redis_service.migration
+    config_path = "/etc/redis/shared_redis.conf"
 
-    mocked_db = AsyncMock()
-    mocked_db.get.return_value = b"0.0.3"
+    with patch(
+        "subvortex.auto_upgrader.src.migrations.redis_migrations.saup.get_service_template"
+    ) as mock_get_template:
+        mock_get_template.return_value = [config_path]
 
-    # Action
-    with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
-        await redis.apply()
+        # Both configs return the same dir and filename
+        mock_get_dump_config.side_effect = [
+            ("/shared/dir", "dump.rdb"),
+            ("/shared/dir", "dump.rdb"),
+        ]
 
-    # Assert
-    assert_version_calls(mocked_db, ["0.0.2"])
+        mock_path_exists.return_value = True
+
+        # Act
+        await redis.prepare()
+
+        # Assert
+        mock_makedirs.assert_not_called()
+        mock_copy2.assert_not_called()

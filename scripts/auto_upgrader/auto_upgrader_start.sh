@@ -90,10 +90,6 @@ setup_service() {
 
 # 🚀 Function: Dispatch based on method
 run_setup() {
-    # if [[ "$SUBVORTEX_EXECUTION_METHOD" == "container" ]]; then
-    #     ./scripts/watchtower/watchtower_start.sh
-    # fi
-
     case "$EXECUTION" in
         process)
             setup_process

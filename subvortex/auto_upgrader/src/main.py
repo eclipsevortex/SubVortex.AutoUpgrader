@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2025 Eclipse Vortex
+# Copyright © 2024 Eclipse Vortex
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -50,6 +50,21 @@ class Worker:
             prefix=sauc.SV_LOGGER_NAME,
         )
 
+        # Display the execution method
+        btul.logging.info(
+            f"execution: {sauc.SV_EXECUTION_METHOD}",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
+
+        if sauc.SV_EXECUTION_METHOD not in ['process', 'service', 'container']:
+            btul.logging.error(
+                f"❗ Invalid execution method: '{sauc.SV_EXECUTION_METHOD}'. "
+                "Must be one of: 'process', 'service', or 'container'.",
+                prefix=sauc.SV_LOGGER_NAME
+            )
+            self.finished.set()
+            return
+
         first_run = True
         while not self.should_exit.is_set():
             # Reset success
@@ -65,8 +80,14 @@ class Worker:
                 # Rollout the plan
                 success = await self.orchestrator.run_plan()
 
-            except KeyboardInterrupt:
-                btul.logging.debug("KeyboardInterrupt", prefix=sauc.SV_LOGGER_NAME)
+            except asyncio.TimeoutError:
+                # Normal cycle timeout, no problem
+                pass
+
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                btul.logging.debug("Shutdown requested", prefix=sauc.SV_LOGGER_NAME)
+                success = True
+                break
 
             except saue.AutoUpgraderError as e:
                 btul.logging.error(e, prefix=sauc.SV_LOGGER_NAME)
@@ -85,6 +106,9 @@ class Worker:
                 if not success and not sauc.SV_DISABLE_ROLLBACK:
                     # The plan was not successful, rollback it
                     await self.orchestrator.run_rollback_plan()
+
+                # Clean everything
+                self.orchestrator.reset()
 
         # Signal the waiter the service has finished
         self.finished.set()

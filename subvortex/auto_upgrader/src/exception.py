@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright © 2025 Eclipse Vortex
+# Copyright © 2024 Eclipse Vortex
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
 # documentation files (the “Software”), to deal in the Software without restriction, including without limitation
@@ -8,6 +8,7 @@
 
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of
 # the Software.
+
 
 # THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
 # THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
@@ -98,6 +99,7 @@ class ModuleMigrationError(AutoUpgraderError):
             details=f"Name: {name} - {details}",
         )
 
+
 class MissingVersionError(AutoUpgraderError):
     def __init__(self, name: str, type: str):
         super().__init__(
@@ -106,6 +108,7 @@ class MissingVersionError(AutoUpgraderError):
             details=f"Name: {name}, Type: {type}",
         )
 
+
 class DownRevisionNotFoundError(AutoUpgraderError):
     def __init__(self, down_revision: str):
         super().__init__(
@@ -113,6 +116,30 @@ class DownRevisionNotFoundError(AutoUpgraderError):
             message="Down revision not found",
             details=f"Down revision: {down_revision}",
         )
+
+
+class ReleaseNotFoundError(AutoUpgraderError):
+    def __init__(self, url: str):
+        super().__init__(
+            code="AU1011",
+            message="Release link not found",
+            details=f"Url: {url}",
+        )
+
+
+class NoReleaseAvailableError(AutoUpgraderError):
+    def __init__(self):
+        super().__init__(code="AU1012", message="No release available")
+
+
+class PackageNotFoundError(AutoUpgraderError):
+    def __init__(self, url: str):
+        super().__init__(
+            code="AU1014",
+            message="Package link not found",
+            details=f"Url: {url}",
+        )
+
 
 class UnexpectedError(AutoUpgraderError):
     def __init__(self, reason: str = "An unexpected error occurred"):

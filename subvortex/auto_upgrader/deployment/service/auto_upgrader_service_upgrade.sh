@@ -65,14 +65,6 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     STASHED=1
 fi
 
-# Check if branch is tracking a remote
-UPSTREAM=$(git rev-parse --abbrev-ref "$BRANCH@{upstream}" 2>/dev/null || true)
-
-if [[ -z "$UPSTREAM" ]]; then
-    echo "❌ Branch '$BRANCH' is not tracking any remote branch. Cannot pull safely."
-    exit 1
-fi
-
 # Pull latest changes from upstream
 echo "🔄 Pulling latest changes from $UPSTREAM..."
 if ! git pull --ff-only; then
@@ -118,16 +110,6 @@ pip install ".[$SUBVORTEX_EXECUTION_ROLE]"
 pip install -e ../../
 
 # Check if the service is active
-if systemctl list-unit-files | grep "$SERVICE_NAME.service"; then
-  if systemctl is-active --quiet "$SERVICE_NAME"; then
-    echo "🔄 Restarting $SERVICE_NAME..."
-    sudo systemctl restart "$SERVICE_NAME"
-  else
-    echo "🚀 Starting $SERVICE_NAME..."
-    sudo systemctl start "$SERVICE_NAME"
-  fi
-else
-  echo "⚠️  Service $SERVICE_NAME is not installed or not recognized by systemd."
-fi
+./deployment/service/auto_upgrader_service_start.sh
 
 echo "✅ Auto Upgrader setup successfully"

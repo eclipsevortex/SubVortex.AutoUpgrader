@@ -1,9 +1,7 @@
 import pytest
 import asyncio
-import json
 from unittest.mock import patch, MagicMock, AsyncMock
 
-import subvortex.auto_upgrader.src.constants as sauc
 from subvortex.auto_upgrader.src.docker import Docker
 
 

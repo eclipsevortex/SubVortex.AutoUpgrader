@@ -65,14 +65,6 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
     STASHED=1
 fi
 
-# Check if branch is tracking a remote
-UPSTREAM=$(git rev-parse --abbrev-ref "$BRANCH@{upstream}" 2>/dev/null || true)
-
-if [[ -z "$UPSTREAM" ]]; then
-    echo "❌ Branch '$BRANCH' is not tracking any remote branch. Cannot pull safely."
-    exit 1
-fi
-
 # Pull latest changes from upstream
 echo "🔄 Pulling latest changes from $UPSTREAM..."
 if ! git pull --ff-only; then
@@ -102,13 +94,7 @@ else
     exit 1
 fi
 
-# Install watchtower
-# ./../../scripts/watchtower/watchtower_start.sh
-
-echo "📥 Pulling latest image for $SERVICE_NAME..."
-docker compose pull "$SERVICE_NAME"
-
-echo "🔄 Recreating container with updated image..."
-$DOCKER_CMD -f ../../docker-compose.yml up auto_upgrader -d --no-deps --force-recreate
+# Start or restart the container
+./deployment/container/auto_upgrader_container_start.sh
 
 echo "✅ Auto Upgrader upgraded successfully"

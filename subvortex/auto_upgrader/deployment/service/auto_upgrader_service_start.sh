@@ -59,10 +59,17 @@ sudo chown root:root /var/log/$SERVICE_NAME
 systemctl daemon-reexec
 systemctl daemon-reload
 
-if systemctl is-active --quiet $SERVICE_NAME; then
-  systemctl restart $SERVICE_NAME
+# Check if the service is active
+if systemctl list-unit-files | grep "$SERVICE_NAME.service"; then
+  if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "🔄 Restarting $SERVICE_NAME..."
+    sudo systemctl restart "$SERVICE_NAME"
+  else
+    echo "🚀 Starting $SERVICE_NAME..."
+    sudo systemctl start "$SERVICE_NAME"
+  fi
 else
-  systemctl start $SERVICE_NAME
+  echo "⚠️  Service $SERVICE_NAME is not installed or not recognized by systemd."
 fi
 
 echo "✅ Auto Upgrader started successfully"
