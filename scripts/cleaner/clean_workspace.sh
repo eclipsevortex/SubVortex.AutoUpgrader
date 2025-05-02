@@ -9,18 +9,20 @@ cd "$SCRIPT_DIR/../.."
 source ./scripts/utils/utils.sh
 
 show_help() {
-    echo "Usage: $0 [--execution=process|service]"
+    echo "Usage: $0 [--version=<x.x.x>] [--remove] [--force]"
     echo
     echo "Description:"
     echo "  Clean all contents under /var/tmp/subvortex,"
     echo "  preserving only the latest versioned directory and all non-versioned ones."
-    echo "  With --remove, remove everything including symlink and latest version."
+    echo "  Use --remove to delete everything including the latest and symlink. To be used when services are stopped"
+    echo "  Use --force to mark current version for reinstall (touches force_reinstall file)."
     echo
     echo "Options:"
-    echo "  -v, --version      Remove a specific version (e.g x.x.x, x.x.x-alpha.x)"
+    echo "  -v, --version      Remove a specific version (e.g. 1.0.0 or 1.0.0-alpha.1)"
     echo "  -r, --remove       Remove all versioned and non-versioned directories"
-    echo "  -d, --dry-run      Preview actions without executing"
-    echo "  -h, --help         Show this help message and exit"
+    echo "  -f, --force        Mark current version (symlink target) for reinstall"
+    echo "  -d, --dry-run      Simulate without making any changes"
+    echo "  -h, --help         Show this help message"
     exit 0
 }
 
@@ -36,10 +38,11 @@ version_sort() {
     fi
 }
 
-OPTIONS="v:rdh"
-LONGOPTIONS="version:,remove,dry-run,help"
+OPTIONS="v:rdhf"
+LONGOPTIONS="version:,remove,dry-run,help,force"
 
 REMOVE_LATEST=false
+FORCE_REINSTALL=false
 VERSION=""
 DRY_RUN=false
 
@@ -52,6 +55,10 @@ while [ "$#" -ge 1 ]; do
             ;;
         -r|--remove)
             REMOVE_LATEST=true
+            shift
+            ;;
+        -f|--force)
+            FORCE_REINSTALL=true
             shift
             ;;
         -d|--dry-run)
@@ -82,7 +89,6 @@ all_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -exec basename {} \;))
 versioned_dirs=()
 non_versioned_dirs=()
 
-# Classify directories
 for dir in "${all_dirs[@]}"; do
     if [[ "$dir" =~ ^subvortex-[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
         versioned_dirs+=("$dir")
@@ -102,11 +108,18 @@ else
     fi
 fi
 
-# Get symlink target if it exists
 symlink_target=""
 if [ -L "$SYMLINK_PATH" ]; then
     symlink_target="$(readlink "$SYMLINK_PATH")"
     symlink_target="$(basename "$symlink_target")"
+fi
+
+# Handle --force separately
+if [[ "$FORCE_REINSTALL" == "true" && -n "$symlink_target" && -d "$symlink_target" ]]; then
+    echo "📎 Marking symlink target $symlink_target for reinstall..."
+    [ "$DRY_RUN" == "false" ] && touch "$symlink_target/force_reinstall" || echo "💡 Simulating: touch $symlink_target/force_reinstall"
+    echo "✅ Force reinstall flag added."
+    exit 0
 fi
 
 echo "🧹 Cleaning up: $TARGET_BASE"
