@@ -696,7 +696,9 @@ class Github:
 
             # Check for force reinstall marker file
             force_install_file = os.path.join(
-                sauc.SV_ASSET_DIR, f"subvortex-{normalized_latest_version}", "force_reinstall"
+                sauc.SV_ASSET_DIR,
+                f"subvortex-{normalized_latest_version}",
+                "force_reinstall",
             )
             if os.path.isfile(force_install_file):
                 btul.logging.warning(
