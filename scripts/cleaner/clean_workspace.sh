@@ -9,19 +9,16 @@ cd "$SCRIPT_DIR/../.."
 source ./scripts/utils/utils.sh
 
 show_help() {
-    echo "Usage: $0 [--version=<x.x.x>] [--remove] [--force]"
+    echo "Usage: $0 [--force | --remove | --version <x.y.z>]"
     echo
     echo "Description:"
-    echo "  Clean all contents under /var/tmp/subvortex,"
-    echo "  preserving only the latest versioned directory and all non-versioned ones."
-    echo "  Use --remove to delete everything including the latest and symlink. To be used when services are stopped"
-    echo "  Use --force to mark current version for reinstall (touches force_reinstall file)."
+    echo "  Clean contents under /var/tmp/subvortex"
     echo
     echo "Options:"
-    echo "  -v, --version      Remove a specific version (e.g. 1.0.0 or 1.0.0-alpha.1)"
+    echo "  -v, --version      Remove a specific version (e.g x.x.x, x.x.x-alpha.x)"
     echo "  -r, --remove       Remove all versioned and non-versioned directories"
     echo "  -f, --force        Mark current version (symlink target) for reinstall"
-    echo "  -d, --dry-run      Simulate without making any changes"
+    echo "  -d, --dry-run      Preview actions without executing"
     echo "  -h, --help         Show this help message"
     exit 0
 }
@@ -83,12 +80,27 @@ if [ ! -d "$TARGET_BASE" ]; then
     exit 1
 fi
 
+# Handle --force case
+if [ "$FORCE_REINSTALL" = true ]; then
+    if [ -L "$SYMLINK_PATH" ]; then
+        target_dir="$(readlink "$SYMLINK_PATH")"
+        echo "📎 Marking current version for reinstall: $target_dir"
+        touch "$target_dir/force_reinstall"
+        echo "✅ Done. Restart auto-upgrader to reinstall current version."
+        exit 0
+    else
+        echo "❌ No valid symlink found at $SYMLINK_PATH"
+        exit 1
+    fi
+fi
+
 cd "$TARGET_BASE"
 all_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -exec basename {} \;))
 
 versioned_dirs=()
 non_versioned_dirs=()
 
+# Classify directories
 for dir in "${all_dirs[@]}"; do
     if [[ "$dir" =~ ^subvortex-[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
         versioned_dirs+=("$dir")
@@ -108,18 +120,11 @@ else
     fi
 fi
 
+# Get symlink target if it exists
 symlink_target=""
 if [ -L "$SYMLINK_PATH" ]; then
     symlink_target="$(readlink "$SYMLINK_PATH")"
     symlink_target="$(basename "$symlink_target")"
-fi
-
-# Handle --force separately
-if [[ "$FORCE_REINSTALL" == "true" && -n "$symlink_target" && -d "$symlink_target" ]]; then
-    echo "📎 Marking symlink target $symlink_target for reinstall..."
-    [ "$DRY_RUN" == "false" ] && touch "$symlink_target/force_reinstall" || echo "💡 Simulating: touch $symlink_target/force_reinstall"
-    echo "✅ Force reinstall flag added."
-    exit 0
 fi
 
 echo "🧹 Cleaning up: $TARGET_BASE"
@@ -130,19 +135,17 @@ for dir in "${all_dirs[@]}"; do
     if [ -n "$VERSION" ]; then
         if [ "$dir" == "$target_normalized" ]; then
             if [[ "$DRY_RUN" == "false" ]]; then
-                echo "📎 Marking for reinstall: $dir"
-                touch "$dir/force_reinstall"
+                echo "🔥 Removing version: $dir"
+                rm -rf "$dir" || true
+                [ -d "$dir" ] && echo "⚠️  Still exists — retrying with sudo" && sudo rm -rf "$dir"
 
-                if [ "$symlink_target" != "$dir" ]; then
-                    echo "🔥 Removing version $dir (not current symlink)"
-                    rm -rf "$dir" || true
-                    [ -d "$dir" ] && echo "⚠️  Directory still exists — retrying with sudo" && sudo rm -rf "$dir"
-                else
-                    echo "🛡️  Preserving current symlink target $dir (marked for reinstall only)"
+                if [ "$symlink_target" == "$dir" ]; then
+                    echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
+                    sudo rm -f "$SYMLINK_PATH"
                 fi
             else
-                echo "💡 Simulating: mark $dir with force_reinstall"
-                [ "$symlink_target" != "$dir" ] && echo "💡 Simulating removal of $dir"
+                echo "💡 Simulating removal: $dir"
+                [ "$symlink_target" == "$dir" ] && echo "💡 Simulating symlink removal: $SYMLINK_PATH"
             fi
         else
             echo "🛡️  Preserving: $dir"
@@ -161,19 +164,17 @@ for dir in "${all_dirs[@]}"; do
         echo "🛡️  Preserving: $dir"
     else
         if [[ "$DRY_RUN" == "false" ]]; then
-            echo "📎 Marking for reinstall: $dir"
-            touch "$dir/force_reinstall"
+            echo "🔥 Removing: $dir"
+            rm -rf "$dir" || true
+            [ -d "$dir" ] && echo "⚠️  Still exists — retrying with sudo" && sudo rm -rf "$dir"
 
-            if [ "$symlink_target" != "$dir" ]; then
-                echo "🔥 Removing: $dir"
-                rm -rf "$dir" || true
-                [ -d "$dir" ] && echo "⚠️  Directory still exists — retrying with sudo" && sudo rm -rf "$dir"
-            else
-                echo "🛡️  Preserving current symlink target $dir (marked for reinstall only)"
+            if [ "$symlink_target" == "$dir" ]; then
+                echo "🔗 Removing symlink: $SYMLINK_PATH (targeted $dir)"
+                sudo rm -f "$SYMLINK_PATH"
             fi
         else
-            echo "💡 Simulating: mark $dir with force_reinstall"
-            [ "$symlink_target" != "$dir" ] && echo "💡 Simulating removal of $dir"
+            echo "💡 Simulating removal: $dir"
+            [ "$symlink_target" == "$dir" ] && echo "💡 Simulating symlink removal: $SYMLINK_PATH"
         fi
     fi
 done
