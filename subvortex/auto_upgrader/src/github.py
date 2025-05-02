@@ -414,24 +414,6 @@ class Github:
         else:
             versions["version"] = None
 
-        # # Extract versions from all services
-        # service_versions_list = [
-        #     v.get("version") for v in versions.values() if v.get("version")
-        # ]
-
-        # unique_versions = set(service_versions_list)
-
-        # if len(unique_versions) == 1:
-        #     # ✅ All services have exactly the same version
-        #     only_version = next(iter(unique_versions))
-        #     versions["version"] = only_version
-        # else:
-        #     # ❌ Services have different versions or missing versions, fallback to previous
-        #     if self.latest_versions:
-        #         versions["version"] = self.latest_versions.get("version")
-        #     else:
-        #         versions["version"] = None
-
         # Store the versions
         self.latest_versions = versions
         btul.logging.trace(
@@ -709,9 +691,12 @@ class Github:
             highest = max(global_versions, key=lambda x: x[0])
             latest_version = highest[1]
 
+            # Normalize latest version
+            normalized_latest_version = sauv.normalize_version(latest_version)
+
             # Check for force reinstall marker file
             force_install_file = os.path.join(
-                sauc.SV_ASSET_DIR, f"subvortex-{latest_version}", "force_reinstall"
+                sauc.SV_ASSET_DIR, f"subvortex-{normalized_latest_version}", "force_reinstall"
             )
             if os.path.isfile(force_install_file):
                 btul.logging.warning(
