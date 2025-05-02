@@ -9,86 +9,51 @@ import subvortex.auto_upgrader.src.exception as saue
 from subvortex.auto_upgrader.src.github import Github
 
 
-@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "service")
-@patch("subvortex.auto_upgrader.src.github.os.path.islink")
-@patch("subvortex.auto_upgrader.src.github.os.listdir")
-@patch("subvortex.auto_upgrader.src.github.os.path.isdir")
-@patch("subvortex.auto_upgrader.src.github.os.path.isfile")
-def test_get_local_version_service_returns_version(
-    mock_isfile,
-    mock_isdir,
-    mock_listdir,
-    mock_islink,
-):
+@patch("subvortex.auto_upgrader.src.github.os.readlink")
+@patch("subvortex.auto_upgrader.src.github.os.path.islink", return_value=True)
+@patch("subvortex.auto_upgrader.src.github.os.path.isfile", return_value=False)
+def test_get_local_version_symlink_returns_version(mock_isfile, mock_islink, mock_readlink):
     # Arrange
     github = Github()
-
-    # Simulate /var/tmp/subvortex directory listing
-    mock_listdir.return_value = [
-        "subvortex-1.2.3",  # Valid version folder
-        "subvortex-1.1.0",  # Older valid version
-        "random-folder",  # Should be ignored
-    ]
-
-    # Simulate os.path.isdir always returning True
-    mock_islink.side_effect = [False, False, False]
-    mock_isdir.side_effect = [True, True, True, True]
-    mock_isfile.side_effect = [False, False, False]
+    mock_readlink.return_value = "/var/tmp/subvortex/subvortex-1.2.3"
 
     # Act
     version = github.get_local_version()
 
     # Assert
     assert version == "1.2.3"
-    mock_listdir.assert_called_once_with("/var/tmp/subvortex")
-    assert mock_isdir.call_count == 4
+    mock_readlink.assert_called_once()
 
 
-@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "service")
-@patch("subvortex.auto_upgrader.src.github.os.listdir")
-@patch("subvortex.auto_upgrader.src.github.os.path.isdir")
-def test_get_local_version_service_returns_none_when_no_valid_versions(
-    mock_isdir, mock_listdir
-):
+@patch("subvortex.auto_upgrader.src.github.os.readlink")
+@patch("subvortex.auto_upgrader.src.github.os.path.islink", return_value=True)
+def test_get_local_version_symlink_invalid_path(mock_islink, mock_readlink):
     # Arrange
     github = Github()
-
-    # Simulate /var/tmp/subvortex directory listing with no valid versions
-    mock_listdir.return_value = [
-        "random-folder",
-        "another-folder",
-        "not-a-version",
-    ]
-
-    # Simulate os.path.isdir always returning True
-    mock_isdir.return_value = True
+    mock_readlink.return_value = "/some/unknown/path/no-version-here"
 
     # Act
     version = github.get_local_version()
 
     # Assert
     assert version is None
-    mock_listdir.assert_called_once_with("/var/tmp/subvortex")
-    assert mock_isdir.call_count == 4  # 1 check for base dir + 3 entries
 
 
-@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "service")
-@patch("subvortex.auto_upgrader.src.github.os.path.isdir")
-def test_get_local_version_service_returns_none_when_asset_dir_does_not_exist(
-    mock_isdir,
-):
+@patch("subvortex.auto_upgrader.src.github.os.readlink")
+@patch("subvortex.auto_upgrader.src.github.os.path.islink", return_value=True)
+@patch("subvortex.auto_upgrader.src.github.os.path.isfile", return_value=True)
+@patch("subvortex.auto_upgrader.src.github.os.remove")
+def test_get_local_version_symlink_force_marker(mock_remove, mock_isfile, mock_islink, mock_readlink):
     # Arrange
     github = Github()
-
-    # Simulate os.path.isdir always returning True
-    mock_isdir.return_value = False
+    mock_readlink.return_value = "/var/tmp/subvortex/subvortex-3.0.0a40"
 
     # Act
     version = github.get_local_version()
 
     # Assert
     assert version is None
-    assert mock_isdir.call_count == 1
+    mock_remove.assert_called_once()
 
 
 @patch("subvortex.auto_upgrader.src.github.requests.get")

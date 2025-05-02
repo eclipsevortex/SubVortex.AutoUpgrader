@@ -72,7 +72,11 @@ while [ "$#" -ge 1 ]; do
     esac
 done
 
-TARGET_BASE="/var/tmp/subvortex"
+# Load environment variables
+echo "🔍 Loading environment variables from .env..."
+export $(grep -v '^#' subvortex/auto_upgrader/.env | xargs)
+
+TARGET_BASE=${SUBVORTEX_WORKING_DIRECTORY:-/var/tmp/subvortex}
 SYMLINK_PATH="/root/subvortex"
 
 if [ ! -d "$TARGET_BASE" ]; then
