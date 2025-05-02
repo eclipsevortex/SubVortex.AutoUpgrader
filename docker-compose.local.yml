@@ -11,17 +11,3 @@ services:
       - ./subvortex/auto_upgrader/.env
     volumes:
       - /var/log:/app/logs
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-
-  watchtower:
-    image: containrrr/watchtower
-    container_name: subvortex-watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval ${SUBVORTEX_CHECK_INTERVAL} --cleanup --label-enable
-    restart: unless-stopped
-    environment:
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_LABEL_ENABLE=true
-      - WATCHTOWER_INCLUDE_RESTARTING=true

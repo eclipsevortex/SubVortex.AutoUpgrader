@@ -15,7 +15,7 @@ show_help() {
     echo "  This script setup and start the auto upgrader"
     echo
     echo "Options:"
-    echo "  --execution   Specify the execution method (default: service)"
+    echo "  --execution   Specify the execution method to install the Auto Upgrader(default: service)"
     echo "  --help        Show this help message"
     exit 0
 }

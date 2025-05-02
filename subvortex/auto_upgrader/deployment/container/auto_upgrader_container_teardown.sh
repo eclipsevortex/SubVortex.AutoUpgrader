@@ -19,9 +19,6 @@ else
     exit 1
 fi
 
-# Teardown watchtower
-# ./../../scripts/watchtower/watchtower_teardown.sh
-
 # Teardown Auto Upgarder
 $DOCKER_CMD -f ../../docker-compose.yml down auto_upgrader --rmi all
 

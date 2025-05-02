@@ -106,10 +106,6 @@ run_setup() {
             exit 1
         ;;
     esac
-
-    # if [[ "$SUBVORTEX_EXECUTION_METHOD" == "container" ]]; then
-    #     ./scripts/watchtower/watchtower_teardown.sh
-    # fi
 }
 
 # 🔥 Execute

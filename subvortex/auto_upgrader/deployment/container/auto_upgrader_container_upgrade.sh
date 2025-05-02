@@ -94,9 +94,6 @@ else
     exit 1
 fi
 
-# Install watchtower
-# ./../../scripts/watchtower/watchtower_start.sh
-
 # Start or restart the container
 ./deployment/container/auto_upgrader_container_start.sh
 

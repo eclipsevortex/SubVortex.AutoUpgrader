@@ -10,9 +10,16 @@ from subvortex.auto_upgrader.src.github import Github
 
 
 @patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "service")
+@patch("subvortex.auto_upgrader.src.github.os.path.islink")
 @patch("subvortex.auto_upgrader.src.github.os.listdir")
 @patch("subvortex.auto_upgrader.src.github.os.path.isdir")
-def test_get_local_version_service_returns_version(mock_isdir, mock_listdir):
+@patch("subvortex.auto_upgrader.src.github.os.path.isfile")
+def test_get_local_version_service_returns_version(
+    mock_isfile,
+    mock_isdir,
+    mock_listdir,
+    mock_islink,
+):
     # Arrange
     github = Github()
 
@@ -24,7 +31,9 @@ def test_get_local_version_service_returns_version(mock_isdir, mock_listdir):
     ]
 
     # Simulate os.path.isdir always returning True
-    mock_isdir.return_value = True
+    mock_islink.side_effect = [False, False, False]
+    mock_isdir.side_effect = [True, True, True, True]
+    mock_isfile.side_effect = [False, False, False]
 
     # Act
     version = github.get_local_version()

@@ -35,10 +35,14 @@
 - [Quick Start](#quick-start)
 - [Quick Stop](#quick-stop)
 - [Quick Upgrade](#quick-upgrade)
+- [Quick Restart](#quick-restart)
+- [Quick Clean](#quick-clean)
 - [Installation](#installation)
   - [Auto Upgrader](#installation-auto-upgrader)
-  - [Watchtower](#installation-watchtower)
+  - [Miner](#installation-miner)
+  - [Validator](#installation-validator)
   - [Other](#installation-other)
+- [Good to Know](#good-to-know)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 
@@ -72,23 +76,20 @@ git clone https://github.com/eclipsevortex/SubVortex.AutoUpgrader.git
 
 Then, configure your environment:
 
-1. Update the environment variables inside the `subvortex/auto_upgrader/environment/` folder.
-
-   - For miners, edit files matching `env.subvortex.miner.*`
-   - For validators, edit files matching `env.subvortex.validator.*`
-
-2. Update the main Auto Upgrader `.env` file at:
+1. Update the main Auto Upgrader `.env` file at:
    ```
    subvortex/auto_upgrader/.env
    ```
 
 Here's a breakdown of the key variables:
 
+- **SUBVORTEX_GITHUB_TOKEN**: GitHub token used to pull Docker images and download release assets from the GitHub registry. It is highly recommended to create a Personal Access Token (PAT) from your GitHub account for this purpose. See [Personal Access Token](#ipersonal-access-token) for instructions.
+
 - **SUBVORTEX_PRERELEASE_ENABLED**:  
   Set to `true` if you want the Auto Upgrader to apply both releases and pre-releases. Default is `false`.
 
 - **SUBVORTEX_EXECUTION_METHOD**:  
-  Defines how the Auto Upgrader runs. Options are `process`, `service`, or `container`. Default is `service`.
+  Defines how the neuron and its componentswill be installed by the Auto Upgrader. Options are `process`, `service`, or `container`. Default is `service`.
 
 - **SUBVORTEX_PRERELEASE_TYPE**:  
   Specifies a single prerelease identifier you want to be notified about. Options are `alpha` (**use ONLY in DEVNET**) or `rc` (**use ONLY in TESTNET**). Remove this variable to receive notifications from `latest` (**use in MAINNET**) prerelease types. Default is an empty string, which disables prerelease notifications.
@@ -114,6 +115,13 @@ Here's a breakdown of the key variables:
 - **SUBVORTEX_REDIS_PASSWORD**:
   Password of the redis database. Provide it ONLY if you are a validator.
 
+2. Update the environment variables inside the `subvortex/auto_upgrader/environment` folder.
+
+   - For miners, edit files matching `env.subvortex.miner.*`
+   - For validators, edit files matching `env.subvortex.validator.*`
+
+3. Update the templates inside the `subvortex/auto_upgrader/template` folder.
+
 <br />
 
 # 🔧 How It Works <a id="how-it-works"></a>
@@ -137,6 +145,25 @@ Here, the Auto Upgrader also checks GitHub every **SUBVORTEX_CHECK_INTERVAL** se
 2. It starts the updated container
 
 Note: In Docker mode, the Auto Upgrader only runs if the neuron isn’t installed or during rollback to version 2.3.3. Outside of that, upgrade responsibilities are delegated to Watchtower for seamless updates.
+
+<br />
+
+# 🔑 Personal Access Token <a id="personal-access-token"></a>
+
+To allow the system to pull Docker images and release assets from GitHub, you need to generate a GitHub Personal Access Token (PAT).
+
+1. Go to [GitHub Settings → Developer Settings → Personal Access Tokens](https://github.com/settings/tokens).
+2. Choose **Fine-grained tokens** (recommended) or **Classic** (still supported).
+3. Create a new token with at least the following permissions:
+
+   - **read:packages**
+   - **read:org** (required if the repository is under an organization)
+   - **public_repo** (sometimes required for public repositories)
+
+4. Set the token to **read-only access** where possible.
+5. Copy and save the token securely.
+
+Then, copy that token as value of `SUBVORTEX_GITHUB_TOKEN` in the main Auto Upgrader `.env` file.
 
 <br />
 
@@ -180,6 +207,30 @@ Use `-h` to see the options
 
 <br />
 
+# 🔄 Quick Restart <a id="quick-restart"></a>
+
+To stop/start the Auto Upgrader workspace and/or dumps in a quick way. Optionally to remove the current version.
+
+```bash
+./scripts/quick_restart.sh
+```
+
+Use `-h` to see the options
+
+<br />
+
+# 🧹 Quick Clean <a id="quick-clean"></a>
+
+To clean the Auto Upgrader workspace and/or dumps. Optionally to remove the current version.
+
+```bash
+./scripts/quick_clean.sh
+```
+
+Use `-h` to see the options
+
+<br />
+
 # 🛠️ Installation <a id="installation"></a>
 
 > ⚠️ **Important:** Use this section only if you’re experiencing issues with the quick setup.
@@ -188,9 +239,17 @@ Use `-h` to see the options
 
 To manage the Auto Upgrader, refer to the [user guide](./scripts/auto_upgrader/README.md)
 
-## Watchtower <a id="installation-watchtower"></a>
+## Miner <a id="installation-miner"></a>
 
-To manage the Watchtower, refer to the [user guide](./scripts/watchtower/README.md)
+> ⚠️ **Important:** It is highly recommended to install the Miner using the Auto Upgrader!
+
+To manage the Miner manually, refer to the [user guide](./scripts/miner/README.md)
+
+## Validator <a id="installation-validator"></a>
+
+> ⚠️ **Important:** It is highly recommended to install the Validator using the Auto Upgrader!
+
+To manage the Validator manually, refer to the [user guide](./scripts/validator/README.md)
 
 ## Other <a id="installation-other"></a>
 
@@ -205,22 +264,29 @@ For each of them, the same structure applies:
 
 <br />
 
+# 💡 Good to Know <a id="good-to-know"></a>
+
+After installing a version through the Auto Upgrader, you can directly run various management scripts for the Miner and/or Validator.
+For detailed usage and available commands, refer to the [SubVortex](https://github.com/eclipsevortex/SubVortex) documentation
+
+<br />
+
 # 🔧 Troubleshooting <a id="troubleshooting"></a>
 
 ## 🐛 Issue: Auto Upgrader is mixing the versions or can not upgrade
 
-**Cause:** The work directory may have some existing version causing an issue for the Auto Upgrader  
+**Cause:** The work directory may have some existing version causing an issue for the Auto Upgrader
 **Solution:** Clean the working directory
 
 ```bash
 ./scripts/quick_clean.sh
 ```
 
-The script will clean all the existing version and keep only the last one which can be removed by adding `--remove`
+The script will clean the Auto Upgrader workspace and/or dumps. Optionally removes the current version.
 
 Use option `-h` to see the different options.
 
-Once clean, restart the auto upgrader by running
+Once cleaned, restart the auto upgrader by running
 
 ```bash
 ./scripts/quick_restart.sh

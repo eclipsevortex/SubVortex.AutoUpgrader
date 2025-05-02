@@ -2,37 +2,35 @@
 
 set -e
 
-# Determine script directory dynamically to ensure everything runs in ./scripts/api/
+# Determine script directory dynamically
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
+cd "$SCRIPT_DIR/../.."
 
 source ./scripts/utils/utils.sh
 
 show_help() {
-    echo "Usage: $0 [--execution=process|service] [--role=miner|validator] [--remove]"
+    echo "Usage:"
+    echo "  $0 [--execution=process|service] [--role=miner|validator] [--remove] [--workspace] [--dumps]"
     echo
     echo "Description:"
-    echo "  This script clean the working directory of the Auto Uprader"
-    echo "  without removing the lastest version."
-    echo "  If you remove the latest version, the components will be stopped and teardown"
+    echo "  Cleans the Auto Upgrader workspace and/or dumps. Optionally removes the current version."
     echo
     echo "Options:"
-    echo "  --execution   Specify the execution method (default: taken from .env)"
-    echo "  --role        Role of the Auto Upgrader between miner or validator (default: taken from .env)"
-    echo "  --remove      True if you want to remove the latest version, false otherwise (default: false)"
+    echo "  --execution   Execution method (default: from .env)"
+    echo "  --role        Role of the Auto Upgrader: miner or validator (default: from .env)"
+    echo "  --workspace   Clean workspace (default: false)"
+    echo "  --dumps       Clean dumps (default: false)"
+    echo "  --remove      Also remove the latest version (will stop the component)"
     echo "  --help        Show this help message"
     exit 0
 }
 
-OPTIONS="e:o:rh"
-LONGOPTIONS="execution:,role:,remove,help"
-
-# Set defaults from env (can be overridden by arguments)
 EXECUTION="service"
 ROLE="miner"
 REMOVE_LATEST=false
+CLEAN_WORKSPACE=false
+CLEAN_DUMPS=false
 
-# Parse command-line arguments
 while [ "$#" -ge 1 ]; do
     case "$1" in
         -e|--execution)
@@ -43,16 +41,20 @@ while [ "$#" -ge 1 ]; do
             ROLE="$2"
             shift 2
         ;;
-        -r|--remove)
+        --remove)
             REMOVE_LATEST=true
+            shift
+        ;;
+        --workspace)
+            CLEAN_WORKSPACE=true
+            shift
+        ;;
+        --dumps)
+            CLEAN_DUMPS=true
             shift
         ;;
         -h|--help)
             show_help
-        ;;
-        --)
-            shift
-            break
         ;;
         *)
             echo "❌ Unrecognized option '$1'"
@@ -61,18 +63,20 @@ while [ "$#" -ge 1 ]; do
     esac
 done
 
-# Check maandatory args
 check_required_args EXECUTION ROLE
 
-# Stop the neuron if requested
 if [[ "$REMOVE_LATEST" == "true" ]]; then
-    "./script/$ROLE/quick_stop.sh" --execution "$EXECUTION"
+    "./scripts/$ROLE/quick_stop.sh" --execution "$EXECUTION"
 fi
 
-# Clean the workspace with --remove if requested
-CLEAN_CMD="./scripts/cleaner/clean_worspace.sh"
-if [[ "$REMOVE_LATEST" == "true" ]]; then
-    CLEAN_CMD+=" --remove"
+if [[ "$CLEAN_WORKSPACE" == "true" ]]; then
+    if [[ "$REMOVE_LATEST" == "true" ]]; then
+        ./scripts/cleaner/clean_workspace.sh --remove
+    else
+        ./scripts/cleaner/clean_workspace.sh
+    fi
 fi
 
-eval "$CLEAN_CMD"
+if [[ "$CLEAN_DUMPS" == "true" ]]; then
+    ./scripts/cleaner/clean_dumps.sh
+fi

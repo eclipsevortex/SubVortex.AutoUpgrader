@@ -16,7 +16,6 @@
 # DEALINGS IN THE SOFTWARE.
 import os
 import shutil
-import logging
 import asyncio
 import traceback
 import subprocess
@@ -615,6 +614,7 @@ class Orchestrator:
 
             btul.logging.debug(
                 f"⚙️ Migrations found for {new_service.name}",
+                prefix=sauc.SV_LOGGER_NAME
             )
 
             # Add the service to apply migrations

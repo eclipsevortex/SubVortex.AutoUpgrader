@@ -23,6 +23,7 @@ import tarfile
 import requests
 import importlib
 import subprocess
+import os as py_os
 from packaging.version import Version, InvalidVersion
 
 import bittensor.utils.btlogging as btul
@@ -335,7 +336,7 @@ class Github:
             full_image = f"ghcr.io/{self.repo_owner}/{package_name}:{floating_tag}"
 
             # Pull the floating tag image
-            btul.logging.debug(
+            btul.logging.trace(
                 f"Pull the image {full_image}", prefix=sauc.SV_LOGGER_NAME
             )
             pull_result = subprocess.run(
@@ -351,7 +352,7 @@ class Github:
                 continue
 
             # Inspect labels
-            btul.logging.debug(
+            btul.logging.trace(
                 f"Getting the labels of the image {full_image}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
@@ -581,9 +582,10 @@ class Github:
     def _get_local_version(self):
         versions = []
 
-        # Force Python to re-read the directory
-        importlib.reload(os)
-        importlib.invalidate_caches()
+        if "PYTEST_CURRENT_TEST" not in os.environ:
+            # Force Python to re-read the directory
+            importlib.reload(py_os)
+            importlib.invalidate_caches()
 
         # Check if base_dir exists
         if not os.path.isdir(sauc.SV_ASSET_DIR):

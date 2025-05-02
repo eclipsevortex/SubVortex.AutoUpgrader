@@ -19,9 +19,6 @@ else
     exit 1
 fi
 
-# Install watchtower
-# ./../../scripts/watchtower/watchtower_start.sh
-
 # Choose appropriate compose file
 if [ -n "$SUBVORTEX_LOCAL" ]; then
     COMPOSE_FILE="../docker-compose.local.yml"
