@@ -10,14 +10,12 @@ source ./scripts/utils/utils.sh
 
 show_help() {
     echo "Usage:"
-    echo "  $0 [--execution=process|service] [--role=miner|validator] [--remove] [--force] [--workspace] [--dumps]"
+    echo "  $0 [--remove] [--force] [--workspace] [--dumps]"
     echo
     echo "Description:"
     echo "  Cleans the Auto Upgrader workspace and/or dumps. Optionally removes or marks the current version for reinstall."
     echo
     echo "Options:"
-    echo "  --execution   Execution method (default: from .env)"
-    echo "  --role        Role of the Auto Upgrader: miner or validator (default: from .env)"
     echo "  --workspace   Clean workspace (default: false)"
     echo "  --dumps       Clean dumps (default: false)"
     echo "  --remove      Remove the current version (will stop the component)"
@@ -27,8 +25,6 @@ show_help() {
 }
 
 # Default values
-EXECUTION="service"
-ROLE="miner"
 REMOVE_LATEST=false
 FORCE_REINSTALL=false
 CLEAN_WORKSPACE=false
@@ -37,14 +33,6 @@ CLEAN_DUMPS=false
 # Parse arguments
 while [ "$#" -ge 1 ]; do
     case "$1" in
-        -e|--execution)
-            EXECUTION="$2"
-            shift 2
-            ;;
-        -o|--role)
-            ROLE="$2"
-            shift 2
-            ;;
         --remove)
             REMOVE_LATEST=true
             shift
@@ -70,13 +58,6 @@ while [ "$#" -ge 1 ]; do
             ;;
     esac
 done
-
-check_required_args EXECUTION ROLE
-
-# Stop component if --remove is passed
-if [[ "$REMOVE_LATEST" == "true" ]]; then
-    "./scripts/$ROLE/quick_stop.sh" --execution "$EXECUTION"
-fi
 
 # Build clean_workspace command
 if [[ "$CLEAN_WORKSPACE" == "true" || "$FORCE_REINSTALL" == "true" ]]; then
