@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
 # Stop and delete the miner process
-if pm2 list | grep -q "$SERVICE_NAME"; then
+if pm2 describe "$SERVICE_NAME" >/dev/null 2>&1; then
     echo "Stopping PM2 process $SERVICE_NAME..."
     
     # Stop the api

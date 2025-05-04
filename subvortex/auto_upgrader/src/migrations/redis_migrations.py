@@ -17,13 +17,13 @@
 import os
 import re
 import shutil
+import asyncio
 import importlib
 from dotenv import load_dotenv
 from redis import asyncio as aioredis
 
 import bittensor.utils.btlogging as btul
 import subvortex.auto_upgrader.src.constants as sauc
-import subvortex.auto_upgrader.src.version as sauv
 import subvortex.auto_upgrader.src.path as saup
 import subvortex.auto_upgrader.src.exception as saue
 from subvortex.auto_upgrader.src.service import Service
@@ -121,46 +121,67 @@ class RedisMigrations(Migration):
 
     async def apply(self):
         database = self._create_redis_instance()
+        await self.wait_for_redis(database)
 
-        # Load migrations
-        new_revisions = self._load_migrations_from_path(self.new_migration_path)
-        old_revisions = (
-            self._load_migrations_from_path(self.old_migration_path)
-            if self.previous_service
-            else []
-        )
-
-        # Read current DB version
-        current_version = await self._get_current_version(database)
-        btul.logging.debug(
-            f"🔍 Current database version for {self.service_name}: {current_version}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-
-        # Determine the highest revions
-        highest_revision = (
-            sorted(new_revisions, key=lambda v: Version(v))[-1]
-            if len(new_revisions) > 0
-            else "0.0.0"
-        )
-
-        if Version(current_version) < Version(highest_revision):
-            await self._upgrade(
-                database=database,
-                revisions=new_revisions,
-                current_version=current_version,
+        try:
+            # Load migrations
+            new_revisions = self._load_migrations_from_path(self.new_migration_path)
+            old_revisions = (
+                self._load_migrations_from_path(self.old_migration_path)
+                if self.previous_service
+                else []
             )
-        elif Version(current_version) > Version(highest_revision):
-            await self._downgrade(
-                database=database,
-                revisions=old_revisions,
-                current_version=highest_revision,
-            )
-        else:
-            btul.logging.info(
-                f"✅ Database already at target version for {self.service_name}",
+
+            # Read current DB version
+            current_version = await self._get_current_version(database)
+            btul.logging.debug(
+                f"🔍 Current database version for {self.service_name}: {current_version}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
+
+            # Determine the highest revions
+            highest_revision = (
+                sorted(new_revisions, key=lambda v: Version(v))[-1]
+                if len(new_revisions) > 0
+                else "0.0.0"
+            )
+
+            revision = "0.0.0"
+            if Version(current_version) < Version(highest_revision):
+                revision = await self._upgrade(
+                    database=database,
+                    revisions=new_revisions,
+                    current_version=current_version,
+                )
+            elif Version(current_version) > Version(highest_revision):
+                revision = await self._downgrade(
+                    database=database,
+                    revisions=old_revisions,
+                    current_version=highest_revision,
+                )
+            else:
+                btul.logging.info(
+                    f"✅ Database already at target version for {self.service_name}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+
+            # Check the version is saved
+            confirmed = await database.get("version")
+            decoded_confirmed = confirmed.decode().strip()
+            if decoded_confirmed != revision:
+                btul.logging.warning(
+                    f"❌ Redis failed to confirm version set to {revision}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+            else:
+                btul.logging.debug(
+                    f"✅ Redis succeed to confirm version set to {revision} (={decoded_confirmed})",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+
+        finally:
+            if database:
+                await database.close()
 
     async def rollback(self):
         if not self.applied_revisions:
@@ -170,30 +191,51 @@ class RedisMigrations(Migration):
             return
 
         database = self._create_redis_instance()
+        await self.wait_for_redis(database)
 
         btul.logging.info(
             f"↩️ Rolling back applied migrations for {self.service_name}: {self.applied_revisions}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
-        # Rollback in reverse order
-        for rev in reversed(self.applied_revisions):
-            btul.logging.info(
-                f"⬇️  Rolling back migration for {self.service_name}: {rev}",
-                prefix=sauc.SV_LOGGER_NAME,
-            )
-            await database.set(f"migration_mode:{rev}", "dual")
-            await self.modules[rev].rollback(database)
+        try:
+            # Rollback in reverse order
+            for rev in reversed(self.applied_revisions):
+                btul.logging.info(
+                    f"⬇️  Rolling back migration for {self.service_name}: {rev}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
 
-            parent_version = self.graph.get(rev)
-            if parent_version:
-                await database.set("version", parent_version)
-                await database.set(f"migration_mode:{parent_version}", "legacy")
-            else:
-                await database.set("version", "0.0.0")
+                btul.logging.trace(
+                    f"[Rev {rev}] Setting migration mode: dual",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                await database.set(f"migration_mode:{rev}", "dual")
 
-        # Clear applied revisions after rollback
-        self.applied_revisions.clear()
+                btul.logging.trace(
+                    f"[Rev {rev}] Executing rollback step", prefix=sauc.SV_LOGGER_NAME
+                )
+                await self.modules[rev].rollback(database)
+
+                # Get the parent revision
+                parent_version = self.graph.get(rev) or "0.0.0"
+
+                btul.logging.trace(
+                    f"[Rev {rev}] Finalizing migration — setting mode to 'new' and version to '{parent_version}'",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                if parent_version:
+                    await database.set("version", parent_version)
+                    await database.set(f"migration_mode:{parent_version}", "legacy")
+                else:
+                    await database.set("version", parent_version)
+
+            # Clear applied revisions after rollback
+            self.applied_revisions.clear()
+
+        finally:
+            if database:
+                await database.close()
 
     async def _upgrade(self, database, revisions, current_version):
         btul.logging.info(
@@ -215,12 +257,27 @@ class RedisMigrations(Migration):
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
+            btul.logging.trace(
+                f"[Rev {rev}] Setting migration mode: dual",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             await database.set(f"migration_mode:{rev}", "dual")
+
+            btul.logging.trace(
+                f"[Rev {rev}] Executing rollout step", prefix=sauc.SV_LOGGER_NAME
+            )
             await self.modules[rev].rollout(database)
+
+            btul.logging.trace(
+                f"[Rev {rev}] Finalizing migration — setting mode to 'new' and version to '{rev}'",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             await database.set("version", rev)
             await database.set(f"migration_mode:{rev}", "new")
 
             self.applied_revisions.append(rev)
+
+        return rev or "0.0.0"
 
     async def _downgrade(self, database, revisions, current_version):
         btul.logging.info(
@@ -228,6 +285,7 @@ class RedisMigrations(Migration):
             prefix=sauc.SV_LOGGER_NAME,
         )
 
+        parent_version = "0.0.0"
         for rev in sorted(revisions, key=lambda v: Version(v), reverse=True):
             if Version(rev) <= Version(current_version):
                 break
@@ -248,19 +306,29 @@ class RedisMigrations(Migration):
 
             self.applied_revisions.append(rev)
 
+        return parent_version
+
     def _create_redis_instance(self):
+        host = os.getenv("SUBVORTEX_REDIS_HOST", "localhost")
+        port = int(os.getenv("SUBVORTEX_REDIS_PORT", 6379))
+        db = int(os.getenv("SUBVORTEX_REDIS_INDEX", 0))
         password = os.getenv("SUBVORTEX_REDIS_PASSWORD")
+
         if not password:
             btul.logging.warning(
                 f"No password configured. It is recommended to have one.",
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
+        btul.logging.debug(
+            f"Redis connection {host}:{port} on db {db}", prefix=sauc.SV_LOGGER_NAME
+        )
+
         return aioredis.StrictRedis(
-            host=os.getenv("SUBVORTEX_REDIS_HOST", "localhost"),
-            port=int(os.getenv("SUBVORTEX_REDIS_PORT", 6379)),
-            db=int(os.getenv("SUBVORTEX_REDIS_INDEX", 0)),
-            password=os.getenv("SUBVORTEX_REDIS_PASSWORD"),
+            host=host,
+            port=port,
+            db=db,
+            password=password,
         )
 
     async def _get_current_version(self, database):
@@ -332,3 +400,13 @@ class RedisMigrations(Migration):
                     continue
 
         return dump_dir, db_filename
+
+    async def wait_for_redis(self, redis_client, timeout=30):
+        for _ in range(timeout):
+            try:
+                pong = await redis_client.ping()
+                if pong:
+                    return True
+            except Exception:
+                pass
+            await asyncio.sleep(1)

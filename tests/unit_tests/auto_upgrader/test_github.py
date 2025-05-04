@@ -466,3 +466,38 @@ def test_get_latest_container_version_different_tags(
         assert version == expected_version
         assert mock_requests_get.call_count == 1
         assert mock_subprocess_run.call_count == 2  # pull + inspect
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_ROLE", "miner")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+@patch("subvortex.auto_upgrader.src.github.requests.get")
+def test_get_latest_version_inspect_succeeds_after_pull_fails(
+    mock_requests_get,
+    mock_subprocess_run,
+):
+    github = Github()
+
+    # Mock GitHub packages API to return one miner container
+    mock_packages_response = MagicMock()
+    mock_packages_response.status_code = 200
+    mock_packages_response.json.return_value = [
+        {"name": "subvortex-miner-neuron"},
+    ]
+    mock_requests_get.return_value = mock_packages_response
+
+    # Simulate: docker pull fails, but inspect succeeds
+    mock_subprocess_run.side_effect = [
+        MagicMock(returncode=1, stderr="pull failed"),  # docker pull
+        MagicMock(
+            returncode=0,
+            stdout='{"version": "2.5.0", "miner.version": "2.5.0", "miner.neuron.version": "2.5.0"}',
+        ),  # docker inspect
+    ]
+
+    with patch("subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="latest"):
+        version = github.get_latest_version()
+
+    assert version == "2.5.0"
+    assert mock_requests_get.call_count == 1
+    assert mock_subprocess_run.call_count == 2
