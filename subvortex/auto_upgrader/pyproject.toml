@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "subvortex-auto-upgrader"
-version = "0.0.7"
+version = "1.0.0"
 description = "SubVortex Auto Upgrader"
 authors = [{ name = "Eclipse Vortex", email = "subvortex.bt@gmail.com" }]
 readme = "README.md"

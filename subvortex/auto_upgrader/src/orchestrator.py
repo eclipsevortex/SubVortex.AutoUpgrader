@@ -375,6 +375,7 @@ class Orchestrator:
             # Create the env file path
             source_file = saup.get_au_environment_file(service=service)
             if not os.path.exists(source_file):
+                # TODO: maybe a warning as the service source may not have any env file?
                 raise saue.MissingFileError(file_path=source_file)
 
             # Build the target env file

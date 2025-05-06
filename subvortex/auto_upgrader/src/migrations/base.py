@@ -18,6 +18,10 @@ from abc import ABC, abstractmethod
 
 class Migration(ABC):
     @abstractmethod
+    def prepare(self):
+        pass
+
+    @abstractmethod
     def apply(self):
         pass
 

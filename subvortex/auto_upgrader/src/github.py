@@ -345,16 +345,16 @@ class Github:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            if pull_result.returncode != 0:
+            pulled_successfully = pull_result.returncode == 0
+            if not pulled_successfully:
                 btul.logging.warning(
-                    f"Failed to pull image {full_image}", prefix=sauc.SV_LOGGER_NAME
+                    f"⚠️ Failed to pull image {full_image} — will try inspecting any local version.",
+                    prefix=sauc.SV_LOGGER_NAME,
                 )
-                continue
 
-            # Inspect labels
+            # Attempt to inspect regardless of pull result
             btul.logging.trace(
-                f"Getting the labels of the image {full_image}",
-                prefix=sauc.SV_LOGGER_NAME,
+                f"Attempting to inspect image: {full_image}", prefix=sauc.SV_LOGGER_NAME
             )
             inspect_result = subprocess.run(
                 [
@@ -368,9 +368,11 @@ class Github:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            if inspect_result.returncode != 0 or not inspect_result.stdout:
+            if inspect_result.returncode != 0 or not inspect_result.stdout.strip():
                 btul.logging.warning(
-                    f"Failed to inspect image {full_image}", prefix=sauc.SV_LOGGER_NAME
+                    f"❌ Cannot inspect image {full_image}: "
+                    f"{'image not present locally' if not pulled_successfully else inspect_result.stderr.strip()}",
+                    prefix=sauc.SV_LOGGER_NAME,
                 )
                 continue
 
