@@ -23,7 +23,7 @@ pip install torch > /dev/null
 
 # Step 4: Run the converter script
 echo "🚀 Running model converter..."
-python "$MAIN_SCRIPT" "$TORCH_FILE_PATH"
+python "$MAIN_SCRIPT" "$TORCH_FILE_PATH" "$@"
 
 # Optional: deactivate
 deactivate
