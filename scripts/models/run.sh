@@ -39,7 +39,7 @@ source "$VENV_DIR/bin/activate"
 # Step 3: Upgrade pip and install requirements
 pip install --upgrade pip > /dev/null
 echo "📦 Installing dependencies..."
-pip install -r requirements.txt > /dev/null
+pip install -r requirements.txt
 
 # Step 4: Run the converter script
 echo "🚀 Running model converter..."
