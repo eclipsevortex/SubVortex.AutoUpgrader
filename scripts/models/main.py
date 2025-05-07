@@ -31,10 +31,8 @@ class Worker:
             # Convert each tensor to numpy
             np_weights = {}
             for key, tensor in state_dict.items():
-                if isinstance(tensor, torch.Tensor):
-                    np_weights[key] = tensor.cpu().numpy()
-                else:
-                    np_weights[key] = tensor
+                np_weights[key] = tensor
+
             btul.logging.debug(f"NPZ weights: {np_weights}")
 
             # Save to .npz file
