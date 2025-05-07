@@ -24,28 +24,15 @@ source "$VENV_DIR/bin/activate"
 pip install --upgrade pip > /dev/null
 
 # Step 3: Upgrade pip and install torch only if not already installed
-echo "📦 Ensuring torch is installed..."
-if ! python -c "import torch" &> /dev/null; then
-    echo "📥 Installing torch..."
-    pip install torch > /dev/null
-else
-    echo "✅ torch already installed"
-fi
+echo "📦 Installing dependencies..."
+pip install --upgrade pip > /dev/null
+pip install -r requirements.txt > /dev/null
 
-# Step 4: Upgrade pip and install torch only if not already installed
-echo "📦 Ensuring numpy is installed..."
-if ! python -c "import torch" &> /dev/null; then
-    echo "📥 Installing numpy..."
-    pip install numpy > /dev/null
-else
-    echo "✅ numpy already installed"
-fi
-
-# Step 5: Run the converter script
+# Step 4: Run the converter script
 echo "🚀 Running model converter..."
 python "$MAIN_SCRIPT" "$TORCH_FILE_PATH" "$@"
 
-# Step 6: Deactivate and clean up virtual environment
+# Step 5: Deactivate and clean up virtual environment
 deactivate
 echo "🧹 Cleaning up virtual environment..."
 rm -rf "$VENV_DIR"
