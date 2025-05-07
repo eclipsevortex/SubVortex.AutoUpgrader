@@ -26,7 +26,7 @@ echo "📦 Ensuring torch is installed..."
 if ! python -c "import torch" &> /dev/null; then
     echo "📥 Installing torch..."
     pip install --upgrade pip > /dev/null
-    pip install torch > /dev/null
+    pip install -r requirements.txt > /dev/null
 else
     echo "✅ torch already installed"
 fi
