@@ -25,7 +25,6 @@ pip install --upgrade pip > /dev/null
 
 # Step 3: Upgrade pip and install torch only if not already installed
 echo "📦 Installing dependencies..."
-pip install --upgrade pip > /dev/null
 pip install -r requirements.txt > /dev/null
 
 # Step 4: Run the converter script
