@@ -286,7 +286,12 @@ class Github:
 
         # Get the first release/pre release
         last_release = next(
-            (x for x in releases if self._is_valid_release_or_prerelease(x["tag_name"]))
+            (
+                x
+                for x in releases
+                if self._is_valid_release_or_prerelease(x["tag_name"])
+            ),
+            None,
         )
 
         # Optionally sort by semantic version if needed
