@@ -1,6 +1,9 @@
 #!/bin/bash
 
-set -euo pipefail
+set -e
+
+# Determine script directory dynamically
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Define paths
 VENV_DIR=".venv"
