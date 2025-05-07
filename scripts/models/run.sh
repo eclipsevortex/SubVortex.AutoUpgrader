@@ -10,7 +10,22 @@ cd "$SCRIPT_DIR"
 VENV_DIR=".venv"
 MAIN_SCRIPT="main.py"
 TORCH_FILE_PATH="$1"
-shift  # Remove torch file path so "$@" holds only extra args
+shift  # Remove torch file path from positional args
+
+# Filter out --torch_model and its value from the remaining args
+CLEANED_ARGS=()
+SKIP_NEXT=false
+for arg in "$@"; do
+    if [ "$SKIP_NEXT" = true ]; then
+        SKIP_NEXT=false
+        continue
+    fi
+    if [ "$arg" == "--torch_model" ]; then
+        SKIP_NEXT=true
+        continue
+    fi
+    CLEANED_ARGS+=("$arg")
+done
 
 # Step 1: Create virtual environment if not exists
 if [ ! -d "$VENV_DIR" ]; then
@@ -21,15 +36,14 @@ fi
 # Step 2: Activate virtual environment
 source "$VENV_DIR/bin/activate"
 
+# Step 3: Upgrade pip and install requirements
 pip install --upgrade pip > /dev/null
-
-# Step 3: Upgrade pip and install torch only if not already installed
 echo "📦 Installing dependencies..."
 pip install -r requirements.txt > /dev/null
 
 # Step 4: Run the converter script
 echo "🚀 Running model converter..."
-python "$MAIN_SCRIPT" "$TORCH_FILE_PATH" "$@"
+python "$MAIN_SCRIPT" "$TORCH_FILE_PATH" "${CLEANED_ARGS[@]}"
 
 # Step 5: Deactivate and clean up virtual environment
 deactivate
