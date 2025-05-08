@@ -42,6 +42,8 @@
   - [Miner](#installation-miner)
   - [Validator](#installation-validator)
   - [Other](#installation-other)
+- [Tools](#tools)
+  - [Wandb](#tool-wandb)
 - [Good to Know](#good-to-know)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
@@ -263,6 +265,22 @@ For each of them, the same structure applies:
 - **`<tool|service>_teardown.sh`** – fully removes and cleans up the tool or service
 
 <br />
+
+# Tools <a id="tools"></a>
+
+## Wandb <a id="tool-wandb"></a>
+
+To login to wandb, run
+
+```bash
+./scripts/wandb/wandb_login.sh --api-key <WANDB_API_KEY>
+```
+
+To force relogin to wandb, run
+
+```bash
+./scripts/wandb/wandb_login.sh --api-key <WANDB_API_KEY> --relogin
+```
 
 # 💡 Good to Know <a id="good-to-know"></a>
 
