@@ -91,7 +91,7 @@ Here's a breakdown of the key variables:
   Set to `true` if you want the Auto Upgrader to apply both releases and pre-releases. Default is `false`.
 
 - **SUBVORTEX_EXECUTION_METHOD**:  
-  Defines how the neuron and its componentswill be installed by the Auto Upgrader. Options are `process`, `service`, or `container`. Default is `service`.
+  Defines how the neuron and its components will be installed by the Auto Upgrader. Options are `process`, `service`, or `container`. Default is `service`.
 
 - **SUBVORTEX_PRERELEASE_TYPE**:  
   Specifies a single prerelease identifier you want to be notified about. Options are `alpha` (**use ONLY in DEVNET**) or `rc` (**use ONLY in TESTNET**). Remove this variable to receive notifications from `latest` (**use in MAINNET**) prerelease types. Default is an empty string, which disables prerelease notifications.
@@ -122,7 +122,7 @@ Here's a breakdown of the key variables:
    - For miners, edit files matching `env.subvortex.miner.*`
    - For validators, edit files matching `env.subvortex.validator.*`
 
-3. Update the templates inside the `subvortex/auto_upgrader/template` folder.
+3. Update the templates inside the `subvortex/auto_upgrader/template` folder. Recommended to keep as it is.
 
 <br />
 
@@ -138,6 +138,9 @@ In these modes, the Auto Upgrader checks GitHub every **SUBVORTEX_CHECK_INTERVAL
 2. Install the new version
 3. Updates the symlink to point to the new version
 4. Cleans up the previous version
+
+➡️ The execution directory for SubVortex will now be located under `$HOME/subvortex`, with each version in its own subdirectory and a symlink pointing to the current version.
+You no longer need to clone the SubVortex repository manually — and can safely remove any old local copies you previously cloned.
 
 🐳 Docker Mode
 

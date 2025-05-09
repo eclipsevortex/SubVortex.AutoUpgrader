@@ -23,9 +23,6 @@ SV_LOGGER_NAME = "Auto Upgrader"
 
 # Directories
 SV_EXECUTION_DIR = os.path.abspath(os.path.expanduser("~/subvortex"))
-SV_WORKING_DIRECTORY = os.path.expandvars(
-    os.getenv("SUBVORTEX_WORKING_DIRECTORY", "$HOME")
-)
 
 # Time in seconds to run the check of new release
 SV_CHECK_INTERVAL = int(os.getenv("SUBVORTEX_CHECK_INTERVAL", 60))
