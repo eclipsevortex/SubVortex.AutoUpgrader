@@ -8,6 +8,8 @@ SERVICE_NAME=subvortex-auto-upgrader
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
+source ../../scripts/utils/utils.sh
+
 # Activate virtual environment
 source venv/bin/activate
 
@@ -15,26 +17,7 @@ source venv/bin/activate
 export $(grep -v '^#' .env | xargs)
 
 # Build CLI args from SUBVORTEX_ environment variables
-ARGS=()
-PREFIX="SUBVORTEX_"
-
-while IFS= read -r line; do
-  key="${line%%=*}"
-  value="${line#*=}"
-  if [[ $key == ${PREFIX}* ]]; then
-    key_suffix="${key#$PREFIX}"
-    cli_key="--$(echo "$key_suffix" | tr '[:upper:]' '[:lower:]' | tr '_' '.')"
-    value_lower="$(echo "$value" | tr '[:upper:]' '[:lower:]')"
-
-    if [[ "$value_lower" == "true" ]]; then
-      ARGS+=("$cli_key")
-    elif [[ $value_lower == "false" ]]; then
-      continue
-    else
-      ARGS+=("$cli_key" "$value")
-    fi
-  fi
-done < <(env)
+ARGS=$(convert_env_var_to_args)
 
 # Build the full ExecStart line
 PYTHON_EXEC="/root/SubVortex.AutoUpgrader/subvortex/auto_upgrader/venv/bin/python3"
@@ -49,7 +32,7 @@ TEMP_TEMPLATE="/tmp/${SERVICE_NAME}.service.template"
 sed "s|^ExecStart=.*|ExecStart=$FULL_EXEC_START|" "$TEMPLATE_PATH" > "$TEMP_TEMPLATE"
 
 # Install the service configuration
-envsubst < "$TEMP_TEMPLATE" | tee "/etc/systemd/system/${SERVICE_NAME}.service" > /dev/null
+envsubst < "$TEMP_TEMPLATE" | tee "/etc/systemd/user/${SERVICE_NAME}.service" > /dev/null
 
 # Prepare the log
 sudo mkdir -p /var/log/$SERVICE_NAME
