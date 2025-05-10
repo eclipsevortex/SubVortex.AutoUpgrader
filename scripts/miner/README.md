@@ -138,7 +138,7 @@ systemctl status subvortex-auto-upgrader
 You should see something like
 
 ```bash
-Loaded: loaded (/etc/systemd/system/subvortex-auto-upgrader.service; enabled; vendor preset: enabled)
+Loaded: loaded (/etc/systemd/user/subvortex-auto-upgrader.service; enabled; vendor preset: enabled)
      Active: active (running) since Thu 2025-04-10 11:51:27 BST; 6s ago
    Main PID: 2229560 (python3)
       Tasks: 10 (limit: 28765)

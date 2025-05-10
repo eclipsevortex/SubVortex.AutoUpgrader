@@ -98,7 +98,7 @@ if [[ "$SV_EXECUTION" == "service" ]]; then
         sudo systemctl disable "${SERVICE_NAME}.service"
 
         echo "🧽 Removing systemd service file..."
-        sudo rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+        sudo rm -f "/etc/systemd/user/${SERVICE_NAME}.service"
 
         echo "🔄 Reloading systemd daemon..."
         sudo systemctl daemon-reexec
