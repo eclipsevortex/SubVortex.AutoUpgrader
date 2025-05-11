@@ -8,7 +8,7 @@ SERVICE_NAME=subvortex-auto-upgrader
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
-source ../scripts/utils/utils.sh
+source ../../scripts/utils/utils.sh
 
 # Activate virtual environment
 source venv/bin/activate
