@@ -17,7 +17,7 @@ source venv/bin/activate
 export $(grep -v '^#' .env | xargs)
 
 # Build CLI args from SUBVORTEX_ environment variables
-ARGS=$(convert_env_var_to_args)
+eval "ARGS=( $(convert_env_var_to_args) )"
 
 # Start or reload PM2
 if pm2 list | grep -q "$SERVICE_NAME"; then

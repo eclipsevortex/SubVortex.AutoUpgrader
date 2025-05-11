@@ -23,7 +23,7 @@ source venv/bin/activate
 export $(grep -v '^#' .env | xargs)
 
 # Build CLI args from SUBVORTEX_ environment variables
-ARGS=$(convert_env_var_to_args)
+eval "ARGS=( $(convert_env_var_to_args) )"
 
 # Build the full ExecStart line
 PYTHON_EXEC="/root/SubVortex.AutoUpgrader/subvortex/auto_upgrader/venv/bin/python3"
