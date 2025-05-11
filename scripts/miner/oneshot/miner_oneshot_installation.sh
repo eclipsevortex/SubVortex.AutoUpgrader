@@ -2,6 +2,12 @@
 
 set -euo pipefail
 
+# Ensure script run as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo "🛑 This script must be run as root. Re-running with sudo..."
+    exec sudo "$0" "$@"
+fi
+
 # 🧭 Navigate to project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../../.."
@@ -72,7 +78,7 @@ case "$val_mode" in
     1)
         read -rp "⚙️  Enter systemd service name: " val_svc
         echo "⛔ Stopping systemd service '$val_svc'..."
-        sudo systemctl stop "$val_svc" || echo "⚠️ Failed to stop systemd service"
+        systemctl stop "$val_svc" || echo "⚠️ Failed to stop systemd service"
     ;;
     2)
         read -rp "⚙️  Enter PM2 process name: " val_proc

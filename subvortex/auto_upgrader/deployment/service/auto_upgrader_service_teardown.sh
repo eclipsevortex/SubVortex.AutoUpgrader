@@ -2,6 +2,12 @@
 
 set -e
 
+# Ensure script run as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo "🛑 This script must be run as root. Re-running with sudo..."
+    exec sudo "$0" "$@"
+fi
+
 SERVICE_NAME=subvortex-auto-upgrader
 
 # Determine script directory dynamically to ensure everything runs in ./scripts/api/
@@ -17,7 +23,7 @@ if systemctl list-units --type=service --all | grep -q "${SERVICE_NAME}.service"
     systemctl disable "${SERVICE_NAME}.service"
 
     echo "Removing systemd service file..."
-    sudo rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+    rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
 
     echo "Reloading systemd daemon..."
     systemctl daemon-reload
@@ -29,7 +35,7 @@ fi
 LOG_DIR="/var/log/$SERVICE_NAME"
 if [[ -d "$LOG_DIR" ]]; then
     echo "Removing log directory: $LOG_DIR"
-    sudo rm -rf "$LOG_DIR"
+    rm -rf "$LOG_DIR"
 else
     echo "Log directory $LOG_DIR does not exist. Skipping."
 fi

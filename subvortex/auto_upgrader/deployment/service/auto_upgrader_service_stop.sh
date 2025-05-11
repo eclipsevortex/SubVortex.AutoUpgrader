@@ -2,13 +2,23 @@
 
 set -e
 
+# Ensure script run as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo "🛑 This script must be run as root. Re-running with sudo..."
+    exec sudo "$0" "$@"
+fi
+
 SERVICE_NAME=subvortex-auto-upgrader
 
-# Determine script directory dynamically to ensure everything runs in ./scripts/api/
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../.."
+echo "🔍 Checking $SERVICE_NAME status..."
 
-## Start the service
-systemctl stop $SERVICE_NAME.service
+# Check if the service is active
+if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "🛑 $SERVICE_NAME is currently running — stopping it now..."
+    systemctl stop "$SERVICE_NAME"
+    echo "✅ $SERVICE_NAME stopped successfully."
+else
+    echo "ℹ️ $SERVICE_NAME is not running. No action needed."
+fi
 
-echo "✅ Auto Upgrader stopped successfully"
+echo "✅ Auto Upgrader stopped successfully."

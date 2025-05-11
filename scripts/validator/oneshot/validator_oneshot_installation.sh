@@ -2,6 +2,12 @@
 
 set -e
 
+# Ensure script run as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo "🛑 This script must be run as root. Re-running with sudo..."
+    exec sudo "$0" "$@"
+fi
+
 # Determine script directory dynamically
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../../.."
@@ -110,8 +116,8 @@ echo "👤 Detected Redis user: $redis_user"
 # --- BACKUP Config ---
 config_dir="$(dirname "$config_path")"
 conf_backup="$REDIS_BACKUP/redis.conf.backup.$timestamp"
-sudo cp "$config_path" "$conf_backup"
-sudo chown "$new_redis_user":"$new_redis_user" "$conf_backup"
+cp "$config_path" "$conf_backup"
+chown "$new_redis_user":"$new_redis_user" "$conf_backup"
 echo "✅ Backed up redis.conf to: $conf_backup"
 
 # --- BACKUP KEYS ---
@@ -148,8 +154,8 @@ echo "✅ Metadata stored in $METADATA_FILE"
 echo
 read -p "🛠️ How is the Validator running? [1=systemd, 2=pm2, 3=docker]: " val_mode
 case "$val_mode" in
-    1) read -p "Validator service name: " val_svc; sudo systemctl stop "$val_svc";;
-    2) read -p "Validator process name: " val_proc; sudo pm2 stop "$val_proc";;
+    1) read -p "Validator service name: " val_svc; systemctl stop "$val_svc";;
+    2) read -p "Validator process name: " val_proc; pm2 stop "$val_proc";;
     3) read -p "Validator container name/ID: " val_container; docker stop "$val_container";;
     *) echo "⚠️ Skipping validator stop.";;
 esac
@@ -163,7 +169,7 @@ case "$mode" in
         read -p "⚙️  Enter systemd service name [redis-server]: " svc
         svc=${svc:-redis-server}
         echo "🔼 Stopping systemd service '$svc'..."
-        sudo systemctl stop "$svc" || echo "⚠️ Failed to stop systemd service $svc"
+        systemctl stop "$svc" || echo "⚠️ Failed to stop systemd service $svc"
     ;;
     2)
         read -p "⚙️  Enter Redis process (PM2) name: " proc
@@ -188,7 +194,7 @@ if lsof -iTCP:6379 -sTCP:LISTEN >/dev/null; then
     echo "⚠️ Redis still listening on port 6379. Killing manually..."
     pid=$(lsof -tiTCP:6379 -sTCP:LISTEN)
     if [[ -n "$pid" ]]; then
-        sudo kill -9 "$pid"
+        kill -9 "$pid"
         echo "✅ Redis process (PID $pid) killed"
     else
         echo "❌ Could not identify Redis process. Check manually."
