@@ -998,7 +998,9 @@ class Orchestrator:
             if not key.startswith("SUBVORTEX_")
         }
         env["SUBVORTEX_FLOATTING_FLAG"] = sauu.get_tag()
-        env["SUBVORTEX_WORKING_DIR"] = sauc.SV_EXECUTION_DIR
+
+        if action in ["start", "stop"]:
+            env["SUBVORTEX_WORKING_DIR"] = sauc.SV_EXECUTION_DIR
 
         try:
             result = subprocess.run(
