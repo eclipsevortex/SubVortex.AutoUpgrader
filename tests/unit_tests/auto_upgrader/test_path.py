@@ -24,11 +24,13 @@ import tempfile
 from unittest import mock
 
 import subvortex.auto_upgrader.src.path as saup
+import subvortex.auto_upgrader.src.constants as sauc
 from subvortex.auto_upgrader.src.service import Service
 
 
 @pytest.fixture
 def fake_service():
+    sauc.SV_EXECUTION_METHOD = "service"
     return Service(
         id="miner-neuron",
         name="subvortex-miner-neuron",
