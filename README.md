@@ -32,6 +32,7 @@
 - [Introduction](#introduction)
 - [Prerequisites](#prerequisites)
 - [How It Works](#how-it-works)
+- [Quick Setup](#quick-setup)
 - [Quick Start](#quick-start)
 - [Quick Stop](#quick-stop)
 - [Quick Upgrade](#quick-upgrade)
@@ -169,6 +170,20 @@ To allow the system to pull Docker images and release assets from GitHub, you ne
 5. Copy and save the token securely.
 
 Then, copy that token as value of `SUBVORTEX_GITHUB_TOKEN` in the main Auto Upgrader `.env` file.
+
+<br />
+
+# 🚀 Quick Setup <a id="quick-setup"></a>
+
+To setup the Auto Upgrader in a quick way, you can run
+
+```bash
+./scripts/quick_setup.sh --neuron validator --release v3.0.1
+```
+
+It will download and unzip the newuon's assets of the SubVortex for the requested version.
+
+Use `-h` to see the options
 
 <br />
 
