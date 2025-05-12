@@ -21,7 +21,6 @@ import pytest
 from subvortex.auto_upgrader.src.version import (
     normalize_version,
     denormalize_version,
-    get_local_version,
 )
 
 
@@ -50,20 +49,3 @@ def test_normalize_version(input_version, expected):
 )
 def test_denormalize_version(input_version, expected):
     assert denormalize_version(input_version) == expected
-
-
-def test_get_local_version_returns_latest(tmp_path, monkeypatch):
-    # Create fake version folders
-    (tmp_path / "subvortex-1.2.3").mkdir()
-    (tmp_path / "subvortex-1.2.3a1").mkdir()
-    (tmp_path / "subvortex-2.0.0b2").mkdir()
-    (tmp_path / "subvortex-2.0.0").mkdir()
-    (tmp_path / "subvortex-invalid").mkdir()
-
-    monkeypatch.setattr(
-        "subvortex.auto_upgrader.src.constants.SV_WORKING_DIRECTORY", tmp_path
-    )
-    files = os.listdir(tmp_path)
-    monkeypatch.setattr("os.listdir", lambda _: files)
-
-    assert get_local_version() == "2.0.0"

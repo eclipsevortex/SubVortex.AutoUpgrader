@@ -2,6 +2,12 @@
 
 set +e
 
+# Ensure script run as root
+if [[ "$EUID" -ne 0 ]]; then
+    echo "🛑 This script must be run as root. Re-running with sudo..."
+    exec sudo "$0" "$@"
+fi
+
 # 🧭 Navigate to project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../../.."
@@ -95,14 +101,14 @@ SERVICE_NAME="subvortex-validator-redis"
 if [[ "$SV_EXECUTION" == "service" ]]; then
     if systemctl list-units --type=service --all | grep -q "${SERVICE_NAME}.service"; then
         echo "🛑 Disabling systemd service: $SERVICE_NAME..."
-        sudo systemctl disable "${SERVICE_NAME}.service"
+        systemctl disable "${SERVICE_NAME}.service"
 
         echo "🧽 Removing systemd service file..."
-        sudo rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+        rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
 
         echo "🔄 Reloading systemd daemon..."
-        sudo systemctl daemon-reexec
-        sudo systemctl daemon-reload
+        systemctl daemon-reexec
+        systemctl daemon-reload
     else
         echo "ℹ️ Systemd service ${SERVICE_NAME}.service not found. Skipping."
     fi
@@ -134,7 +140,7 @@ if lsof -iTCP:6379 -sTCP:LISTEN >/dev/null; then
     echo "⚠️ Redis still listening on port 6379. Killing manually..."
     pid=$(lsof -tiTCP:6379 -sTCP:LISTEN)
     if [[ -n "$pid" ]]; then
-        sudo kill -9 "$pid" || echo "⚠️ Failed to kill Redis process PID $pid"
+        kill -9 "$pid" || echo "⚠️ Failed to kill Redis process PID $pid"
         echo "✅ Redis process (PID $pid) killed"
     else
         echo "❌ Could not identify Redis process. Check manually."
@@ -161,8 +167,8 @@ if [[ -f "$metadata_file" ]]; then
     conf_backup=$(ls -t "$REDIS_BACKUP"/redis.conf.backup.* 2>/dev/null | head -n1 || true)
     if [[ -n "$conf_backup" && -f "$conf_backup" ]]; then
         echo "📄 Restoring redis.conf to $config_path..."
-        sudo cp "$conf_backup" "$config_path" || echo "⚠️ Failed to restore redis.conf"
-        sudo chown "$redis_user:$redis_user" "$config_path" || echo "⚠️ Failed to set ownership on redis.conf"
+        cp "$conf_backup" "$config_path" || echo "⚠️ Failed to restore redis.conf"
+        chown "$redis_user:$redis_user" "$config_path" || echo "⚠️ Failed to set ownership on redis.conf"
         echo "✅ redis.conf restored and ownership set to $redis_user."
 
         # Extract password (optional)
@@ -190,7 +196,7 @@ dbindex=${dbindex:-1}
 
 # Mask default redis-server systemd service
 echo "🚫 Unmasking default redis-server systemd service..."
-sudo systemctl unmask redis-server || true
+systemctl unmask redis-server || true
 
 echo
 echo "🧐 Choose how the old Redis should be started:"
@@ -204,7 +210,7 @@ case "$mode" in
         read -p "⚙️  Enter systemd service name [redis-server]: " svc
         svc=${svc:-redis-server}
         echo "🔼 Starting systemd service '$svc'..."
-        sudo systemctl start "$svc" || echo "⚠️ Failed to start systemd service $svc"
+        systemctl start "$svc" || echo "⚠️ Failed to start systemd service $svc"
     ;;
     2)
         read -p "⚙️  Enter Redis process (PM2) name: " proc
@@ -260,7 +266,7 @@ case "$val_mode" in
     1)
         read -p "⚙️  Enter validator systemd service name: " val_svc
         echo "🔼 Starting validator systemd service '$val_svc'..."
-        sudo systemctl start "$val_svc" || echo "⚠️ Failed to start validator systemd service"
+        systemctl start "$val_svc" || echo "⚠️ Failed to start validator systemd service"
     ;;
     2)
         read -p "⚙️  Enter validator process (PM2) name: " val_proc
@@ -279,7 +285,7 @@ esac
 
 # --- CLEAN BACKUP ---
 echo "🧹 Cleaning previous Redis backup contents in $REDIS_BACKUP..."
-sudo find "$REDIS_BACKUP" -mindepth 1 -delete
+find "$REDIS_BACKUP" -mindepth 1 -delete
 
 # --- CLEAN WORKSPACE ---
 echo "🧹 Cleaning auto upgrader workspace..."

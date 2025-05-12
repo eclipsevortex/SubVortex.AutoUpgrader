@@ -48,36 +48,6 @@ def denormalize_version(version: str) -> str:
 
     return version
 
-
-def get_local_version() -> str:
-    """
-    Scans the working directory for local versions of subvortex,
-    matches versioned folders, and returns the latest semantic version.
-    """
-    version_pattern = re.compile(r"subvortex-(\d+\.\d+\.\d+(?:[a-z]+\d+)?)")
-    candidates = []
-
-    if not os.path.exists(sauc.SV_WORKING_DIRECTORY):
-        return None
-
-    for entry in os.listdir(sauc.SV_WORKING_DIRECTORY):
-        match = version_pattern.match(entry)
-        if match:
-            version_str = match.group(1)
-            try:
-                version_obj = Version(version_str)
-                candidates.append((version_obj, entry))
-            except Exception:
-                continue  # skip malformed versions
-
-    if not candidates:
-        return None
-
-    # Sort and return the highest version
-    latest_version_dir = sorted(candidates, key=lambda x: x[0], reverse=True)[0][0]
-    return str(latest_version_dir)
-
-
 def is_version_before_auto_upgrader(version: str):
     return version == sauc.DEFAULT_LAST_RELEASE.get("global")
 

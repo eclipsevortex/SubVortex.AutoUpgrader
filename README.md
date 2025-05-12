@@ -32,6 +32,7 @@
 - [Introduction](#introduction)
 - [Prerequisites](#prerequisites)
 - [How It Works](#how-it-works)
+- [Quick Setup](#quick-setup)
 - [Quick Start](#quick-start)
 - [Quick Stop](#quick-stop)
 - [Quick Upgrade](#quick-upgrade)
@@ -42,6 +43,8 @@
   - [Miner](#installation-miner)
   - [Validator](#installation-validator)
   - [Other](#installation-other)
+- [Tools](#tools)
+  - [Wandb](#tool-wandb)
 - [Good to Know](#good-to-know)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
@@ -89,7 +92,7 @@ Here's a breakdown of the key variables:
   Set to `true` if you want the Auto Upgrader to apply both releases and pre-releases. Default is `false`.
 
 - **SUBVORTEX_EXECUTION_METHOD**:  
-  Defines how the neuron and its componentswill be installed by the Auto Upgrader. Options are `process`, `service`, or `container`. Default is `service`.
+  Defines how the neuron and its components will be installed by the Auto Upgrader. Options are `process`, `service`, or `container`. Default is `service`.
 
 - **SUBVORTEX_PRERELEASE_TYPE**:  
   Specifies a single prerelease identifier you want to be notified about. Options are `alpha` (**use ONLY in DEVNET**) or `rc` (**use ONLY in TESTNET**). Remove this variable to receive notifications from `latest` (**use in MAINNET**) prerelease types. Default is an empty string, which disables prerelease notifications.
@@ -120,7 +123,7 @@ Here's a breakdown of the key variables:
    - For miners, edit files matching `env.subvortex.miner.*`
    - For validators, edit files matching `env.subvortex.validator.*`
 
-3. Update the templates inside the `subvortex/auto_upgrader/template` folder.
+3. Update the templates inside the `subvortex/auto_upgrader/template` folder. Recommended to keep as it is.
 
 <br />
 
@@ -136,6 +139,9 @@ In these modes, the Auto Upgrader checks GitHub every **SUBVORTEX_CHECK_INTERVAL
 2. Install the new version
 3. Updates the symlink to point to the new version
 4. Cleans up the previous version
+
+➡️ The execution directory for SubVortex will now be located under `$HOME/subvortex`, with each version in its own subdirectory and a symlink pointing to the current version.
+You no longer need to clone the SubVortex repository manually — and can safely remove any old local copies you previously cloned.
 
 🐳 Docker Mode
 
@@ -164,6 +170,20 @@ To allow the system to pull Docker images and release assets from GitHub, you ne
 5. Copy and save the token securely.
 
 Then, copy that token as value of `SUBVORTEX_GITHUB_TOKEN` in the main Auto Upgrader `.env` file.
+
+<br />
+
+# 🚀 Quick Setup <a id="quick-setup"></a>
+
+To setup the Auto Upgrader in a quick way, you can run
+
+```bash
+./scripts/quick_setup.sh --neuron validator --release v3.0.1
+```
+
+It will download and unzip the newuon's assets of the SubVortex for the requested version.
+
+Use `-h` to see the options
 
 <br />
 
@@ -263,6 +283,22 @@ For each of them, the same structure applies:
 - **`<tool|service>_teardown.sh`** – fully removes and cleans up the tool or service
 
 <br />
+
+# Tools <a id="tools"></a>
+
+## Wandb <a id="tool-wandb"></a>
+
+To login to wandb, run
+
+```bash
+./scripts/wandb/wandb_login.sh --api-key <WANDB_API_KEY>
+```
+
+To force relogin to wandb, run
+
+```bash
+./scripts/wandb/wandb_login.sh --api-key <WANDB_API_KEY> --relogin
+```
 
 # 💡 Good to Know <a id="good-to-know"></a>
 

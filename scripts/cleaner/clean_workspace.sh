@@ -24,15 +24,34 @@ show_help() {
 }
 
 version_sort() {
-    if command -v sort >/dev/null && sort -V </dev/null &>/dev/null; then
-        sort -V
-    elif command -v gsort >/dev/null; then
-        gsort -V
-    else
-        echo "❌ Error: version sort (sort -V or gsort -V) not supported." >&2
-        echo "👉 On macOS: brew install coreutils" >&2
-        exit 1
-    fi
+  awk '
+  {
+    orig = $0
+    gsub(/^subvortex-/, "", orig)
+
+    base = orig
+    type = ""
+    val = 0
+    weight = 3
+
+    if (index(orig, "a") > 0) {
+      split(orig, parts, "a")
+      base = parts[1]
+      val = parts[2] + 0
+      weight = 1
+    } else if (index(orig, "rc") > 0) {
+      split(orig, parts, "rc")
+      base = parts[1]
+      val = parts[2] + 0
+      weight = 2
+    } else if (match(orig, /^[0-9]+\.[0-9]+\.[0-9]+$/)) {
+      base = orig
+      weight = 3
+    }
+
+    printf "%s-%d-%02d %s\n", base, weight, val, $0
+  }
+  ' | sort | awk '{print $2}'
 }
 
 OPTIONS="v:rdhf"
@@ -77,7 +96,10 @@ echo "🔍 Loading environment variables from .env..."
 export $(grep -v '^#' subvortex/auto_upgrader/.env | xargs)
 
 TARGET_BASE=${SUBVORTEX_WORKING_DIRECTORY:-/var/tmp/subvortex}
-SYMLINK_PATH="/root/subvortex"
+SYMLINK_PATH="$HOME/subvortex"
+
+echo "📁 Target base directory: $TARGET_BASE"
+echo "🔗 Symlink path: $SYMLINK_PATH"
 
 if [ ! -d "$TARGET_BASE" ]; then
     echo "❌ Directory '$TARGET_BASE' does not exist."
@@ -99,7 +121,10 @@ if [ "$FORCE_REINSTALL" = true ]; then
 fi
 
 cd "$TARGET_BASE"
+echo "🔍 Searching for directories in $TARGET_BASE..."
 all_dirs=($(find . -maxdepth 1 -mindepth 1 -type d -exec basename {} \;))
+
+echo "🔎 Found directories: ${all_dirs[*]}"
 
 versioned_dirs=()
 non_versioned_dirs=()
@@ -118,20 +143,33 @@ target_normalized=""
 
 if [ -n "$VERSION" ]; then
     target_normalized="subvortex-$(normalize_version "$VERSION")"
+    echo "🎯 Target version to remove: $target_normalized"
 else
     if [ ${#versioned_dirs[@]} -gt 0 ]; then
         latest_version=$(printf "%s\n" "${versioned_dirs[@]}" | version_sort | tail -n 1)
+        echo "🏷️ Latest version detected: $latest_version"
     fi
 fi
 
 # Get symlink target if it exists
+echo "🔗 Checking symlink at: $SYMLINK_PATH"
+
 symlink_target=""
-if [ -L "$SYMLINK_PATH" ]; then
-    symlink_target="$(readlink "$SYMLINK_PATH")"
-    symlink_target="$(basename "$symlink_target")"
+if [ -e "$SYMLINK_PATH" ] && [ -h "$SYMLINK_PATH" ]; then
+    resolved_target="$(readlink "$SYMLINK_PATH")"
+    echo "📌 Resolved symlink target: $resolved_target"
+
+    if [[ "$resolved_target" != /* ]]; then
+        resolved_target="$(cd "$(dirname "$SYMLINK_PATH")" && cd "$(dirname "$resolved_target")" && pwd)/$(basename "$resolved_target")"
+    fi
+
+    symlink_target="$(basename "$resolved_target")"
+    echo "🧭 Final resolved version dir: $symlink_target"
+else
+    echo "⚠️  No valid symlink found at $SYMLINK_PATH"
 fi
 
-echo "🧹 Cleaning up: $TARGET_BASE"
+echo "🧹 Starting cleanup in: $TARGET_BASE"
 
 for dir in "${all_dirs[@]}"; do
     keep=false
@@ -161,7 +199,12 @@ for dir in "${all_dirs[@]}"; do
         for nvd in "${non_versioned_dirs[@]}"; do
             [ "$dir" == "$nvd" ] && keep=true && break
         done
-        [ "$dir" == "$latest_version" ] && keep=true
+
+        if [ -n "$symlink_target" ]; then
+            [ "$dir" == "$symlink_target" ] && keep=true
+        else
+            [ "$dir" == "$latest_version" ] && keep=true
+        fi
     fi
 
     if [ "$keep" = true ]; then

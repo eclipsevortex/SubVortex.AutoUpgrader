@@ -146,7 +146,7 @@ class RedisMigrations(Migration):
                 else "0.0.0"
             )
 
-            revision = "0.0.0"
+            revision = current_version
             if Version(current_version) < Version(highest_revision):
                 revision = await self._upgrade(
                     database=database,

@@ -614,8 +614,7 @@ class Orchestrator:
                 continue
 
             btul.logging.debug(
-                f"⚙️ Migrations found for {new_service.name}",
-                prefix=sauc.SV_LOGGER_NAME
+                f"⚙️ Migrations found for {new_service.name}", prefix=sauc.SV_LOGGER_NAME
             )
 
             # Add the service to apply migrations
@@ -977,10 +976,15 @@ class Orchestrator:
     def _run(self, action: str, service: saus.Service, args: List[str] = []):
         # Build the setup script path
         script_file = saup.get_service_script(
-            service=service, action=action, version=self.latest_version
+            service=service,
+            action=action,
+            version=self.latest_version,
+            # use_version_dir=True,  # action in ["setup", "teardown"],
         )
         if not os.path.exists(script_file):
             raise saue.MissingFileError(file_path=script_file)
+
+        # TODO: display the script file to check it has the right path!!!
 
         btul.logging.debug(
             f"⚙️ Running {action} for {service.name} (version: {service.version})",
@@ -995,9 +999,13 @@ class Orchestrator:
         }
         env["SUBVORTEX_FLOATTING_FLAG"] = sauu.get_tag()
 
+        if action in ["start", "stop"]:
+            env["SUBVORTEX_WORKING_DIR"] = sauc.SV_EXECUTION_DIR
+
         try:
             result = subprocess.run(
                 ["bash", script_file] + args,
+                cwd=os.path.dirname(script_file),
                 env=env,
                 capture_output=True,
                 text=True,
