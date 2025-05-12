@@ -974,18 +974,17 @@ class Orchestrator:
         self._run(action="teardown", service=service)
 
     def _run(self, action: str, service: saus.Service, args: List[str] = []):
-        # TODO: for stop/start execute in root/subvortex otherwise read in /var/tmp/subvortex/subvortex-<version>
-        # TODO: Fix the tests once checked it worked
-
         # Build the setup script path
         script_file = saup.get_service_script(
             service=service,
             action=action,
             version=self.latest_version,
-            use_version_dir=action in ["setup", "teardown"],
+            use_version_dir=True #action in ["setup", "teardown"],
         )
         if not os.path.exists(script_file):
             raise saue.MissingFileError(file_path=script_file)
+
+        # TODO: display the script file to check it has the right path!!!
 
         btul.logging.debug(
             f"⚙️ Running {action} for {service.name} (version: {service.version})",
@@ -999,10 +998,12 @@ class Orchestrator:
             if not key.startswith("SUBVORTEX_")
         }
         env["SUBVORTEX_FLOATTING_FLAG"] = sauu.get_tag()
+        env["SUBVORTEX_WORKING_DIR"] = sauc.SV_EXECUTION_DIR
 
         try:
             result = subprocess.run(
                 ["bash", script_file] + args,
+                cwd=os.path.dirname(script_file),
                 env=env,
                 capture_output=True,
                 text=True,
