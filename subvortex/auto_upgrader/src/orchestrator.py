@@ -979,7 +979,7 @@ class Orchestrator:
             service=service,
             action=action,
             version=self.latest_version,
-            use_version_dir=True #action in ["setup", "teardown"],
+            # use_version_dir=True,  # action in ["setup", "teardown"],
         )
         if not os.path.exists(script_file):
             raise saue.MissingFileError(file_path=script_file)
