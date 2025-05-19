@@ -956,30 +956,33 @@ class Orchestrator:
 
     def _execute_setup(self, service: saus.Service):
         # Run the script
-        self._run(action="setup", service=service)
+        self._run(action="setup", service=service, version=self.latest_version)
 
     def _execute_start(self, service: saus.Service):
         # Define the action
         args = ["--recreate"] if sauc.SV_EXECUTION_METHOD == "container" else []
 
         # Run the script
-        self._run(action="start", service=service, args=args)
+        self._run(
+            action="start", service=service, version=self.latest_version, args=args
+        )
 
     def _execute_stop(self, service: saus.Service):
         # Run the script
-        self._run(action="stop", service=service)
+        self._run(action="stop", service=service, version=self.current_version)
 
     def _execute_teardown(self, service: saus.Service):
         # Run the script
-        self._run(action="teardown", service=service)
+        self._run(action="teardown", service=service, version=self.current_version)
 
-    def _run(self, action: str, service: saus.Service, args: List[str] = []):
+    def _run(
+        self, action: str, service: saus.Service, version: str, args: List[str] = []
+    ):
         # Build the setup script path
         script_file = saup.get_service_script(
             service=service,
             action=action,
-            version=self.latest_version,
-            # use_version_dir=True,  # action in ["setup", "teardown"],
+            version=version,
         )
         if not os.path.exists(script_file):
             raise saue.MissingFileError(file_path=script_file)
