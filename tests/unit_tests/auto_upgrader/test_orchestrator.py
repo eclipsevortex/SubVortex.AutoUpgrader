@@ -297,7 +297,7 @@ def test_has_migrations_when_no_migration_should_return_false(orchestrator):
 
     # Create fake services
     service = create_service(
-        id="subvortex-miner-neuron", version="1.0.0", name="neuron"
+        id="miner-neuron", version="1.0.0", name="subvortex-miner-neuron"
     )
     service.migration = tempfile.mkdtemp()
 

@@ -167,7 +167,8 @@ def assert_run_calls(
     start: list = None,
     stop: list = None,
     teardown: list = None,
-    version: str = None,
+    current_version: str = None,
+    latest_version: str = None,
 ):
     setup = setup or []
     start = start or []
@@ -215,9 +216,10 @@ def assert_run_calls(
             set([path for act, _, path in called_actions if act == action])
         )
         if len(actual_path) > 0:
+            version = current_version if action in ['stop', 'teardown'] else latest_version
             # Check we take the script in the version
             assert 1 == len(actual_path)
-            assert f"subvortex-{version}" == actual_path[0]
+            assert f"subvortex-{version}" == actual_path[0] 
 
         # Check the services and actions
         actual_services = [svc for act, svc, _ in called_actions if act == action]
@@ -512,7 +514,8 @@ async def test_run_plan_when_new_version_for_all_services_should_execute_all_ste
         start=["neuron", "redis"],
         stop=["redis", "neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -558,7 +561,8 @@ async def test_run_plan_when_new_version_for_few_services_should_execute_all_ste
         start=["neuron"],
         stop=["neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -601,7 +605,8 @@ async def test_run_plan_when_new_version_removes_an_old_service_should_call_the_
         start=[],
         stop=["redis"],
         teardown=["redis"],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -644,7 +649,8 @@ async def test_run_plan_when_new_version_removes_an_old_service_and_update_anoth
         start=["neuron"],
         stop=["neuron", "redis"],
         teardown=["redis"],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -687,7 +693,8 @@ async def test_run_plan_when_new_version_creates_a_new_service_should_call_the_r
         start=["redis"],
         stop=[],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -730,7 +737,8 @@ async def test_run_plan_when_new_version_creates_a_new_service_and_update_anothe
         start=["neuron", "redis"],
         stop=["neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -780,7 +788,8 @@ async def test_run_rollback_plan_when_new_version_for_all_services_and_exception
         start=["neuron", "redis"],
         stop=["redis", "neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -798,7 +807,8 @@ async def test_run_rollback_plan_when_new_version_for_all_services_and_exception
         start=["redis", "neuron"],
         stop=["redis", "neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
 
@@ -847,7 +857,8 @@ async def test_run_rollback_plan_when_new_version_for_few_services_and_exception
         start=["neuron", "redis"],
         stop=["redis", "neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -865,7 +876,8 @@ async def test_run_rollback_plan_when_new_version_for_few_services_and_exception
         start=["redis", "neuron"],
         stop=["redis", "neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
 
@@ -911,7 +923,8 @@ async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_exc
         start=["neuron"],
         stop=["neuron", "redis"],
         teardown=["redis"],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -929,7 +942,8 @@ async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_exc
         start=["redis", "neuron"],
         stop=["neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
 
@@ -975,7 +989,8 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
         start=["redis"],
         stop=[],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -993,7 +1008,8 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
         start=[],
         stop=["redis"],
         teardown=["redis"],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
 
@@ -1039,7 +1055,8 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
         start=["neuron", "redis"],
         stop=["neuron"],
         teardown=[],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -1057,7 +1074,8 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
         start=["neuron"],
         stop=["redis", "neuron"],
         teardown=["redis"],
-        version="1.0.1",
+        current_version="1.0.0",
+        latest_version="1.0.1",
     )
 
 

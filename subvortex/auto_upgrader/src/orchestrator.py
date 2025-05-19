@@ -1053,15 +1053,14 @@ class Orchestrator:
             f"Assets for version {version} have been removed",
             prefix=sauc.SV_LOGGER_NAME,
         )
-
+    
     def _has_migrations(self, service: saus.Service) -> bool:
-        migraton_dir = (
-            os.listdir(saup.get_migration_directory(service=service))
-            if service.migration
-            else None
-        )
-        return (
-            service.migration is not None
-            and migraton_dir is not None
-            and any(f.endswith(".py") for f in migraton_dir)
-        )
+        if not service.migration:
+            return False
+
+        migration_dir = saup.get_migration_directory(service=service)
+        if not os.path.exists(migration_dir):
+            return False
+        
+        migrations = os.listdir(migration_dir)
+        return any(f.endswith(".py") for f in migrations)
