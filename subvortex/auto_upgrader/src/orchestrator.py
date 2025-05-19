@@ -755,6 +755,13 @@ class Orchestrator:
             if not service.needs_update:
                 continue
 
+            if not service.rollback_version:
+                btul.logging.warning(
+                    f"⚠️ Skipping rollback for {service.name} (no rollback version available)",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                continue
+
             btul.logging.debug(
                 f"⏪ Switching {service.name} back to rollback version {service.rollback_version}",
                 prefix=sauc.SV_LOGGER_NAME,

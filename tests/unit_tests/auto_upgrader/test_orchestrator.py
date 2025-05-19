@@ -541,3 +541,31 @@ def test_rollback_switch_skips_services_without_needs_update(monkeypatch):
 
     # Assert
     service.switch_to_version.assert_not_called()
+
+
+def test_rollback_switch_skips_none_rollback_version(monkeypatch, caplog):
+    # Arrange
+    service_with_rollback = create_service(version="2.0.0", name="neuron")
+    service_with_rollback.needs_update = True
+    service_with_rollback.rollback_version = "1.0.0"
+    service_with_rollback.switch_to_version = mock.MagicMock()
+
+    service_without_rollback = create_service(version="2.0.0", name="redis")
+    service_without_rollback.needs_update = True
+    service_without_rollback.rollback_version = None  # No previous version
+    service_without_rollback.switch_to_version = mock.MagicMock()
+
+    orch = Orchestrator()
+    orch.services = [service_with_rollback, service_without_rollback]
+
+    # Patch dependency resolver
+    monkeypatch.setattr(
+        "subvortex.auto_upgrader.src.orchestrator.saudr.DependencyResolver",
+        lambda services: mock.Mock(resolve_order=lambda reverse=False: services[::-1] if reverse else services),
+    )
+
+    # Enable log capturing
+    caplog.set_level("WARNING")
+
+    # Act
+    orch
