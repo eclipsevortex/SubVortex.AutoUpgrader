@@ -557,7 +557,7 @@ class Orchestrator:
             )
 
             # Execute the setup
-            self._execute_setup(service=service)
+            self._execute_setup(service=service, version=self.latest_version)
 
     def _rollback_services(self):
         btul.logging.info(
@@ -580,7 +580,7 @@ class Orchestrator:
             )
 
             # Execute the setup
-            self._execute_teardown(service=service)
+            self._execute_teardown(service=service, version=self.latest_version)
 
     async def _pre_migrations(self):
         btul.logging.info(
@@ -675,7 +675,9 @@ class Orchestrator:
             btul.logging.debug(
                 f"✋ Stopping service: {service.name}", prefix=sauc.SV_LOGGER_NAME
             )
-            self._execute_stop(service=current_services_map[service.id])
+            self._execute_stop(
+                service=current_services_map[service.id], version=self.current_version
+            )
 
     def _rollback_stop_current_services(self, service_filter: Callable = None):
         # Create the dependency resolver
@@ -706,7 +708,9 @@ class Orchestrator:
             btul.logging.debug(
                 f"🔁 Restarting service: {service.name}", prefix=sauc.SV_LOGGER_NAME
             )
-            self._execute_start(service=current_services_map[service.id])
+            self._execute_start(
+                service=current_services_map[service.id], version=self.current_version
+            )
 
     def _switch_services(self):
         btul.logging.info(
@@ -782,7 +786,7 @@ class Orchestrator:
                 )
                 continue
 
-            self._execute_start(service=service)
+            self._execute_start(service=service, version=self.latest_version)
 
     def _rollback_start_latest_services(self, service_filter: Callable = None):
         btul.logging.info(
@@ -807,7 +811,7 @@ class Orchestrator:
                 f"✋ Stopping service: {service.name}", prefix=sauc.SV_LOGGER_NAME
             )
 
-            self._execute_stop(service=service)
+            self._execute_stop(service=service, version=self.latest_version)
 
     def _prune_services(self):
         btul.logging.info("🧹 Pruning removed services...", prefix=sauc.SV_LOGGER_NAME)
@@ -834,7 +838,7 @@ class Orchestrator:
             )
 
             # Execute the setup
-            self._execute_teardown(service=service)
+            self._execute_teardown(service=service, version=self.current_version)
 
         if not has_turndown_services:
             btul.logging.debug("No services to prune", prefix=sauc.SV_LOGGER_NAME)
@@ -862,7 +866,7 @@ class Orchestrator:
             )
 
             # Execute the setup
-            self._execute_setup(service=service)
+            self._execute_setup(service=service, version=self.current_version)
 
         if not has_turndown_services:
             btul.logging.debug(f"No services to teardown", prefix=sauc.SV_LOGGER_NAME)
@@ -954,26 +958,24 @@ class Orchestrator:
 
         return services
 
-    def _execute_setup(self, service: saus.Service):
+    def _execute_setup(self, service: saus.Service, version: str):
         # Run the script
-        self._run(action="setup", service=service, version=self.latest_version)
+        self._run(action="setup", service=service, version=version)
 
-    def _execute_start(self, service: saus.Service):
+    def _execute_start(self, service: saus.Service, version: str):
         # Define the action
         args = ["--recreate"] if sauc.SV_EXECUTION_METHOD == "container" else []
 
         # Run the script
-        self._run(
-            action="start", service=service, version=self.latest_version, args=args
-        )
+        self._run(action="start", service=service, version=version, args=args)
 
-    def _execute_stop(self, service: saus.Service):
+    def _execute_stop(self, service: saus.Service, version: str):
         # Run the script
-        self._run(action="stop", service=service, version=self.current_version)
+        self._run(action="stop", service=service, version=version)
 
-    def _execute_teardown(self, service: saus.Service):
+    def _execute_teardown(self, service: saus.Service, version: str):
         # Run the script
-        self._run(action="teardown", service=service, version=self.current_version)
+        self._run(action="teardown", service=service, version=version)
 
     def _run(
         self, action: str, service: saus.Service, version: str, args: List[str] = []
@@ -1053,7 +1055,7 @@ class Orchestrator:
             f"Assets for version {version} have been removed",
             prefix=sauc.SV_LOGGER_NAME,
         )
-    
+
     def _has_migrations(self, service: saus.Service) -> bool:
         if not service.migration:
             return False
@@ -1061,6 +1063,6 @@ class Orchestrator:
         migration_dir = saup.get_migration_directory(service=service)
         if not os.path.exists(migration_dir):
             return False
-        
+
         migrations = os.listdir(migration_dir)
         return any(f.endswith(".py") for f in migrations)

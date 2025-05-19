@@ -167,14 +167,13 @@ def assert_run_calls(
     start: list = None,
     stop: list = None,
     teardown: list = None,
-    current_version: str = None,
-    latest_version: str = None,
 ):
     setup = setup or []
     start = start or []
     stop = stop or []
     teardown = teardown or []
 
+    # Expected actions as {action: [(service_name, version)]}
     actions = {
         "setup": setup,
         "start": start,
@@ -182,17 +181,18 @@ def assert_run_calls(
         "teardown": teardown,
     }
 
-    # Build a list of (action, service_name) tuples from subprocess.call_args_list
     called_actions = []
+
     for call_obj in subprocess_mock.call_args_list:
-        args = call_obj.args[0]  # args to subprocess.run
+        args = call_obj.args[0]  # arguments passed to subprocess.run
         env = call_obj.kwargs.get("env", {})
         if not args or not env:
             continue
 
         if args[0] == "bash":
             script_path = args[1]
-            # Infer action from script filename
+
+            # Determine the action based on the script name
             if "setup" in script_path:
                 action = "setup"
             elif "start" in script_path:
@@ -202,31 +202,30 @@ def assert_run_calls(
             elif "teardown" in script_path:
                 action = "teardown"
             else:
-                continue  # Unknown action
+                continue  # Unknown or irrelevant script
 
-            path = script_path.replace(f"{sauc.SV_ASSET_DIR}/", "").split("/")[0]
+            path_parts = script_path.replace(f"{sauc.SV_ASSET_DIR}/", "").split("/")
+            if len(path_parts) < 2:
+                continue  # Not enough info to extract version and service
 
-            # Infer service name from path (assuming /<role>/<service>/<script>)
+            version = path_parts[0]  # ex: "subvortex-1.0.0"
             service_name = script_path.split("/")[-1].split("_")[0]
-            called_actions.append((action, service_name, path))
+            called_actions.append((action, service_name, version))
 
-    # Now assert each action
-    for action, expected_services in actions.items():
-        actual_path = list(
-            set([path for act, _, path in called_actions if act == action])
-        )
-        if len(actual_path) > 0:
-            version = current_version if action in ['stop', 'teardown'] else latest_version
-            # Check we take the script in the version
-            assert 1 == len(actual_path)
-            assert f"subvortex-{version}" == actual_path[0] 
+    # Validate actions
+    for action, expected in actions.items():
+        # Normalize expected into a set of (service_name, version)
+        expected_set = set(expected)
+        actual_set = {
+            (svc, version.replace("subvortex-", ""))
+            for act, svc, version in called_actions
+            if act == action
+        }
 
-        # Check the services and actions
-        actual_services = [svc for act, svc, _ in called_actions if act == action]
-        assert set(actual_services) == set(expected_services), (
+        assert expected_set == actual_set, (
             f"Mismatch for action '{action}':\n"
-            f"  Expected: {expected_services}\n"
-            f"  Got:      {actual_services}"
+            f"  Expected: {expected_set}\n"
+            f"  Got:      {actual_set}"
         )
 
 
@@ -510,12 +509,10 @@ async def test_run_plan_when_new_version_for_all_services_should_execute_all_ste
     assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["neuron", "redis"],
-        start=["neuron", "redis"],
-        stop=["redis", "neuron"],
+        setup=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        start=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        stop=[("neuron", "1.0.0"), ("redis", "1.0.0")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -557,12 +554,10 @@ async def test_run_plan_when_new_version_for_few_services_should_execute_all_ste
     assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["neuron"],
-        start=["neuron"],
-        stop=["neuron"],
+        setup=[("neuron", "1.0.1")],
+        start=[("neuron", "1.0.1")],
+        stop=[("neuron", "1.0.0")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -603,10 +598,8 @@ async def test_run_plan_when_new_version_removes_an_old_service_should_call_the_
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=[],
         start=[],
-        stop=["redis"],
-        teardown=["redis"],
-        current_version="1.0.0",
-        latest_version="1.0.1",
+        stop=[("redis", "1.0.0")],
+        teardown=[("redis", "1.0.0")],
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -645,12 +638,10 @@ async def test_run_plan_when_new_version_removes_an_old_service_and_update_anoth
     assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["neuron"],
-        start=["neuron"],
-        stop=["neuron", "redis"],
-        teardown=["redis"],
-        current_version="1.0.0",
-        latest_version="1.0.1",
+        setup=[("neuron", "1.0.1")],
+        start=[("neuron", "1.0.1")],
+        stop=[("neuron", "1.0.0"), ("redis", "1.0.0")],
+        teardown=[("redis", "1.0.0")],
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -689,12 +680,10 @@ async def test_run_plan_when_new_version_creates_a_new_service_should_call_the_r
     assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["redis"],
-        start=["redis"],
+        setup=[("redis", "1.0.1")],
+        start=[("redis", "1.0.1")],
         stop=[],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -733,12 +722,10 @@ async def test_run_plan_when_new_version_creates_a_new_service_and_update_anothe
     assert 18 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["neuron", "redis"],
-        start=["neuron", "redis"],
-        stop=["neuron"],
+        setup=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        start=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        stop=[("neuron", "1.0.0")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
     orchestrator._remove_assets.assert_called_with(version="1.0.0")
 
@@ -784,12 +771,10 @@ async def test_run_rollback_plan_when_new_version_for_all_services_and_exception
     assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["neuron", "redis"],
-        start=["neuron", "redis"],
-        stop=["redis", "neuron"],
+        setup=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        start=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        stop=[("neuron", "1.0.0"), ("redis", "1.0.0")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -804,11 +789,9 @@ async def test_run_rollback_plan_when_new_version_for_all_services_and_exception
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=[],
-        start=["redis", "neuron"],
-        stop=["redis", "neuron"],
+        start=[("redis", "1.0.0"), ("neuron", "1.0.0")],
+        stop=[("redis", "1.0.1"), ("neuron", "1.0.1")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
 
 
@@ -853,12 +836,10 @@ async def test_run_rollback_plan_when_new_version_for_few_services_and_exception
     assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["neuron", "redis"],
-        start=["neuron", "redis"],
-        stop=["redis", "neuron"],
+        setup=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        start=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        stop=[("neuron", "1.0.0"), ("redis", "1.0.0")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -873,11 +854,9 @@ async def test_run_rollback_plan_when_new_version_for_few_services_and_exception
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=[],
-        start=["redis", "neuron"],
-        stop=["redis", "neuron"],
+        start=[("redis", "1.0.0"), ("neuron", "1.0.0")],
+        stop=[("redis", "1.0.1"), ("neuron", "1.0.1")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
 
 
@@ -919,12 +898,10 @@ async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_exc
     assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["neuron"],
-        start=["neuron"],
-        stop=["neuron", "redis"],
-        teardown=["redis"],
-        current_version="1.0.0",
-        latest_version="1.0.1",
+        setup=[("neuron", "1.0.1")],
+        start=[("neuron", "1.0.1")],
+        stop=[("neuron", "1.0.0"), ("redis", "1.0.0")],
+        teardown=[("redis", "1.0.0")],
     )
 
     # Reset the mocks
@@ -938,17 +915,15 @@ async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_exc
     orchestrator._pull_assets.assert_called_with(version="1.0.0")
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["redis"],
-        start=["redis", "neuron"],
-        stop=["neuron"],
+        setup=[("redis", "1.0.0")],
+        start=[("redis", "1.0.0"), ("neuron", "1.0.0")],
+        stop=[("neuron", "1.0.1")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
 
 
 @pytest.mark.asyncio
-async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_service_and_exception_raised_at_remove_previous_version_step_should_rollback_correctly(
+async def test_run_rollback_plan_when_new_version_creates_a_new_service_and_exception_raised_at_remove_previous_version_step_should_rollback_correctly(
     orchestrator,
 ):
     # Arrange
@@ -985,12 +960,10 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
     assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["redis"],
-        start=["redis"],
+        setup=[("redis", "1.0.1")],
+        start=[("redis", "1.0.1")],
         stop=[],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -1006,10 +979,8 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=[],
         start=[],
-        stop=["redis"],
-        teardown=["redis"],
-        current_version="1.0.0",
-        latest_version="1.0.1",
+        stop=[("redis", "1.0.1")],
+        teardown=[("redis", "1.0.1")],
     )
 
 
@@ -1051,12 +1022,10 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
     assert 17 == len(orchestrator.rollback_steps)
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
-        setup=["neuron", "redis"],
-        start=["neuron", "redis"],
-        stop=["neuron"],
+        setup=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        start=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        stop=[("neuron", "1.0.0")],
         teardown=[],
-        current_version="1.0.0",
-        latest_version="1.0.1",
     )
 
     # Reset the mocks
@@ -1071,11 +1040,9 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=[],
-        start=["neuron"],
-        stop=["redis", "neuron"],
-        teardown=["redis"],
-        current_version="1.0.0",
-        latest_version="1.0.1",
+        start=[("neuron", "1.0.0")],
+        stop=[("neuron", "1.0.1"), ("redis", "1.0.1")],
+        teardown=[("redis", "1.0.1")],
     )
 
 
