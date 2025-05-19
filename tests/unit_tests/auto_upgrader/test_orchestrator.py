@@ -435,3 +435,109 @@ def test_copy_templates_files(monkeypatch):
     # Cleanup
     shutil.rmtree(templates_dir)
     shutil.rmtree(service_template_dir)
+
+
+def test_switch_services_only_for_needed_updates(monkeypatch):
+    # Arrange
+    service1 = create_service(version="1.0.0", name="neuron")
+    service1.needs_update = True
+    service1.version = "2.0.0"
+    service1.switch_to_version = mock.MagicMock()
+
+    service2 = create_service(version="1.0.0", name="redis")
+    service2.needs_update = False
+    service2.switch_to_version = mock.MagicMock()
+
+    orch = Orchestrator()
+    orch.services = [service1, service2]
+
+    # Patch dependency resolver
+    monkeypatch.setattr(
+        "subvortex.auto_upgrader.src.orchestrator.saudr.DependencyResolver",
+        lambda services: mock.Mock(resolve_order=lambda: services),
+    )
+
+    # Act
+    orch._switch_services()
+
+    # Assert
+    service1.switch_to_version.assert_called_once_with(version="2.0.0")
+    service2.switch_to_version.assert_not_called()
+
+
+def test_rollback_switch_services(monkeypatch):
+    # Arrange
+    service1 = create_service(version="2.0.0", name="neuron")
+    service1.needs_update = True
+    service1.rollback_version = "1.0.0"
+    service1.switch_to_version = mock.MagicMock()
+
+    orch = Orchestrator()
+    orch.services = [service1]
+
+    # Patch dependency resolver
+    monkeypatch.setattr(
+        "subvortex.auto_upgrader.src.orchestrator.saudr.DependencyResolver",
+        lambda services: mock.Mock(
+            resolve_order=lambda reverse=False: (
+                services[::-1] if reverse else services
+            )
+        ),
+    )
+
+    # Act
+    orch._rollback_switch_services()
+
+    # Assert
+    service1.switch_to_version.assert_called_once_with(version="1.0.0")
+
+
+def test_switch_services_dependency_order(monkeypatch):
+    # Arrange
+    svc_a = create_service(version="1.0.0", name="A")
+    svc_b = create_service(version="1.0.0", name="B")
+    svc_a.needs_update = True
+    svc_b.needs_update = True
+    svc_a.version = "2.0.0"
+    svc_b.version = "2.0.0"
+    svc_a.switch_to_version = mock.MagicMock()
+    svc_b.switch_to_version = mock.MagicMock()
+
+    orch = Orchestrator()
+    orch.services = [svc_a, svc_b]
+
+    # Simulate dependency order: A must come before B
+    monkeypatch.setattr(
+        "subvortex.auto_upgrader.src.orchestrator.saudr.DependencyResolver",
+        lambda services: mock.Mock(resolve_order=lambda: [svc_a, svc_b]),
+    )
+
+    # Act
+    orch._switch_services()
+
+    # Assert call order
+    assert svc_a.switch_to_version.call_args_list[0].kwargs["version"] == "2.0.0"
+    assert svc_b.switch_to_version.call_args_list[0].kwargs["version"] == "2.0.0"
+
+
+def test_rollback_switch_skips_services_without_needs_update(monkeypatch):
+    # Arrange
+    service = create_service(version="1.0.0", name="unchanged")
+    service.needs_update = False
+    service.switch_to_version = mock.MagicMock()
+
+    orch = Orchestrator()
+    orch.services = [service]
+
+    monkeypatch.setattr(
+        "subvortex.auto_upgrader.src.orchestrator.saudr.DependencyResolver",
+        lambda services: mock.Mock(
+            resolve_order=lambda reverse=False: services[::-1] if reverse else services
+        ),
+    )
+
+    # Act
+    orch._rollback_switch_services()
+
+    # Assert
+    service.switch_to_version.assert_not_called()

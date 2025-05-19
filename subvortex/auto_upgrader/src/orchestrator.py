@@ -495,6 +495,7 @@ class Orchestrator:
                 current.must_remove = True
                 current.needs_update = False
                 current.upgrade_type = None
+                current.rollback_version = current.version
                 btul.logging.info(
                     f"🗑️ Service removed: {current.name}", prefix=sauc.SV_LOGGER_NAME
                 )
@@ -520,6 +521,7 @@ class Orchestrator:
                 latest.upgrade_type = (
                     "upgrade" if latest_version > current_version else "downgrade"
                 )
+                latest.rollback_version = current.version
                 btul.logging.info(
                     f"🔁 Service {latest.name}: {current.version} -> {latest.version} ({latest.upgrade_type})",
                     prefix=sauc.SV_LOGGER_NAME,
@@ -759,7 +761,7 @@ class Orchestrator:
             )
 
             # Switch to previous version
-            service.switch_to_version(version=service.version)
+            service.switch_to_version(version=service.rollback_version)
 
     def _start_latest_services(self, service_filter: Callable = None):
         btul.logging.info(
