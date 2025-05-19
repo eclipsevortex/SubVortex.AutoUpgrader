@@ -29,10 +29,17 @@ class MetadataResolver:
         return os.path.isdir(path)
 
     def get_metadata(self, path: str):
-        metadata_path = f"{path}/metadata.json"
+        manifest_path = os.path.join(path, "manifest.json")
+        metadata_path = os.path.join(path, "metadata.json")
 
-        if not os.path.exists(metadata_path):
+        file_to_use = None
+        if os.path.exists(manifest_path):
+            file_to_use = manifest_path
+        elif os.path.exists(metadata_path):
+            file_to_use = metadata_path
+
+        if file_to_use is None:
             return None
 
-        with open(metadata_path, "r", encoding="utf-8") as f:
+        with open(file_to_use, "r", encoding="utf-8") as f:
             return json.load(f)
