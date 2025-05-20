@@ -1016,6 +1016,8 @@ class Orchestrator:
         if action in ["start", "stop"]:
             env["SUBVORTEX_WORKING_DIR"] = sauc.SV_EXECUTION_DIR
 
+        env["SUBVORTEX_EXECUTION_DIR"] = sauc.SV_EXECUTION_DIR
+
         try:
             result = subprocess.run(
                 ["bash", script_file] + args,

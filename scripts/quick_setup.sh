@@ -64,7 +64,7 @@ echo "🔖 Using tag: $TAG"
 RELEASE_JSON=$(curl -s "https://api.github.com/repos/$REPO/releases/tags/$TAG")
 
 # Check for non-existent release
-if echo "$RELEASE_JSON" | jq -e '.message? | test("Not Found")' >/dev/null; then
+if echo "$RELEASE_JSON" | jq -e 'has("message") and .message == "Not Found"' >/dev/null; then
     echo "❌ Release tag '$TAG' does not exist in $REPO"
     exit 1
 fi
