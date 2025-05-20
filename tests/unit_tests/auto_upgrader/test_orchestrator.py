@@ -561,11 +561,23 @@ def test_rollback_switch_skips_none_rollback_version(monkeypatch, caplog):
     # Patch dependency resolver
     monkeypatch.setattr(
         "subvortex.auto_upgrader.src.orchestrator.saudr.DependencyResolver",
-        lambda services: mock.Mock(resolve_order=lambda reverse=False: services[::-1] if reverse else services),
+        lambda services: mock.Mock(
+            resolve_order=lambda reverse=False: services[::-1] if reverse else services
+        ),
     )
 
     # Enable log capturing
     caplog.set_level("WARNING")
 
     # Act
-    orch
+    orch._rollback_switch_services()
+
+    # Assert
+    service_with_rollback.switch_to_version.assert_called_once_with(version="1.0.0")
+    service_without_rollback.switch_to_version.assert_not_called()
+
+    # Assert log contains warning for skipped rollback
+    assert any(
+        "Skipping rollback for redis (no rollback version available)" in message
+        for message in caplog.messages
+    )
