@@ -32,6 +32,7 @@
 - [Introduction](#introduction)
 - [Prerequisites](#prerequisites)
 - [How It Works](#how-it-works)
+- [Log Locations](#log-locations)
 - [Quick Setup](#quick-setup)
 - [Quick Start](#quick-start)
 - [Quick Stop](#quick-stop)
@@ -154,6 +155,16 @@ Note: In Docker mode, the Auto Upgrader only runs if the neuron isn’t installe
 
 <br />
 
+# 📁 Log Locations <a id="log-locations"></a>
+
+You can monitor the Auto Upgrader using logs. Their location depends on the `SUBVORTEX_EXECUTION_METHOD`:
+
+- **`service`**: logs are in `/var/log/subvortex-auto-upgrader/` and accessible via `tail -f <SERVICE_PATH>` e.v `tail -f /var/log/subvortex-auto-upgrader/subvortex-miner-neuron.log`
+- **`process`**: logs are in `/root/.pm2/logs/` and accessible via `pm2 log <PROCESS_NAME>` e.g `pm2 log subvortex-miner-neuron`
+- **`container`**: use `docker logs subvortex-auto-upgrader` (add `-f` to follow in real time) and accessible via `docker logs <CONTAINER_NAME>` e.g `docker logs subortex-miner-neuron`
+
+<br />
+
 # 🔑 Personal Access Token <a id="personal-access-token"></a>
 
 To allow the system to pull Docker images and release assets from GitHub, you need to generate a GitHub Personal Access Token (PAT).
@@ -175,13 +186,16 @@ Then, copy that token as value of `SUBVORTEX_GITHUB_TOKEN` in the main Auto Upgr
 
 # 🚀 Quick Setup <a id="quick-setup"></a>
 
+⚠️ Note: This step is usually not required. The Auto Upgrader automatically handles setup for you.
+Use this only if you encounter issues or need to manually prepare a specific version.
+
 To setup the Auto Upgrader in a quick way, you can run
 
 ```bash
 ./scripts/quick_setup.sh --neuron validator --release v3.0.1
 ```
 
-It will download and unzip the newuon's assets of the SubVortex for the requested version.
+It will download and unzip the neuron's assets of the SubVortex for the requested version.
 
 Use `-h` to see the options
 
@@ -192,10 +206,10 @@ Use `-h` to see the options
 To install the Auto Upgrader in a quick way, you can run
 
 ```bash
-./scripts/quick_start.sh
+./scripts/quick_start.sh --execution <EXECUTION_METHOD>
 ```
 
-It will install and start the Auto Upgrader as service which is the default mode.
+It will install and start the Auto Upgrader using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
@@ -206,10 +220,10 @@ Use `-h` to see the options
 To stop the Auto Upgrader in a quick way, you can run
 
 ```bash
-./scripts/quick_stop.sh
+./scripts/quick_stop.sh --execution <EXECUTION_METHOD>
 ```
 
-It will stop and teardown the Auto Upgrader.
+It will stop and teardown the Auto Upgrader using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
@@ -220,8 +234,10 @@ Use `-h` to see the options
 To upgrade the Auto Upgrader when a new release has been deployed, you can run
 
 ```bash
-./scripts/auto_upgrader/auto_upgrader_upgrade.sh
+./scripts/auto_upgrader/auto_upgrader_upgrade.sh --execution <EXECUTION_METHOD>
 ```
+
+It will upgrade and restart the Auto Upgrader using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
@@ -232,8 +248,10 @@ Use `-h` to see the options
 To stop/start the Auto Upgrader workspace and/or dumps in a quick way. Optionally to remove the current version.
 
 ```bash
-./scripts/quick_restart.sh
+./scripts/quick_restart.sh --execution <EXECUTION_METHOD>
 ```
+
+It will restart the Auto Upgrader using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
@@ -263,13 +281,13 @@ To manage the Auto Upgrader, refer to the [user guide](./scripts/auto_upgrader/R
 
 > ⚠️ **Important:** It is highly recommended to install the Miner using the Auto Upgrader!
 
-To manage the Miner manually, refer to the [user guide](./scripts/miner/README.md)
+To manage the Miner manually and/or find out for the logs, refer to the [user guide](./scripts/miner/README.md)
 
 ## Validator <a id="installation-validator"></a>
 
 > ⚠️ **Important:** It is highly recommended to install the Validator using the Auto Upgrader!
 
-To manage the Validator manually, refer to the [user guide](./scripts/validator/README.md)
+To manage the Validator manually and/or find out for the logs, refer to the [user guide](./scripts/validator/README.md)
 
 ## Other <a id="installation-other"></a>
 

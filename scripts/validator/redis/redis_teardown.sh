@@ -4,7 +4,7 @@ set -e
 
 # Determine script directory dynamically to ensure everything runs in ./scripts/api/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../.."
+cd "$SCRIPT_DIR/../../.."
 
 source ./scripts/utils/utils.sh
 
@@ -12,11 +12,10 @@ show_help() {
     echo "Usage: $0 [--execution=process|service]"
     echo
     echo "Description:"
-    echo "  This script restart the validator's components"
+    echo "  This script stop the validator's redis"
     echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
-    echo "  --recreate    True if you want to recreate the container when starting it, false otherwise."
     echo "  --help        Show this help message"
     exit 0
 }
@@ -46,7 +45,7 @@ while [ "$#" -ge 1 ]; do
         --)
             shift
             break
-            ;;
+        ;;
         *)
             echo "❌ Unrecognized option '$1'"
             exit 1
@@ -75,11 +74,5 @@ if [ ! -d "$execution_dir" ]; then
     exit 1
 fi
 
-# Build the command and arguments
-CMD="$execution_dir/scripts/quick_restart.sh --execution \"$EXECUTION\""
-if [[ "$RECREATE" == "true" || "$RECREATE" == "True" ]]; then
-    CMD+=" --recreate"
-fi
-
-# Setup the auto upgrade as container
-eval "$CMD"
+# Run quick setup script
+"$execution_dir/redis/scripts/redis_teardown.sh" --execution "$EXECUTION"
