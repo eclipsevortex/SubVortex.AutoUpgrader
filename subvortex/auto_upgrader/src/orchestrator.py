@@ -957,14 +957,14 @@ class Orchestrator:
             # Collect versions that are in current but not in latest
 
             # Get all the version in the latest services
-            latest_versions = {x.version for x in self.latest_services}
+            latest_versions = [x.version for x in self.latest_services]
 
             # Get all the versions that are not used in latest services
-            obsolete_versions = {
+            obsolete_versions = [
                 svc.version
                 for svc in self.current_services
                 if svc.version not in latest_versions
-            }
+            ]
 
             for version in obsolete_versions:
                 btul.logging.info(
@@ -983,7 +983,7 @@ class Orchestrator:
 
     def _rollback_remove_services(self):
         if sauc.SV_EXECUTION_METHOD == "container":
-            # Re-pull all container versions that were removed
+            # Determine versions that were removed and should be re-pulled
 
             # Get all the version in the latest services
             latest_versions = {x.version for x in self.latest_services}
@@ -995,20 +995,38 @@ class Orchestrator:
                 if svc.version not in latest_versions
             }
 
-            for version in rollback_versions:
-                btul.logging.info(
-                    f"♻️ Re-pulling container version: {version}",
-                    prefix=sauc.SV_LOGGER_NAME,
-                )
-                self._pull_assets(version=version)
+            btul.logging.info(
+                f"♻️ Rolling back service removal for {len(rollback_versions)} container version(s): "
+                f"{', '.join(sorted(rollback_versions))}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
+            for version in rollback_versions:
+                try:
+                    btul.logging.info(
+                        f"♻️ Re-pulling container version: {version}",
+                        prefix=sauc.SV_LOGGER_NAME,
+                    )
+                    self._pull_assets(version=version)
+                except Exception as e:
+                    btul.logging.error(
+                        f"❌ Failed to re-pull container version {version}: {e}",
+                        prefix=sauc.SV_LOGGER_NAME,
+                    )
+                    raise
         else:
-            # Non-container mode: just re-pull the current version
             btul.logging.info(
                 f"♻️ Re-pulling current version assets: {self.current_version}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
-            self._pull_assets(version=self.current_version)
+            try:
+                self._pull_assets(version=self.current_version)
+            except Exception as e:
+                btul.logging.error(
+                    f"❌ Failed to re-pull current version {self.current_version}: {e}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                raise
 
     def _finalize_versions(self):
         btul.logging.info(
