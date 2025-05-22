@@ -155,7 +155,7 @@ fi
 echo "🔗 Checking symlink at: $SYMLINK_PATH"
 
 symlink_target=""
-if [ -e "$SYMLINK_PATH" ] && [ -h "$SYMLINK_PATH" ]; then
+if [ -L "$SYMLINK_PATH" ]; then
     resolved_target="$(readlink "$SYMLINK_PATH")"
     echo "📌 Resolved symlink target: $resolved_target"
 
@@ -225,5 +225,19 @@ for dir in "${all_dirs[@]}"; do
         fi
     fi
 done
+
+# Final symlink cleanup check
+if [ -L "$SYMLINK_PATH" ]; then
+    resolved_target="$(readlink "$SYMLINK_PATH")"
+
+    if [[ "$resolved_target" != /* ]]; then
+        resolved_target="$(cd "$(dirname "$SYMLINK_PATH")" && cd "$(dirname "$resolved_target")" && pwd)/$(basename "$resolved_target")"
+    fi
+
+    if [ ! -d "$resolved_target" ]; then
+        echo "🧨 Symlink target no longer exists. Removing broken symlink: $SYMLINK_PATH"
+        sudo rm -f "$SYMLINK_PATH"
+    fi
+fi
 
 echo "✅ Cleanup workspace complete."

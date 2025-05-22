@@ -4,18 +4,54 @@
 
 This guide explains how to **install** and **uninstall** manually the Miner.
 
-## 📑 Contents
+> ⚠️ **Manual installation is strongly discouraged.**  
+> This setup guide is provided for **reference only**. The Miner is designed to be installed and managed using the **Auto Upgrader**, which ensures proper configuration, updates, and compatibility across components.
+>
+> If you choose to install components manually, **you are fully responsible for any issues** that arise. Community support may be **limited or unavailable** for manually configured environments.
+>
+> Proceed only if you understand the risks.
 
-- [Installation](#installation)
-  - [Run as Process](#run-as-process)
-  - [Run as Service](#run-as-service)
-  - [Run as Container](#run-as-container)
-- [Uninstallation](#uninstallation)
-  - [Remove Process](#remove-process)
-  - [Remove Service](#remove-service)
-  - [Remove Container](#remove-container)
+> ❗ **Before running any script:**  
+> Make sure you've set up your environment with the version you intend to use.  
+> If you're unsure, follow the [Quick Setup](../../README.md#quick-setup) guide first.
 
 <br />
+
+## 📑 Contents
+
+- [About `--execution <EXECUTION_METHOD>`](#about-execution-method)
+- [Log Locations](#log-locations)
+- [Quick Start](#quick-start)
+- [Quick Stop](#quick-stop)
+- [Quick Restart](#quick-restart)
+- [Per-Component](#per-component)
+  - [Redis](#redis)
+  - [Metagraph](#metagraph)
+  - [Neuron](#neuron)
+
+<br />
+<br />
+
+## ⚙️ About `--execution <EXECUTION_METHOD>` <a id="about-execution-method"></a>
+
+Most scripts require an `--execution` option to define how the Miner components should be managed:
+
+- `process`: runs the component as a background process using **PM2**
+- `service`: installs the component as a **systemd** service
+- `container`: runs the component in a **Docker** container
+
+If not specified, the default method is usually `service`.
+
+<br />
+
+# 📁 Log Locations <a id="log-locations"></a>
+
+You can monitor the Miner using logs. Their location depends on the `SUBVORTEX_EXECUTION_METHOD`:
+
+- **`service`**: logs are in `/var/log/subvortex-miner/` and accessible via `tail -f <SERVICE_PATH>` e.v `tail -f /var/log/subvortex-miner/subvortex-miner-neuron.log`
+- **`process`**: logs are in `/root/.pm2/logs/` and accessible via `pm2 log <PROCESS_NAME>` e.g `pm2 log subvortex-miner-neuron`
+- **`container`**: use `docker logs subvortex-miner` (add `-f` to follow in real time) and accessible via `docker logs <CONTAINER_NAME>` e.g `docker logs subortex-miner-neuron`
+
 <br />
 
 # 🚀 Quick Start <a id="quick-start"></a>
@@ -23,12 +59,12 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 To install the Miner in a quick way, you can run
 
 ```bash
-./scripts/miner/quick_start.sh
+./scripts/miner/quick_start.sh --execution <EXECUTION_METHOD>
 ```
 
-It will install and start the Miner as service which is the default mode.
+It will install and start the Miner's components using the `EXECUTION_METHOD`, which defaults to `service`.
 
-Use `-h` to see the options
+💡 Use `-h` with any script to see available options.
 
 <br />
 
@@ -37,12 +73,12 @@ Use `-h` to see the options
 To stop the Miner in a quick way, you can run
 
 ```bash
-./scripts/miner/quick_stop.sh
+./scripts/miner/quick_stop.sh --execution <EXECUTION_METHOD>
 ```
 
-It will stop and teardown the Miner.
+It will stop and teardown the Miner's components using the `EXECUTION_METHOD`, which defaults to `service`.
 
-Use `-h` to see the options
+💡 Use `-h` with any script to see available options.
 
 <br />
 
@@ -51,208 +87,138 @@ Use `-h` to see the options
 To stop/start the Miner in a quick way, you can run
 
 ```bash
-./scripts/miner/quick_restart.sh
+./scripts/miner/quick_restart.sh --execution <EXECUTION_METHOD>
 ```
 
-Use `-h` to see the options
+It will restart the Miner's components using the `EXECUTION_METHOD`, which defaults to `service`.
+
+💡 Use `-h` with any script to see available options.
 
 <br />
 
-# 🛠️ Installation <a id="installation"></a>
+# Per-Component <a id="per-component"></a>
 
-You can install the Auto Upgrader in a granular way, giving you more control over each phase of the lifecycle:
+## Redis <a id="redis"></a>
 
-- **Setup**: Prepares the environment and configuration
-- **Start**: Launches the service, process, or container
-- **Stop**: Gracefully stops the running instance
-- **Teardown**: Cleans up installed files and service definitions
+### Installation <a id="redis-installation"></a>
 
-This is useful for advanced users, automation, or debugging.
+To install Redis for the Miner:
 
-The following sections show how to install the Auto Upgrader using each execution method:
-
-- As a **process** (using PM2)
-- As a **system** service (using systemd)
-- As a **container** (using Docker)
-
-## ▶️ Run as Process <a id="run-as-process"></a>
-
-1. Set the execution method in `.env`:
-
-```env
-SUBVORTEX_EXECUTION_METHOD=process
-```
-
-2. Run the setup script:
+1. Set it up:
 
 ```bash
-./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_setup.sh
+./scripts/miner/redis/redis_setup.sh --execution <EXECUTION_METHOD>
 ```
 
-3. Start the Auto Upgrader:
+2. Start it:
 
 ```bash
-./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_start.sh
+./scripts/miner/redis/redis_start.sh --execution <EXECUTION_METHOD>
 ```
 
-4. Verify it's running:
+💡 Use `-h` with any script to see available options.
+
+### Uninstallation <a id="redis-uninstallation"></a>
+
+⚠️ Note: Make sure Neuron and Metagraph are stopped before stopping Redis.
+
+To uninstall Redis for the Miner:
+
+1. Stop it:
 
 ```bash
-pm2 list
+./scripts/miner/redis/redis_stop.sh --execution <EXECUTION_METHOD>
 ```
 
-You should see a process named `subvortex-auto-upgrade`.
-
-To check logs:
+2. Tear it down:
 
 ```bash
-pm2 log subvortex-auto-upgrade
+./scripts/miner/redis/redis_teardown.sh --execution <EXECUTION_METHOD>
 ```
 
-## 🛡️ Run as Service <a id="run-as-service"></a>
+💡 Use `-h` with any script to see available options.
 
-1. Set the execution method in `.env`:
+## Metagraph <a id="metagraph"></a>
 
-```env
-SUBVORTEX_EXECUTION_METHOD=service
-```
+### Installation <a id="metagraph-installation"></a>
 
-2. Run the setup script:
+⚠️ Note: Make sure Redis and Metagraph are running before starting the Metagraph.
+
+To install Metagraph for the Miner:
+
+1. Set it up:
 
 ```bash
-./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_setup.sh
+./scripts/miner/metagraph/metagraph_setup.sh --execution <EXECUTION_METHOD>
 ```
 
-3. Start the Auto Upgrader:
+2. Start it:
 
 ```bash
-./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_start.sh
+./scripts/miner/metagraph/metagraph_start.sh --execution <EXECUTION_METHOD>
 ```
 
-4. Check the service status:
+💡 Use `-h` with any script to see available options.
+
+### Uninstallation <a id="metagraph-uninstallation"></a>
+
+⚠️ Note: Make sure Neuron is stopped before stopping Metagraph.
+
+To uninstall Metagraph for the Miner:
+
+1. Stop it:
 
 ```bash
-systemctl status subvortex-auto-upgrader
+./scripts/miner/metagraph/metagraph_stop.sh --execution <EXECUTION_METHOD>
 ```
 
-You should see something like
+2. Tear it down:
 
 ```bash
-Loaded: loaded (/etc/systemd/system/subvortex-auto-upgrader.service; enabled; vendor preset: enabled)
-     Active: active (running) since Thu 2025-04-10 11:51:27 BST; 6s ago
-   Main PID: 2229560 (python3)
-      Tasks: 10 (limit: 28765)
-     Memory: 57.9M
-        CPU: 1.592s
-     CGroup: /system.slice/subvortex-auto-upgrader.service
-             └─2229560 /root/SubVortex.AutoUpgrader/subvortex/auto_upgrader/venv/bin/python3 -m subvortex.auto_upgrader.src.main
+./scripts/miner/metagraph/metagraph_teardown.sh --execution <EXECUTION_METHOD>
 ```
 
-To view logs:
+💡 Use `-h` with any script to see available options.
+
+## Neuron <a id="neuron"></a>
+
+### Installation <a id="neuron-installation"></a>
+
+⚠️ Note: Make sure Redis and Metagraph are running before starting the Metagraph.
+
+To install Neuron for the Miner:
+
+1. Set it up:
 
 ```bash
-tail -f /var/log/subvortex-auto-upgrader/subvortex-auto-upgrader.log
+./scripts/miner/neuron/neuron_setup.sh --execution <EXECUTION_METHOD>
 ```
 
-## 🐳 Run as Container <a id="run-as-container"></a>
-
-> ⚠️ The Auto Upgrader is not yet available to run inside a Docker container. Please run it via `service` or `process`.
-
-Before installing the Auto Upgrader as a container, be sure you have docker installed. If not, you can run
+2. Start it:
 
 ```bash
-./scripts/docker/docker_setup.sh
+./scripts/miner/neuron/neuron_start.sh --execution <EXECUTION_METHOD>
 ```
 
-1. Set the execution method in `.env`:
+💡 Use `-h` with any script to see available options.
 
-```env
-SUBVORTEX_EXECUTION_METHOD=docker
-```
+### Uninstallation <a id="neuron-uninstallation"></a>
 
-2. Run the setup script:
+To uninstall Neuron for the Miner:
+
+1. Stop it:
 
 ```bash
-./subvortex/auto_upgrader/deployment/docker/auto_upgrader_docker_setup.sh
+./scripts/miner/neuron/neuron_stop.sh --execution <EXECUTION_METHOD>
 ```
 
-3. Start the Auto Upgrader:
+2. Tear it down:
 
 ```bash
-./subvortex/auto_upgrader/deployment/docker/auto_upgrader_docker_start.sh
+./scripts/miner/neuron/neuron_teardown.sh --execution <EXECUTION_METHOD>
 ```
 
-4. Confirm it's running:
-
-```bash
-docker ps
-```
-
-Look for a container named `subvortex-auto-upgrade`.
-
-To follow logs:
-
-```bash
-docker logs -f subvortex-auto-upgrade
-```
-
-<br />
-
-# 🧹 Uninstallation <a id="uninstallation"></a>
-
-## ❌ Remove Process <a id="remove-process"></a>
-
-To stop and remove the Auto Upgrader running as a process:
-
-```bash
-./subvortex/auto_upgrader/deployment/process/auto_upgrader_process_teardown.sh
-```
-
-Confirm it's removed:
-
-```bash
-pm2 list
-```
-
-The `subvortex-auto-upgrade` process should no longer appear.
-
-## ❌ Remove Service <a id="remove-service"></a>
-
-To uninstall the Auto Upgrader running as a system service:
-
-```bash
-./subvortex/auto_upgrader/deployment/service/auto_upgrader_service_teardown.sh
-```
-
-Check that the service is removed:
-
-```bash
-systemctl status subvortex-auto-upgrader
-```
-
-You should see:
-
-```
-Unit subvortex-auto-upgrader.service could not be found.
-```
-
-## ❌ Remove Container <a id="remove-container"></a>
-
-> ⚠️ The Auto Upgrader is not yet available to run inside a Docker container. Please run it via `service` or `process`.
-
-To tear down the Auto Upgrader container:
-
-```bash
-./subvortex/auto_upgrader/deployment/docker/auto_upgrader_docker_teardown.sh
-```
-
-Verify it's gone:
-
-```bash
-docker ps
-```
-
-The `subvortex-auto-upgrade` container should no longer be listed.
+💡 Use `-h` with any script to see available options.
 
 ---
 

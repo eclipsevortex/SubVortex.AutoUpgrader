@@ -64,9 +64,10 @@ fi
 
 # Determinate flag and expose it as env var
 export SUBVORTEX_FLOATTING_FLAG=$(get_tag)
+export SUBVORTEX_WORKING_DIR="$HOME/subvortex"
 
 # Expand ~ and assign directory
-execution_dir="$HOME/subvortex/subvortex/miner"
+execution_dir="$SUBVORTEX_WORKING_DIR/subvortex/miner"
 
 # Check if directory exists
 if [ ! -d "$execution_dir" ]; then

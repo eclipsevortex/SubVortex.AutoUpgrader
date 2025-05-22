@@ -181,7 +181,9 @@ class Orchestrator:
 
         # Rollout migrations
         await self._step(
-            "🛠️ Run migrations", self._rollback_migrations, self._rollout_migrations
+            "🛠️ Run migrations",
+            self._rollback_migrations,
+            self._rollout_migrations,
         )
 
         # Remove prune services
@@ -345,30 +347,100 @@ class Orchestrator:
         self._pull_assets(version=self.current_version)
 
     def _pull_latest_assets(self):
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Collect all unique version strings from the nested structure
+            versions_to_pull = set()
+
+            for value in self.github.latest_versions.values():
+                if isinstance(value, dict):
+                    for v in value.values():
+                        if isinstance(v, str):
+                            versions_to_pull.add(v)
+                elif isinstance(value, str):
+                    versions_to_pull.add(value)
+
+            context = "container"
+        else:
+            versions_to_pull = {self.latest_version}
+            context = "non-container"
+
         btul.logging.info(
-            f"📥 Pulling latest assets (version {self.latest_version})",
+            f"📦 Starting asset pull for {len(versions_to_pull)} version(s) "
+            f"in {context} mode: {', '.join(sorted(versions_to_pull))}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
-        # Download and unzip the latest version
-        self._pull_assets(version=self.latest_version)
+        for version in versions_to_pull:
+            btul.logging.info(
+                f"📥 Pulling assets for version: {version}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
-        # Buid the path of the the version directory
-        path = saup.get_version_directory(version=self.latest_version)
-        if not os.path.exists(path):
-            raise saue.MissingDirectoryError(directory_path=path)
+            try:
+                self._pull_assets(version=version)
+            except Exception as e:
+                btul.logging.error(
+                    f"❌ Failed to pull assets for version {version}: {e}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                raise
 
-        btul.logging.debug(
-            f"📁 Latest version assets extracted to: {path}", prefix=sauc.SV_LOGGER_NAME
+            path = saup.get_version_directory(version=version)
+            if not os.path.exists(path):
+                raise saue.MissingDirectoryError(directory_path=path)
+
+            btul.logging.debug(
+                f"📁 Assets for version {version} extracted to: {path}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
+        btul.logging.info(
+            "✅ Asset pull completed.",
+            prefix=sauc.SV_LOGGER_NAME,
         )
 
     def _rollback_pull_latest_assets(self):
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Collect all unique version strings from the nested structure
+            versions_to_remove = set()
+
+            for value in self.github.latest_versions.values():
+                if isinstance(value, dict):
+                    for v in value.values():
+                        if isinstance(v, str):
+                            versions_to_remove.add(v)
+                elif isinstance(value, str):
+                    versions_to_remove.add(value)
+
+            context = "container"
+        else:
+            versions_to_remove = {self.latest_version}
+            context = "non-container"
+
         btul.logging.info(
-            "♻️ Rolling back pulled latest assets...", prefix=sauc.SV_LOGGER_NAME
+            f"♻️ Rolling back pulled assets for {len(versions_to_remove)} version(s) "
+            f"in {context} mode: {', '.join(sorted(versions_to_remove))}",
+            prefix=sauc.SV_LOGGER_NAME,
         )
 
-        # Remove the latest version
-        self._remove_assets(version=self.latest_version)
+        for version in versions_to_remove:
+            try:
+                btul.logging.info(
+                    f"🗑️ Removing pulled assets for version: {version}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                self._remove_assets(version=version)
+            except Exception as e:
+                btul.logging.error(
+                    f"❌ Failed to remove assets for version {version}: {e}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                raise
+
+        btul.logging.info(
+            "✅ Rollback of pulled assets completed.",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
     def _copy_env_files(self):
         for service in self.latest_services:
@@ -495,6 +567,7 @@ class Orchestrator:
                 current.must_remove = True
                 current.needs_update = False
                 current.upgrade_type = None
+                current.rollback_version = current.version
                 btul.logging.info(
                     f"🗑️ Service removed: {current.name}", prefix=sauc.SV_LOGGER_NAME
                 )
@@ -512,14 +585,15 @@ class Orchestrator:
                 continue
 
             # Compare versions
-            current_version = Version(current.version)
-            latest_version = Version(latest.version)
+            current_version = Version(current.service_version)
+            latest_version = Version(latest.service_version)
 
             if current_version != latest_version:
                 latest.needs_update = True
                 latest.upgrade_type = (
                     "upgrade" if latest_version > current_version else "downgrade"
                 )
+                latest.rollback_version = current.version
                 btul.logging.info(
                     f"🔁 Service {latest.name}: {current.version} -> {latest.version} ({latest.upgrade_type})",
                     prefix=sauc.SV_LOGGER_NAME,
@@ -557,7 +631,7 @@ class Orchestrator:
             )
 
             # Execute the setup
-            self._execute_setup(service=service)
+            self._execute_setup(service=service, version=self.latest_version)
 
     def _rollback_services(self):
         btul.logging.info(
@@ -580,7 +654,7 @@ class Orchestrator:
             )
 
             # Execute the setup
-            self._execute_teardown(service=service)
+            self._execute_teardown(service=service, version=self.latest_version)
 
     async def _pre_migrations(self):
         btul.logging.info(
@@ -675,7 +749,9 @@ class Orchestrator:
             btul.logging.debug(
                 f"✋ Stopping service: {service.name}", prefix=sauc.SV_LOGGER_NAME
             )
-            self._execute_stop(service=current_services_map[service.id])
+            self._execute_stop(
+                service=current_services_map[service.id], version=self.current_version
+            )
 
     def _rollback_stop_current_services(self, service_filter: Callable = None):
         # Create the dependency resolver
@@ -706,7 +782,9 @@ class Orchestrator:
             btul.logging.debug(
                 f"🔁 Restarting service: {service.name}", prefix=sauc.SV_LOGGER_NAME
             )
-            self._execute_start(service=current_services_map[service.id])
+            self._execute_start(
+                service=current_services_map[service.id], version=self.current_version
+            )
 
     def _switch_services(self):
         btul.logging.info(
@@ -749,13 +827,20 @@ class Orchestrator:
             if not service.needs_update:
                 continue
 
+            if not service.rollback_version:
+                btul.logging.warning(
+                    f"⚠️ Skipping rollback for {service.name} (no rollback version available)",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                continue
+
             btul.logging.debug(
                 f"⏪ Switching {service.name} back to rollback version {service.rollback_version}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
             # Switch to previous version
-            service.switch_to_version(version=service.version)
+            service.switch_to_version(version=service.rollback_version)
 
     def _start_latest_services(self, service_filter: Callable = None):
         btul.logging.info(
@@ -782,7 +867,7 @@ class Orchestrator:
                 )
                 continue
 
-            self._execute_start(service=service)
+            self._execute_start(service=service, version=self.latest_version)
 
     def _rollback_start_latest_services(self, service_filter: Callable = None):
         btul.logging.info(
@@ -807,7 +892,7 @@ class Orchestrator:
                 f"✋ Stopping service: {service.name}", prefix=sauc.SV_LOGGER_NAME
             )
 
-            self._execute_stop(service=service)
+            self._execute_stop(service=service, version=self.latest_version)
 
     def _prune_services(self):
         btul.logging.info("🧹 Pruning removed services...", prefix=sauc.SV_LOGGER_NAME)
@@ -834,7 +919,7 @@ class Orchestrator:
             )
 
             # Execute the setup
-            self._execute_teardown(service=service)
+            self._execute_teardown(service=service, version=self.current_version)
 
         if not has_turndown_services:
             btul.logging.debug("No services to prune", prefix=sauc.SV_LOGGER_NAME)
@@ -862,24 +947,86 @@ class Orchestrator:
             )
 
             # Execute the setup
-            self._execute_setup(service=service)
+            self._execute_setup(service=service, version=self.current_version)
 
         if not has_turndown_services:
             btul.logging.debug(f"No services to teardown", prefix=sauc.SV_LOGGER_NAME)
 
     def _remove_services(self):
-        btul.logging.info(
-            f"🗑️ Removing current version assets: {self.current_version}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-        self._remove_assets(version=self.current_version)
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Collect versions that are in current but not in latest
+
+            # Get all the version in the latest services
+            latest_versions = [x.version for x in self.latest_services]
+
+            # Get all the versions that are not used in latest services
+            obsolete_versions = [
+                svc.version
+                for svc in self.current_services
+                if svc.version not in latest_versions
+            ]
+
+            for version in obsolete_versions:
+                btul.logging.info(
+                    f"🗑️ Removing obsolete version assets: {version}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                self._remove_assets(version=version)
+
+        else:
+            # Non-container mode: remove only the current version
+            btul.logging.info(
+                f"🗑️ Removing current version assets: {self.current_version}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            self._remove_assets(version=self.current_version)
 
     def _rollback_remove_services(self):
-        btul.logging.info(
-            f"♻️ Re-pulling current version assets: {self.current_version}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-        self._pull_assets(version=self.current_version)
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Determine versions that were removed and should be re-pulled
+
+            # Get all the version in the latest services
+            latest_versions = {x.version for x in self.latest_services}
+
+            # Get all the versions that were not used in latest services
+            rollback_versions = {
+                svc.version
+                for svc in self.current_services
+                if svc.version not in latest_versions
+            }
+
+            btul.logging.info(
+                f"♻️ Rolling back service removal for {len(rollback_versions)} container version(s): "
+                f"{', '.join(sorted(rollback_versions))}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
+            for version in rollback_versions:
+                try:
+                    btul.logging.info(
+                        f"♻️ Re-pulling container version: {version}",
+                        prefix=sauc.SV_LOGGER_NAME,
+                    )
+                    self._pull_assets(version=version)
+                except Exception as e:
+                    btul.logging.error(
+                        f"❌ Failed to re-pull container version {version}: {e}",
+                        prefix=sauc.SV_LOGGER_NAME,
+                    )
+                    raise
+        else:
+            btul.logging.info(
+                f"♻️ Re-pulling current version assets: {self.current_version}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            try:
+                self._pull_assets(version=self.current_version)
+            except Exception as e:
+                btul.logging.error(
+                    f"❌ Failed to re-pull current version {self.current_version}: {e}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                raise
 
     def _finalize_versions(self):
         btul.logging.info(
@@ -954,32 +1101,33 @@ class Orchestrator:
 
         return services
 
-    def _execute_setup(self, service: saus.Service):
+    def _execute_setup(self, service: saus.Service, version: str):
         # Run the script
-        self._run(action="setup", service=service)
+        self._run(action="setup", service=service, version=version)
 
-    def _execute_start(self, service: saus.Service):
+    def _execute_start(self, service: saus.Service, version: str):
         # Define the action
         args = ["--recreate"] if sauc.SV_EXECUTION_METHOD == "container" else []
 
         # Run the script
-        self._run(action="start", service=service, args=args)
+        self._run(action="start", service=service, version=version, args=args)
 
-    def _execute_stop(self, service: saus.Service):
+    def _execute_stop(self, service: saus.Service, version: str):
         # Run the script
-        self._run(action="stop", service=service)
+        self._run(action="stop", service=service, version=version)
 
-    def _execute_teardown(self, service: saus.Service):
+    def _execute_teardown(self, service: saus.Service, version: str):
         # Run the script
-        self._run(action="teardown", service=service)
+        self._run(action="teardown", service=service, version=version)
 
-    def _run(self, action: str, service: saus.Service, args: List[str] = []):
+    def _run(
+        self, action: str, service: saus.Service, version: str, args: List[str] = []
+    ):
         # Build the setup script path
         script_file = saup.get_service_script(
             service=service,
             action=action,
-            version=self.latest_version,
-            # use_version_dir=True,  # action in ["setup", "teardown"],
+            version=version,
         )
         if not os.path.exists(script_file):
             raise saue.MissingFileError(file_path=script_file)
@@ -1001,6 +1149,8 @@ class Orchestrator:
 
         if action in ["start", "stop"]:
             env["SUBVORTEX_WORKING_DIR"] = sauc.SV_EXECUTION_DIR
+
+        env["SUBVORTEX_EXECUTION_DIR"] = sauc.SV_EXECUTION_DIR
 
         try:
             result = subprocess.run(
@@ -1052,13 +1202,12 @@ class Orchestrator:
         )
 
     def _has_migrations(self, service: saus.Service) -> bool:
-        migraton_dir = (
-            os.listdir(saup.get_migration_directory(service=service))
-            if service.migration
-            else None
-        )
-        return (
-            service.migration is not None
-            and migraton_dir is not None
-            and any(f.endswith(".py") for f in migraton_dir)
-        )
+        if not service.migration:
+            return False
+
+        migration_dir = saup.get_migration_directory(service=service)
+        if not os.path.exists(migration_dir):
+            return False
+
+        migrations = os.listdir(migration_dir)
+        return any(f.endswith(".py") for f in migrations)

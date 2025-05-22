@@ -4,7 +4,7 @@ set -e
 
 # Determine script directory dynamically to ensure everything runs in ./scripts/api/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../.."
+cd "$SCRIPT_DIR/../../.."
 
 source ./scripts/utils/utils.sh
 
@@ -12,11 +12,10 @@ show_help() {
     echo "Usage: $0 [--execution=process|service]"
     echo
     echo "Description:"
-    echo "  This script restart the validator's components"
+    echo "  This script start the miner's redis"
     echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
-    echo "  --recreate    True if you want to recreate the container when starting it, false otherwise."
     echo "  --help        Show this help message"
     exit 0
 }
@@ -67,7 +66,7 @@ export SUBVORTEX_FLOATTING_FLAG=$(get_tag)
 export SUBVORTEX_WORKING_DIR="$HOME/subvortex"
 
 # Expand ~ and assign directory
-execution_dir="$SUBVORTEX_WORKING_DIR/subvortex/validator"
+execution_dir="$SUBVORTEX_WORKING_DIR/subvortex/miner"
 
 # Check if directory exists
 if [ ! -d "$execution_dir" ]; then
@@ -75,11 +74,5 @@ if [ ! -d "$execution_dir" ]; then
     exit 1
 fi
 
-# Build the command and arguments
-CMD="$execution_dir/scripts/quick_restart.sh --execution \"$EXECUTION\""
-if [[ "$RECREATE" == "true" || "$RECREATE" == "True" ]]; then
-    CMD+=" --recreate"
-fi
-
-# Setup the auto upgrade as container
-eval "$CMD"
+# Run quick start script
+"$execution_dir/redis/scripts/redis_start.sh" --execution "$EXECUTION"
