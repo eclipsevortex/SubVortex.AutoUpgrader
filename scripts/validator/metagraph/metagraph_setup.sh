@@ -75,4 +75,4 @@ if [ ! -d "$execution_dir" ]; then
 fi
 
 # Run quick setup script
-"$execution_dir/metagraph/scripts/redis_setup.sh" --execution "$EXECUTION"
+"$execution_dir/metagraph/scripts/metagraph_setup.sh" --execution "$EXECUTION"

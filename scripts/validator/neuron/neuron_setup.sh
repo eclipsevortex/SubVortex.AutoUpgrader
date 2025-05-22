@@ -75,4 +75,4 @@ if [ ! -d "$execution_dir" ]; then
 fi
 
 # Run quick setup script
-"$execution_dir/neuron/scripts/redis_setup.sh" --execution "$EXECUTION"
+"$execution_dir/neuron/scripts/neuron_setup.sh" --execution "$EXECUTION"

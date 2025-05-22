@@ -59,7 +59,7 @@ You can monitor the Validator using logs. Their location depends on the `SUBVORT
 To install the Validator in a quick way, you can run
 
 ```bash
-/scripts/validator/quick_start.sh --execution <EXECUTION_METHOD>
+./scripts/validator/quick_start.sh --execution <EXECUTION_METHOD>
 ```
 
 It will install and start the Validator's components using the `EXECUTION_METHOD`, which defaults to `service`.
