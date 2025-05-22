@@ -4,7 +4,7 @@ set -e
 
 # Determine script directory dynamically to ensure everything runs in ./scripts/api/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../.."
+cd "$SCRIPT_DIR/../../.."
 
 source ./scripts/utils/utils.sh
 
@@ -12,7 +12,7 @@ show_help() {
     echo "Usage: $0 [--execution=process|service]"
     echo
     echo "Description:"
-    echo "  This script stop the miner's components"
+    echo "  This script start the miner's metagraph"
     echo
     echo "Options:"
     echo "  --execution   Specify the execution method (default: service)"
@@ -75,4 +75,4 @@ if [ ! -d "$execution_dir" ]; then
 fi
 
 # Run quick start script
-"$execution_dir/scripts/quick_stop.sh" --execution "$EXECUTION"
+"$execution_dir/metagraph/scripts/metagraph_start.sh" --execution "$EXECUTION"
