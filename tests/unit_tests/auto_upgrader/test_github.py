@@ -12,7 +12,9 @@ from subvortex.auto_upgrader.src.github import Github
 @patch("subvortex.auto_upgrader.src.github.os.readlink")
 @patch("subvortex.auto_upgrader.src.github.os.path.islink", return_value=True)
 @patch("subvortex.auto_upgrader.src.github.os.path.isfile", return_value=False)
-def test_get_local_version_symlink_returns_version(mock_isfile, mock_islink, mock_readlink):
+def test_get_local_version_symlink_returns_version(
+    mock_isfile, mock_islink, mock_readlink
+):
     # Arrange
     github = Github()
     mock_readlink.return_value = "/var/tmp/subvortex/subvortex-1.2.3"
@@ -23,6 +25,20 @@ def test_get_local_version_symlink_returns_version(mock_isfile, mock_islink, moc
     # Assert
     assert version == "1.2.3"
     mock_readlink.assert_called_once()
+
+
+@patch("subvortex.auto_upgrader.src.github.os.readlink")
+@patch("subvortex.auto_upgrader.src.github.os.path.islink", return_value=False)
+def test_get_local_version_symlink_not_found(mock_islink, mock_readlink):
+    # Arrange
+    github = Github()
+    mock_readlink.return_value = "/some/unknown/path/no-version-here"
+
+    # Act
+    version = github.get_local_version()
+
+    # Assert
+    assert version is None
 
 
 @patch("subvortex.auto_upgrader.src.github.os.readlink")
@@ -43,7 +59,9 @@ def test_get_local_version_symlink_invalid_path(mock_islink, mock_readlink):
 @patch("subvortex.auto_upgrader.src.github.os.path.islink", return_value=True)
 @patch("subvortex.auto_upgrader.src.github.os.path.isfile", return_value=True)
 @patch("subvortex.auto_upgrader.src.github.os.remove")
-def test_get_local_version_symlink_force_marker(mock_remove, mock_isfile, mock_islink, mock_readlink):
+def test_get_local_version_symlink_force_marker(
+    mock_remove, mock_isfile, mock_islink, mock_readlink
+):
     # Arrange
     github = Github()
     mock_readlink.return_value = "/var/tmp/subvortex/subvortex-3.0.0a40"
@@ -224,7 +242,7 @@ def test_get_latest_version_container_returns_new_version_if_at_least_one_servic
 @patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_ROLE", "validator")
 @patch("subvortex.auto_upgrader.src.github.subprocess.run")
 @patch("subvortex.auto_upgrader.src.github.requests.get")
-def test_get_latest_version_container_returns_new_version_if_all_service_has_same_global_version(
+def test_get_latest_version_container_returns_new_version_if_all_service_has_new_version(
     mock_requests_get, mock_subprocess_run
 ):
     # Arrange
@@ -307,33 +325,156 @@ def test_get_latest_version_container_raise_package_url_not_found(mock_requests_
 
 
 @patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
 @patch("subvortex.auto_upgrader.src.github.requests.get")
-def test_get_latest_version_container_skip_package_if_no_versions_found(
-    mock_requests_get,
+def test_get_latest_version_container_skip_package_if_image_could_not_be_found(
+    mock_requests_get, mock_subprocess_run
 ):
-    # Arrange
     github = Github()
 
-    # Mock responses for GitHub API
+    # Simulate GitHub returning one container package
     packages_response = MagicMock()
     packages_response.status_code = 200
-    packages_response.json.return_value = [
-        {"name": "subvortex-miner-neuron"},
+    packages_response.json.return_value = [{"name": "subvortex-miner-neuron"}]
+    mock_requests_get.return_value = packages_response
+
+    # Simulate docker pull success but inspect fails (invalid output or error)
+    mock_subprocess_run.side_effect = [
+        MagicMock(returncode=1, stdout="", stderr="not found"),  # docker pull
     ]
 
-    versions_response = MagicMock()
-    versions_response.status_code = 404
+    with patch(
+        "subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="latest"
+    ):
+        version = github.get_latest_version()
 
-    mock_requests_get.side_effect = [
-        packages_response,  # First: list packages
-        versions_response,  # Second: package versions
-    ]
-
-    # Act
-    version = github.get_latest_version()
-
-    # Assert
     assert version is None
+    assert mock_requests_get.call_count == 1
+    assert mock_subprocess_run.call_count == 1
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+@patch("subvortex.auto_upgrader.src.github.requests.get")
+def test_get_latest_version_container_returns_none_if_image_could_not_be_pulled_and_no_local_version_found(
+    mock_requests_get, mock_subprocess_run
+):
+    github = Github()
+    github.local_versions = {}
+
+    # Simulate GitHub returning one container package
+    packages_response = MagicMock()
+    packages_response.status_code = 200
+    packages_response.json.return_value = [{"name": "subvortex-miner-neuron"}]
+    mock_requests_get.return_value = packages_response
+
+    # Simulate docker pull success but inspect fails (invalid output or error)
+    mock_subprocess_run.side_effect = [
+        MagicMock(returncode=1, stdout="", stderr="pull failed"),  # docker pull
+        MagicMock(returncode=1, stdout="", stderr="inspect failed"),  # docker inspect
+    ]
+
+    with patch(
+        "subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="latest"
+    ):
+        version = github.get_latest_version()
+
+    assert version is None
+    assert mock_requests_get.call_count == 1
+    assert mock_subprocess_run.call_count == 2
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+@patch("subvortex.auto_upgrader.src.github.requests.get")
+def test_get_latest_version_container_returns_local_version_if_image_could_not_be_pulled_and_local_version_found(
+    mock_requests_get, mock_subprocess_run
+):
+    github = Github()
+    github.local_versions = {"neuron": {"version": "1.0.0"}}
+
+    # Simulate GitHub returning one container package
+    packages_response = MagicMock()
+    packages_response.status_code = 200
+    packages_response.json.return_value = [{"name": "subvortex-miner-neuron"}]
+    mock_requests_get.return_value = packages_response
+
+    # Simulate docker pull success but inspect fails (invalid output or error)
+    mock_subprocess_run.side_effect = [
+        MagicMock(returncode=1, stdout="", stderr="pull failed"),  # docker pull
+        MagicMock(returncode=1, stdout="", stderr="inspect failed"),  # docker inspect
+    ]
+
+    with patch(
+        "subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="latest"
+    ):
+        version = github.get_latest_version()
+
+    assert version == "1.0.0"
+    assert mock_requests_get.call_count == 1
+    assert mock_subprocess_run.call_count == 2
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+@patch("subvortex.auto_upgrader.src.github.requests.get")
+def test_get_latest_version_container_returns_none_if_inspect_fails_and_no_local_version_found(
+    mock_requests_get, mock_subprocess_run
+):
+    github = Github()
+    github.local_versions = {}
+
+    # Simulate GitHub returning one container package
+    packages_response = MagicMock()
+    packages_response.status_code = 200
+    packages_response.json.return_value = [{"name": "subvortex-miner-neuron"}]
+    mock_requests_get.return_value = packages_response
+
+    # Simulate docker pull success but inspect fails (invalid output or error)
+    mock_subprocess_run.side_effect = [
+        MagicMock(returncode=0),  # docker pull
+        MagicMock(returncode=1, stdout="", stderr="inspect failed"),  # docker inspect
+    ]
+
+    with patch(
+        "subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="latest"
+    ):
+        version = github.get_latest_version()
+
+    assert version is None
+    assert mock_requests_get.call_count == 1
+    assert mock_subprocess_run.call_count == 2
+
+
+@patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
+@patch("subvortex.auto_upgrader.src.github.subprocess.run")
+@patch("subvortex.auto_upgrader.src.github.requests.get")
+def test_get_latest_version_container_returns_local_version_if_inspect_fails_and_local_version_found(
+    mock_requests_get, mock_subprocess_run
+):
+    github = Github()
+    github.local_versions = {"neuron": {"version": "1.0.0"}}
+
+    # Simulate GitHub returning one container package
+    packages_response = MagicMock()
+    packages_response.status_code = 200
+    packages_response.json.return_value = [{"name": "subvortex-miner-neuron"}]
+    mock_requests_get.return_value = packages_response
+
+    # Simulate docker pull success but inspect fails (invalid output or error)
+    mock_subprocess_run.side_effect = [
+        MagicMock(returncode=0),  # docker pull
+        MagicMock(returncode=1, stdout="", stderr="inspect failed"),  # docker inspect
+    ]
+
+    with patch(
+        "subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="latest"
+    ):
+        version = github.get_latest_version()
+
+    assert version == "1.0.0"
+    assert mock_requests_get.call_count == 1
+    assert mock_subprocess_run.call_count == 2
 
 
 @patch("subvortex.auto_upgrader.src.constants.SV_EXECUTION_METHOD", "container")
@@ -495,7 +636,9 @@ def test_get_latest_version_inspect_succeeds_after_pull_fails(
         ),  # docker inspect
     ]
 
-    with patch("subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="latest"):
+    with patch(
+        "subvortex.auto_upgrader.src.github.sauu.get_tag", return_value="latest"
+    ):
         version = github.get_latest_version()
 
     assert version == "2.5.0"

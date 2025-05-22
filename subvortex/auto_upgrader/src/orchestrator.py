@@ -181,7 +181,9 @@ class Orchestrator:
 
         # Rollout migrations
         await self._step(
-            "🛠️ Run migrations", self._rollback_migrations, self._rollout_migrations
+            "🛠️ Run migrations",
+            self._rollback_migrations,
+            self._rollout_migrations,
         )
 
         # Remove prune services
@@ -345,30 +347,100 @@ class Orchestrator:
         self._pull_assets(version=self.current_version)
 
     def _pull_latest_assets(self):
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Collect all unique version strings from the nested structure
+            versions_to_pull = set()
+
+            for value in self.github.latest_versions.values():
+                if isinstance(value, dict):
+                    for v in value.values():
+                        if isinstance(v, str):
+                            versions_to_pull.add(v)
+                elif isinstance(value, str):
+                    versions_to_pull.add(value)
+
+            context = "container"
+        else:
+            versions_to_pull = {self.latest_version}
+            context = "non-container"
+
         btul.logging.info(
-            f"📥 Pulling latest assets (version {self.latest_version})",
+            f"📦 Starting asset pull for {len(versions_to_pull)} version(s) "
+            f"in {context} mode: {', '.join(sorted(versions_to_pull))}",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
-        # Download and unzip the latest version
-        self._pull_assets(version=self.latest_version)
+        for version in versions_to_pull:
+            btul.logging.info(
+                f"📥 Pulling assets for version: {version}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
 
-        # Buid the path of the the version directory
-        path = saup.get_version_directory(version=self.latest_version)
-        if not os.path.exists(path):
-            raise saue.MissingDirectoryError(directory_path=path)
+            try:
+                self._pull_assets(version=version)
+            except Exception as e:
+                btul.logging.error(
+                    f"❌ Failed to pull assets for version {version}: {e}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                raise
 
-        btul.logging.debug(
-            f"📁 Latest version assets extracted to: {path}", prefix=sauc.SV_LOGGER_NAME
+            path = saup.get_version_directory(version=version)
+            if not os.path.exists(path):
+                raise saue.MissingDirectoryError(directory_path=path)
+
+            btul.logging.debug(
+                f"📁 Assets for version {version} extracted to: {path}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+
+        btul.logging.info(
+            "✅ Asset pull completed.",
+            prefix=sauc.SV_LOGGER_NAME,
         )
 
     def _rollback_pull_latest_assets(self):
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Collect all unique version strings from the nested structure
+            versions_to_remove = set()
+
+            for value in self.github.latest_versions.values():
+                if isinstance(value, dict):
+                    for v in value.values():
+                        if isinstance(v, str):
+                            versions_to_remove.add(v)
+                elif isinstance(value, str):
+                    versions_to_remove.add(value)
+
+            context = "container"
+        else:
+            versions_to_remove = {self.latest_version}
+            context = "non-container"
+
         btul.logging.info(
-            "♻️ Rolling back pulled latest assets...", prefix=sauc.SV_LOGGER_NAME
+            f"♻️ Rolling back pulled assets for {len(versions_to_remove)} version(s) "
+            f"in {context} mode: {', '.join(sorted(versions_to_remove))}",
+            prefix=sauc.SV_LOGGER_NAME,
         )
 
-        # Remove the latest version
-        self._remove_assets(version=self.latest_version)
+        for version in versions_to_remove:
+            try:
+                btul.logging.info(
+                    f"🗑️ Removing pulled assets for version: {version}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                self._remove_assets(version=version)
+            except Exception as e:
+                btul.logging.error(
+                    f"❌ Failed to remove assets for version {version}: {e}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                raise
+
+        btul.logging.info(
+            "✅ Rollback of pulled assets completed.",
+            prefix=sauc.SV_LOGGER_NAME,
+        )
 
     def _copy_env_files(self):
         for service in self.latest_services:
@@ -513,8 +585,8 @@ class Orchestrator:
                 continue
 
             # Compare versions
-            current_version = Version(current.version)
-            latest_version = Version(latest.version)
+            current_version = Version(current.service_version)
+            latest_version = Version(latest.service_version)
 
             if current_version != latest_version:
                 latest.needs_update = True
@@ -881,18 +953,62 @@ class Orchestrator:
             btul.logging.debug(f"No services to teardown", prefix=sauc.SV_LOGGER_NAME)
 
     def _remove_services(self):
-        btul.logging.info(
-            f"🗑️ Removing current version assets: {self.current_version}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-        self._remove_assets(version=self.current_version)
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Collect versions that are in current but not in latest
+
+            # Get all the version in the latest services
+            latest_versions = {x.version for x in self.latest_services}
+
+            # Get all the versions that are not used in latest services
+            obsolete_versions = {
+                svc.version
+                for svc in self.current_services
+                if svc.version not in latest_versions
+            }
+
+            for version in obsolete_versions:
+                btul.logging.info(
+                    f"🗑️ Removing obsolete version assets: {version}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                self._remove_assets(version=version)
+
+        else:
+            # Non-container mode: remove only the current version
+            btul.logging.info(
+                f"🗑️ Removing current version assets: {self.current_version}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            self._remove_assets(version=self.current_version)
 
     def _rollback_remove_services(self):
-        btul.logging.info(
-            f"♻️ Re-pulling current version assets: {self.current_version}",
-            prefix=sauc.SV_LOGGER_NAME,
-        )
-        self._pull_assets(version=self.current_version)
+        if sauc.SV_EXECUTION_METHOD == "container":
+            # Re-pull all container versions that were removed
+
+            # Get all the version in the latest services
+            latest_versions = {x.version for x in self.latest_services}
+
+            # Get all the versions that were not used in latest services
+            rollback_versions = {
+                svc.version
+                for svc in self.current_services
+                if svc.version not in latest_versions
+            }
+
+            for version in rollback_versions:
+                btul.logging.info(
+                    f"♻️ Re-pulling container version: {version}",
+                    prefix=sauc.SV_LOGGER_NAME,
+                )
+                self._pull_assets(version=version)
+
+        else:
+            # Non-container mode: just re-pull the current version
+            btul.logging.info(
+                f"♻️ Re-pulling current version assets: {self.current_version}",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
+            self._pull_assets(version=self.current_version)
 
     def _finalize_versions(self):
         btul.logging.info(

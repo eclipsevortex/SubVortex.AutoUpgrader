@@ -109,14 +109,19 @@ def patch_execution_method():
 
 
 def create_service(
-    version: str, id="subvortex-neuron", execution="process", name="neuron"
+    version: str,
+    id="subvortex-neuron",
+    execution="process",
+    name="neuron",
+    component_version=None,
+    service_version=None,
 ):
     return Service(
         id=id,
         name=name,
         version=version,
-        component_version=version,
-        service_version=version,
+        component_version=component_version or version,
+        service_version=service_version or component_version or version,
         execution=execution,
         migration="",
         setup_command="deployment/neuron_process_setup.sh",
@@ -227,6 +232,19 @@ def assert_run_calls(
             f"  Expected: {expected_set}\n"
             f"  Got:      {actual_set}"
         )
+
+
+def set_versions(version=None, component_version=None, service_version=None):
+    versions = {
+        "version": version,
+        "neuron": {
+            "version": version,
+            "miner.version": component_version or version,
+            "miner.neuron.version": service_version or component_version or version,
+        },
+    }
+
+    return versions, versions.get("version")
 
 
 @pytest.mark.asyncio
@@ -369,12 +387,15 @@ async def test_run_plan_when_no_new_version_should_execute_until_check_versions_
 
     orchestrator._check_versions = Orchestrator._check_versions.__get__(orchestrator)
 
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.0")
+
     # Fake _get_current_version and _get_latest_version behavior
     orchestrator._get_current_version.side_effect = lambda: setattr(
-        orchestrator, "current_version", "1.0.0"
+        orchestrator, "current_version", current_version
     )
     orchestrator._get_latest_version.side_effect = lambda: setattr(
-        orchestrator, "latest_version", "1.0.0"
+        orchestrator, "latest_version", latest_version
     )
 
     # Create fake services
@@ -425,11 +446,12 @@ async def test_run_plan_when_migrate_for_the_first_time_after_releasing_auto_upr
     orchestrator,
 ):
     # Arrange
-    # mock_all_steps(orchestrator)
+    orchestrator.github.local_versions, current_version = {}, None
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
 
     # Fake _get_current_version and _get_latest_version behavior
-    orchestrator.github.get_local_version.return_value = None
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     latest_service_1 = create_service(
@@ -477,22 +499,25 @@ async def test_run_plan_when_new_version_for_all_services_should_execute_all_ste
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
     current_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=current_version, name="redis"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.1", name="neuron"
+        id="subvortex-validator-neuron", version=latest_version, name="neuron"
     )
     latest_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.1", name="redis"
+        id="subvortex-validator-redis", version=latest_version, name="redis"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -522,22 +547,25 @@ async def test_run_plan_when_new_version_for_few_services_should_execute_all_ste
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
     current_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=current_version, name="redis"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.1", name="neuron"
+        id="subvortex-validator-neuron", version=latest_version, name="neuron"
     )
     latest_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=current_version, name="redis"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -559,7 +587,7 @@ async def test_run_plan_when_new_version_for_few_services_should_execute_all_ste
         stop=[("neuron", "1.0.0")],
         teardown=[],
     )
-    orchestrator._remove_assets.assert_called_with(version="1.0.0")
+    orchestrator._remove_assets.assert_not_called
 
 
 @pytest.mark.asyncio
@@ -567,19 +595,25 @@ async def test_run_plan_when_new_version_removes_an_old_service_should_call_the_
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
     current_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=current_version, name="redis"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron",
+        version=latest_version,
+        service_version=current_version,
+        name="neuron",
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -609,19 +643,22 @@ async def test_run_plan_when_new_version_removes_an_old_service_and_update_anoth
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
     current_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=current_version, name="redis"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.1", name="neuron"
+        id="subvortex-validator-neuron", version=latest_version, name="neuron"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -651,19 +688,25 @@ async def test_run_plan_when_new_version_creates_a_new_service_should_call_the_r
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron",
+        version=latest_version,
+        service_version=current_version,
+        name="neuron",
     )
     latest_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=latest_version, name="redis"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -693,19 +736,22 @@ async def test_run_plan_when_new_version_creates_a_new_service_and_update_anothe
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.1", name="neuron"
+        id="subvortex-validator-neuron", version=latest_version, name="neuron"
     )
     latest_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=latest_version, name="redis"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -735,22 +781,25 @@ async def test_run_rollback_plan_when_new_version_for_all_services_and_exception
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
     current_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=current_version, name="redis"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.1", name="neuron"
+        id="subvortex-validator-neuron", version=latest_version, name="neuron"
     )
     latest_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.1", name="redis"
+        id="subvortex-validator-redis", version=latest_version, name="redis"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -800,22 +849,25 @@ async def test_run_rollback_plan_when_new_version_for_few_services_and_exception
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
     current_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=current_version, name="redis"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.1", name="neuron"
+        id="subvortex-validator-neuron", version=latest_version, name="neuron"
     )
     latest_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.1", name="redis"
+        id="subvortex-validator-redis", version=latest_version, name="redis"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -865,19 +917,90 @@ async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_exc
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
     current_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=current_version, name="redis"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.1", name="neuron"
+        id="subvortex-validator-neuron",
+        version=latest_version,
+        service_version=current_version,
+        name="neuron",
+    )
+
+    orchestrator._load_current_services.side_effect = lambda: setattr(
+        orchestrator, "current_services", [current_service_1, current_service_2]
+    )
+    orchestrator._load_latest_services.side_effect = lambda: setattr(
+        orchestrator, "latest_services", [latest_service_1]
+    )
+
+    # Simulate failure in _remove_services
+    orchestrator._remove_services = mock.MagicMock(side_effect=Exception("boom"))
+
+    # Act: simulate `main.py` catching the error and calling rollback
+    with pytest.raises(Exception, match="boom"):
+        await orchestrator.run_plan()
+
+    # Assert
+    assert 17 == len(orchestrator.rollback_steps)
+    assert_run_calls(
+        subprocess_mock=orchestrator.mock_subprocess_run,
+        setup=[],
+        start=[],
+        stop=[("redis", "1.0.0")],
+        teardown=[("redis", "1.0.0")],
+    )
+
+    # Reset the mocks
+    orchestrator.mock_subprocess_run.reset_mock()
+
+    # Action
+    await orchestrator.run_rollback_plan()
+
+    # Assert
+    assert 17 == len(orchestrator.rollback_steps)
+    orchestrator._pull_assets.assert_called_with(version="1.0.0")
+    assert_run_calls(
+        subprocess_mock=orchestrator.mock_subprocess_run,
+        setup=[("redis", "1.0.0")],
+        start=[("redis", "1.0.0")],
+        stop=[],
+        teardown=[],
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_update_another_one_and_exception_raised_at_remove_previous_version_step_should_rollback_correctly(
+    orchestrator,
+):
+    # Arrange
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
+
+    # Create fake services
+    current_service_1 = create_service(
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
+    )
+    current_service_2 = create_service(
+        id="subvortex-validator-redis", version=current_version, name="redis"
+    )
+
+    latest_service_1 = create_service(
+        id="subvortex-validator-neuron", version=latest_version, name="neuron"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -916,7 +1039,7 @@ async def test_run_rollback_plan_when_new_version_removes_an_old_service_and_exc
     assert_run_calls(
         subprocess_mock=orchestrator.mock_subprocess_run,
         setup=[("redis", "1.0.0")],
-        start=[("redis", "1.0.0"), ("neuron", "1.0.0")],
+        start=[("neuron", "1.0.0"), ("redis", "1.0.0")],
         stop=[("neuron", "1.0.1")],
         teardown=[],
     )
@@ -927,19 +1050,25 @@ async def test_run_rollback_plan_when_new_version_creates_a_new_service_and_exce
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron",
+        version=latest_version,
+        service_version=current_version,
+        name="neuron",
     )
     latest_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=latest_version, name="redis"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -989,19 +1118,22 @@ async def test_run_rollback_plan_when_new_version_new_version_creates_a_new_serv
     orchestrator,
 ):
     # Arrange
-    orchestrator.github.get_local_version.return_value = "1.0.0"
-    orchestrator.github.get_latest_version.return_value = "1.0.1"
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
+    orchestrator.github.get_local_version.return_value = current_version
+    orchestrator.github.get_latest_version.return_value = latest_version
 
     # Create fake services
     current_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.0", name="neuron"
+        id="subvortex-validator-neuron", version=current_version, name="neuron"
     )
 
     latest_service_1 = create_service(
-        id="subvortex-validator-neuron", version="1.0.1", name="neuron"
+        id="subvortex-validator-neuron", version=latest_version, name="neuron"
     )
     latest_service_2 = create_service(
-        id="subvortex-validator-redis", version="1.0.0", name="redis"
+        id="subvortex-validator-redis", version=latest_version, name="redis"
     )
 
     orchestrator._load_current_services.side_effect = lambda: setattr(
@@ -1055,15 +1187,18 @@ async def test_raise_exception_when_version_asset_directory_does_not_exist_after
     # Arrange
     mock_all_steps(orchestrator)
 
+    orchestrator.github.local_versions, current_version = set_versions("1.0.0")
+    orchestrator.github.latest_versions, latest_version = set_versions("1.0.1")
+
     orchestrator._pull_latest_assets = Orchestrator._pull_latest_assets.__get__(
         orchestrator
     )
 
     orchestrator._get_current_version.side_effect = lambda: setattr(
-        orchestrator, "current_version", "1.0.0"
+        orchestrator, "current_version", current_version
     )
     orchestrator._get_latest_version.side_effect = lambda: setattr(
-        orchestrator, "latest_version", "1.0.1"
+        orchestrator, "latest_version", latest_version
     )
 
     orchestrator._pull_assets = mock.MagicMock()

@@ -39,6 +39,7 @@ class Github:
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.latest_versions = {}
+        self.local_versions = {}
 
     def get_local_version(self):
         version = None
@@ -351,11 +352,20 @@ class Github:
                 text=True,
             )
             pulled_successfully = pull_result.returncode == 0
+
             if not pulled_successfully:
-                btul.logging.warning(
-                    f"⚠️ Failed to pull image {full_image} — will try inspecting any local version.",
-                    prefix=sauc.SV_LOGGER_NAME,
-                )
+                stderr = pull_result.stderr.lower()
+                if "not found" in stderr or "manifest unknown" in stderr:
+                    btul.logging.warning(
+                        f"❌ Image {full_image} does not exist remotely — skipping this service.",
+                        prefix=sauc.SV_LOGGER_NAME,
+                    )
+                    continue
+                else:
+                    btul.logging.warning(
+                        f"⚠️ Failed to pull image {full_image} — attempting to inspect local version.",
+                        prefix=sauc.SV_LOGGER_NAME,
+                    )
 
             # Attempt to inspect regardless of pull result
             btul.logging.trace(
@@ -379,6 +389,13 @@ class Github:
                     f"{'image not present locally' if not pulled_successfully else inspect_result.stderr.strip()}",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
+
+                # The service may not be available yet, so we keep the current one
+                service_name = package_name.replace(
+                    f"subvortex-{sauc.SV_EXECUTION_ROLE}-", ""
+                )
+                versions[service_name] = self.local_versions.get(service_name)
+
                 continue
 
             try:
@@ -411,7 +428,7 @@ class Github:
         global_versions = [
             (Version(v.get("version")), v.get("version"))
             for v in versions.values()
-            if v.get("version")
+            if v and v.get("version")
         ]
 
         if global_versions:
@@ -420,6 +437,23 @@ class Github:
             versions["version"] = highest[1]
         else:
             versions["version"] = None
+
+        # # Check if all component versions are the same
+        # version_values = [
+        #     v.get("version") for v in versions.values() if isinstance(v, dict) and v.get("version")
+        # ]
+        # unique_versions = set(version_values)
+
+        # if len(unique_versions) == 1:
+        #     # All versions are the same; keep that one
+        #     versions["version"] = version_values[0]
+        # else:
+        #     # Versions mismatch; fallback to local
+        #     versions["version"] = self.local_versions.get("version")
+        #     btul.logging.warning(
+        #         f"⚠️ Detected mismatched versions across components: {version_values} — falling back to local version: {versions['version']}",
+        #         prefix=sauc.SV_LOGGER_NAME,
+        #     )
 
         # Store the versions
         self.latest_versions = versions
