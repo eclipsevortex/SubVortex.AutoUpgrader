@@ -11,6 +11,10 @@ This guide explains how to **install** and **uninstall** manually the Validator.
 >
 > Proceed only if you understand the risks.
 
+> ❗ **Before running any script:**  
+> Make sure you've set up your environment with the version you intend to use.  
+> If you're unsure, follow the [Quick Setup](../../README.md#quick-setup) guide first.
+
 <br />
 
 ## 📑 Contents
