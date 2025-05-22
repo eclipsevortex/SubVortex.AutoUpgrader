@@ -6,6 +6,10 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 
 ## 📑 Contents
 
+- [Log Locations](#log-locations)
+- [Quick Start](#quick-start)
+- [Quick Stop](#quick-stop)
+- [Quick Restart](#quick-restart)
 - [Installation](#installation)
   - [Run as Process](#run-as-process)
   - [Run as Service](#run-as-service)
@@ -16,6 +20,15 @@ This guide explains how to **install** and **uninstall** manually the Miner.
   - [Remove Container](#remove-container)
 
 <br />
+
+# 📁 Log Locations <a id="log-locations"></a>
+
+You can monitor the Auto Upgrader using logs. Their location depends on the `SUBVORTEX_EXECUTION_METHOD`:
+
+- **`service`**: logs are in `/var/log/subvortex-miner/` and accessible via `tail -f <SERVICE_PATH>` e.v `tail -f /var/log/subvortex-miner/subvortex-miner-neuron.log`
+- **`process`**: logs are in `/root/.pm2/logs/` and accessible via `pm2 log <PROCESS_NAME>` e.g `pm2 log subvortex-miner-neuron`
+- **`container`**: use `docker logs subvortex-miner` (add `-f` to follow in real time) and accessible via `docker logs <CONTAINER_NAME>` e.g `docker logs subortex-miner-neuron`
+
 <br />
 
 # 🚀 Quick Start <a id="quick-start"></a>
@@ -23,10 +36,10 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 To install the Miner in a quick way, you can run
 
 ```bash
-./scripts/miner/quick_start.sh
+./scripts/miner/quick_start.sh --execution <EXECUTION_METHOD>
 ```
 
-It will install and start the Miner as service which is the default mode.
+It will install and start the Miner using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
@@ -37,10 +50,10 @@ Use `-h` to see the options
 To stop the Miner in a quick way, you can run
 
 ```bash
-./scripts/miner/quick_stop.sh
+./scripts/miner/quick_stop.sh --execution <EXECUTION_METHOD>
 ```
 
-It will stop and teardown the Miner.
+It will stop and teardown the Miner using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
@@ -51,8 +64,10 @@ Use `-h` to see the options
 To stop/start the Miner in a quick way, you can run
 
 ```bash
-./scripts/miner/quick_restart.sh
+./scripts/miner/quick_restart.sh --execution <EXECUTION_METHOD>
 ```
+
+It will restart the Miner using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 

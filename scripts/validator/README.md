@@ -6,6 +6,10 @@ This guide explains how to **install** and **uninstall** manually the Validator.
 
 ## 📑 Contents
 
+- [Log Locations](#log-locations)
+- [Quick Start](#quick-start)
+- [Quick Stop](#quick-stop)
+- [Quick Restart](#quick-restart)
 - [Installation](#installation)
   - [Run as Process](#run-as-process)
   - [Run as Service](#run-as-service)
@@ -18,15 +22,25 @@ This guide explains how to **install** and **uninstall** manually the Validator.
 <br />
 <br />
 
+# 📁 Log Locations <a id="log-locations"></a>
+
+You can monitor the Auto Upgrader using logs. Their location depends on the `SUBVORTEX_EXECUTION_METHOD`:
+
+- **`service`**: logs are in `/var/log/subvortex-validator/` and accessible via `tail -f <SERVICE_PATH>` e.v `tail -f /var/log/subvortex-validator/subvortex-validator-neuron.log`
+- **`process`**: logs are in `/root/.pm2/logs/` and accessible via `pm2 log <PROCESS_NAME>` e.g `pm2 log subvortex-validator-neuron`
+- **`container`**: use `docker logs subvortex-validator` (add `-f` to follow in real time) and accessible via `docker logs <CONTAINER_NAME>` e.g `docker logs subortex-validator-neuron`
+
+<br />
+
 # 🚀 Quick Start <a id="quick-start"></a>
 
 To install the Validator in a quick way, you can run
 
 ```bash
-./scripts/validator/quick_start.sh
+./scripts/validator/quick_start.sh --execution <EXECUTION_METHOD>
 ```
 
-It will install and start the Validator as service which is the default mode.
+It will install and start the Validator using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
@@ -37,10 +51,10 @@ Use `-h` to see the options
 To stop the Validator in a quick way, you can run
 
 ```bash
-./scripts/validator/quick_stop.sh
+./scripts/validator/quick_stop.sh --execution <EXECUTION_METHOD>
 ```
 
-It will stop and teardown the Validator.
+It will stop and teardown the Validator using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
@@ -51,8 +65,10 @@ Use `-h` to see the options
 To stop/start the Validator in a quick way, you can run
 
 ```bash
-./scripts/validator/quick_restart.sh
+./scripts/validator/quick_restart.sh --execution <EXECUTION_METHOD>
 ```
+
+It will restart the Miner using the `EXECUTION_METHOD`, which defaults to `service`.
 
 Use `-h` to see the options
 
