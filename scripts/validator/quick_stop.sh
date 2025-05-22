@@ -45,7 +45,7 @@ while [ "$#" -ge 1 ]; do
         --)
             shift
             break
-            ;;
+        ;;
         *)
             echo "❌ Unrecognized option '$1'"
             exit 1
@@ -63,9 +63,10 @@ fi
 
 # Determinate flag and expose it as env var
 export SUBVORTEX_FLOATTING_FLAG=$(get_tag)
+export SUBVORTEX_WORKING_DIR="$HOME/subvortex"
 
 # Expand ~ and assign directory
-execution_dir="$HOME/subvortex/subvortex/validator"
+execution_dir="$SUBVORTEX_WORKING_DIR/subvortex/validator"
 
 # Check if directory exists
 if [ ! -d "$execution_dir" ]; then

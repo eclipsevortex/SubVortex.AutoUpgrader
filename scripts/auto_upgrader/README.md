@@ -52,12 +52,12 @@ SUBVORTEX_EXECUTION_METHOD=process
 pm2 list
 ```
 
-You should see a process named `subvortex-auto-upgrade`.
+You should see a process named `subvortex-auto-upgrader`.
 
 To check logs:
 
 ```bash
-pm2 log subvortex-auto-upgrade
+pm2 log subvortex-auto-upgrader
 ```
 
 ## 🛡️ Run as Service <a id="run-as-service"></a>
@@ -139,12 +139,12 @@ SUBVORTEX_EXECUTION_METHOD=docker
 docker ps
 ```
 
-Look for a container named `subvortex-auto-upgrade`.
+Look for a container named `subvortex-auto-upgrader`.
 
 To follow logs:
 
 ```bash
-docker logs -f subvortex-auto-upgrade
+docker logs -f subvortex-auto-upgrader
 ```
 
 <br />
@@ -165,7 +165,7 @@ Confirm it's removed:
 pm2 list
 ```
 
-The `subvortex-auto-upgrade` process should no longer appear.
+The `subvortex-auto-upgrader` process should no longer appear.
 
 ## ❌ Remove Service <a id="remove-service"></a>
 
@@ -203,7 +203,7 @@ Verify it's gone:
 docker ps
 ```
 
-The `subvortex-auto-upgrade` container should no longer be listed.
+The `subvortex-auto-upgrader` container should no longer be listed.
 
 ---
 
