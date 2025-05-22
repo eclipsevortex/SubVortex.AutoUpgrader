@@ -41,6 +41,8 @@ To install the Miner in a quick way, you can run
 
 It will install and start the Miner using the `EXECUTION_METHOD`, which defaults to `service`.
 
+For `container` execution, please add `export SUBVORTEX_FLOATTING_FLAG=latest` before the above command in order to use the right images.
+
 Use `-h` to see the options
 
 <br />
@@ -55,6 +57,8 @@ To stop the Miner in a quick way, you can run
 
 It will stop and teardown the Miner using the `EXECUTION_METHOD`, which defaults to `service`.
 
+For `container` execution, please add `export SUBVORTEX_FLOATTING_FLAG=latest` before the above command in order to use the right images.
+
 Use `-h` to see the options
 
 <br />
@@ -68,6 +72,8 @@ To stop/start the Miner in a quick way, you can run
 ```
 
 It will restart the Miner using the `EXECUTION_METHOD`, which defaults to `service`.
+
+For `container` execution, please add `export SUBVORTEX_FLOATTING_FLAG=latest` before the above command in order to use the right images.
 
 Use `-h` to see the options
 
