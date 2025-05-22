@@ -413,6 +413,9 @@ class Github:
             # Collect service-specific versions
             service_versions = {}
             for key, value in labels.items():
+                if not key.endswith("version"):
+                    continue
+
                 if value:
                     service_versions[key] = value
 
