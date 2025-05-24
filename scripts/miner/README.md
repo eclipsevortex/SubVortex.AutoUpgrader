@@ -20,9 +20,10 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 ## 📑 Contents
 
 - [About `--execution <EXECUTION_METHOD>`](#about-execution-method)
-- [Log Locations](#log-locations)
 - [Quick Start](#quick-start)
 - [Quick Stop](#quick-stop)
+- [Available Components](#available-components)
+- [Monitoring & Logs](#monitoring-and-logs)
 - [Quick Restart](#quick-restart)
 - [Per-Component](#per-component)
   - [Redis](#redis)
@@ -32,7 +33,7 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 <br />
 <br />
 
-## ⚙️ About `--execution <EXECUTION_METHOD>` <a id="about-execution-method"></a>
+# ⚙️ About `--execution <EXECUTION_METHOD>` <a id="about-execution-method"></a>
 
 Most scripts require an `--execution` option to define how the Miner components should be managed:
 
@@ -41,16 +42,6 @@ Most scripts require an `--execution` option to define how the Miner components 
 - `container`: runs the component in a **Docker** container
 
 If not specified, the default method is usually `service`.
-
-<br />
-
-# 📁 Log Locations <a id="log-locations"></a>
-
-You can monitor the Miner using logs. Their location depends on the `SUBVORTEX_EXECUTION_METHOD`:
-
-- **`service`**: logs are in `/var/log/subvortex-miner/` and accessible via `tail -f <SERVICE_PATH>` e.v `tail -f /var/log/subvortex-miner/subvortex-miner-neuron.log`
-- **`process`**: logs are in `/root/.pm2/logs/` and accessible via `pm2 log <PROCESS_NAME>` e.g `pm2 log subvortex-miner-neuron`
-- **`container`**: use `docker logs subvortex-miner` (add `-f` to follow in real time) and accessible via `docker logs <CONTAINER_NAME>` e.g `docker logs subortex-miner-neuron`
 
 <br />
 
@@ -79,6 +70,82 @@ To stop the Miner in a quick way, you can run
 It will stop and teardown the Miner's components using the `EXECUTION_METHOD`, which defaults to `service`.
 
 💡 Use `-h` with any script to see available options.
+
+<br />
+
+# 📦 Available Components <a id="available-components"></a>
+
+Valid <component> values used across scripts and logs include:
+
+- **redis** – Handles key-value data storage for the miner.
+- **metagraph** – Maintains a local snapshot of the network graph.
+- **neuron** – Executes the miner logic and interacts with the network.
+
+<br />
+
+# 📈 Monitoring & Logs <a id="monitoring-and-logs"></a>
+
+You can monitor the Miner and its components through logs. The log behavior depends on the `SUBVORTEX_EXECUTION_METHOD`.
+
+Each component writes logs using the following filename format:
+
+```bash
+subvortex-miner-<component>.log
+```
+
+### 🔧 `service` mode
+
+Logs are stored in:
+
+```bash
+/var/log/subvortex-miner/
+```
+
+Each log file inside that directory corresponds to a specific component. To view logs in real time, use:
+
+```bash
+tail -f /var/log/subvortex-miner/subvortex-miner-neuron.log
+```
+
+---
+
+### 🧩 `process` mode (PM2)
+
+Logs are managed by PM2 and stored in:
+
+```bash
+/root/.pm2/logs/
+```
+
+To follow logs:
+
+```bash
+pm2 log subvortex-miner-<component>
+```
+
+---
+
+### 🐳 `container` mode (Docker)
+
+Logs are available via Docker:
+
+```bash
+docker logs subvortex-miner-<component> -f
+```
+
+Example:
+
+```bash
+docker logs subvortex-miner-neuron -f
+```
+
+---
+
+### 🔍 Tips
+
+- Add `| grep ERROR` or `| grep WARN` to quickly identify issues.
+- For persistent monitoring, consider integrating with systemd journal, a log aggregator, or Prometheus log exporters.
+- Always ensure your logs are rotated or cleared periodically to avoid storage bloat.
 
 <br />
 
@@ -115,6 +182,37 @@ To install Redis for the Miner:
 ```bash
 ./scripts/miner/redis/redis_start.sh --execution <EXECUTION_METHOD>
 ```
+
+💡 Use `-h` with any script to see available options.
+
+### Data Dumps & Migrations <a id="dumpa-and-migrations"></a>
+
+In addition to start/stop operations, Redis includes scripts to **create and restore a dump**, as well as to **rollout or rollback a migration** between versions or configurations.
+
+- Dump Redis data:
+
+  ```bash
+  python3 ./scripts/redis/redis_dump.py --neuron miner --run_type create
+  ```
+
+- Restore Redis data:
+
+  ```bash
+  python3 ./scripts/redis/redis_dump.py --neuron miner --run_type restore
+  ```
+
+- Run a Redis migration (rollout):
+
+  ```bash
+  python3 ./scripts/redis/redis_migration.py --neuron miner --direction rollout
+  ```
+
+- Rollback a Redis migration:
+  ```bash
+  python3 ./scripts/redis/redis_migration.py --neuron miner --direction rollback
+  ```
+
+> ⚠️ These scripts must be used **at the correct point in your setup or upgrade process** to avoid **data loss** or **inconsistent state**. Always ensure other dependent components (like Metagraph and Neuron) are **stopped or aligned** when performing restore or migration steps.
 
 💡 Use `-h` with any script to see available options.
 
@@ -159,6 +257,18 @@ To install Metagraph for the Miner:
 ```
 
 💡 Use `-h` with any script to see available options.
+
+### Consistency Check <a id="metagraph-consistency"></a>
+
+You can run a consistency check between the Metagraph and Redis storage to ensure synchronization:
+
+```bash
+python3 /root/subvortex/subvortex/miner/metagraph/src/checker.py
+```
+
+This script will compare the current state of neurons in Redis with the active entries in the Metagraph and report any discrepancies (e.g., missing or outdated entries).
+
+💡 Run this periodically or after major updates to verify data integrity.
 
 ### Uninstallation <a id="metagraph-uninstallation"></a>
 

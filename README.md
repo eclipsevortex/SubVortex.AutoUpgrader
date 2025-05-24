@@ -10,7 +10,7 @@
 
 ## Effortless Updates for Your Miner & Validator <!-- omit in toc -->
 
-[Github]() [Discord](https://discord.gg/bittensor) • [Network](https://taostats.io/) • [Research](https://bittensor.com/whitepaper)
+[Github SubVortex](https://github.com/eclipsevortex/SubVortex) • [Discord Bittensor](https://discord.gg/eRPTJqPa) • [Discord SubVortex](https://discord.gg/sqr83szC)
 
 ---
 
@@ -31,13 +31,14 @@
 
 - [Introduction](#introduction)
 - [Prerequisites](#prerequisites)
-- [How It Works](#how-it-works)
-- [Log Locations](#log-locations)
+- [Release Channels](#release-channels)
 - [Quick Setup](#quick-setup)
 - [Quick Start](#quick-start)
-- [Quick Stop](#quick-stop)
+- [How It Works](#how-it-works)
+- [Monitoring & Logs](#monitoring--logs)
 - [Quick Upgrade](#quick-upgrade)
 - [Quick Restart](#quick-restart)
+- [Quick Stop](#quick-stop)
 - [Quick Clean](#quick-clean)
 - [Installation](#installation)
   - [Auto Upgrader](#installation-auto-upgrader)
@@ -48,6 +49,7 @@
   - [Wandb](#tool-wandb)
 - [Good to Know](#good-to-know)
 - [Troubleshooting](#troubleshooting)
+- [Support Scope](#support-scope)
 - [License](#license)
 
 <br />
@@ -128,59 +130,13 @@ Here's a breakdown of the key variables:
 
 <br />
 
-# 🔧 How It Works <a id="how-it-works"></a>
+# 🧪 Release Channels <a id="release-channels"></a>
 
-When setting up the Auto Upgrader, you can choose from three execution modes: `process`, `service`, or `container`. The default mode is `service`
-
-🧩 Process & Service Modes
-
-In these modes, the Auto Upgrader checks GitHub every **SUBVORTEX_CHECK_INTERVAL** seconds for new releases. When a new version is available, it:
-
-1. Downloads and unzips the archive for your neuron type (**SUBVORTEX_EXECUTION_ROLE**) into **SUBVORTEX_WORKING_DIRECTORY**
-2. Install the new version
-3. Updates the symlink to point to the new version
-4. Cleans up the previous version
-
-➡️ The execution directory for SubVortex will now be located under `$HOME/subvortex`, with each version in its own subdirectory and a symlink pointing to the current version.
-You no longer need to clone the SubVortex repository manually — and can safely remove any old local copies you previously cloned.
-
-🐳 Docker Mode
-
-Here, the Auto Upgrader also checks GitHub every **SUBVORTEX_CHECK_INTERVAL** seconds. When a new release is found:
-
-1. It pulls the floating tag that matches your desired release type (**SUBVORTEX_PRERELEASE_TYPE**)
-2. It starts the updated container
-
-Note: In Docker mode, the Auto Upgrader only runs if the neuron isn’t installed or during rollback to version 2.3.3. Outside of that, upgrade responsibilities are delegated to Watchtower for seamless updates.
-
-<br />
-
-# 📁 Log Locations <a id="log-locations"></a>
-
-You can monitor the Auto Upgrader using logs. Their location depends on the `SUBVORTEX_EXECUTION_METHOD`:
-
-- **`service`**: logs are in `/var/log/subvortex-auto-upgrader/` and accessible via `tail -f <SERVICE_PATH>` e.v `tail -f /var/log/subvortex-auto-upgrader/subvortex-miner-neuron.log`
-- **`process`**: logs are in `/root/.pm2/logs/` and accessible via `pm2 log <PROCESS_NAME>` e.g `pm2 log subvortex-miner-neuron`
-- **`container`**: use `docker logs subvortex-auto-upgrader` (add `-f` to follow in real time) and accessible via `docker logs <CONTAINER_NAME>` e.g `docker logs subortex-miner-neuron`
-
-<br />
-
-# 🔑 Personal Access Token <a id="personal-access-token"></a>
-
-To allow the system to pull Docker images and release assets from GitHub, you need to generate a GitHub Personal Access Token (PAT).
-
-1. Go to [GitHub Settings → Developer Settings → Personal Access Tokens](https://github.com/settings/tokens).
-2. Choose **Fine-grained tokens** (recommended) or **Classic** (still supported).
-3. Create a new token with at least the following permissions:
-
-   - **read:packages**
-   - **read:org** (required if the repository is under an organization)
-   - **public_repo** (sometimes required for public repositories)
-
-4. Set the token to **read-only access** where possible.
-5. Copy and save the token securely.
-
-Then, copy that token as value of `SUBVORTEX_GITHUB_TOKEN` in the main Auto Upgrader `.env` file.
+| Release Type | Description                     | Recommended Usage |
+| ------------ | ------------------------------- | ----------------- |
+| `alpha`      | Experimental, unstable builds   | DEVNET only       |
+| `rc`         | Release Candidates (pre-launch) | TESTNET only      |
+| _(empty)_    | Latest stable public release    | MAINNET only      |
 
 <br />
 
@@ -215,17 +171,78 @@ Use `-h` to see the options
 
 <br />
 
-# 🛑 Quick Stop <a id="quick-stop"></a>
+# 🔧 How It Works <a id="how-it-works"></a>
 
-To stop the Auto Upgrader in a quick way, you can run
+When setting up the Auto Upgrader, you can choose from three execution modes: `process`, `service`, or `container`. The default mode is `service`
 
-```bash
-./scripts/quick_stop.sh --execution <EXECUTION_METHOD>
-```
+🧩 Process & Service Modes
 
-It will stop and teardown the Auto Upgrader using the `EXECUTION_METHOD`, which defaults to `service`.
+In these modes, the Auto Upgrader checks GitHub every **SUBVORTEX_CHECK_INTERVAL** seconds for new releases. When a new version is available, it:
 
-Use `-h` to see the options
+1. Downloads and unzips the archive for your neuron type (**SUBVORTEX_EXECUTION_ROLE**) into **SUBVORTEX_WORKING_DIRECTORY**
+2. Install the new version
+3. Updates the symlink to point to the new version
+4. Cleans up the previous version
+
+➡️ The execution directory for SubVortex will now be located under `$HOME/subvortex`, with each version in its own subdirectory and a symlink pointing to the current version.
+You no longer need to clone the SubVortex repository manually — and can safely remove any old local copies you previously cloned.
+
+🐳 Docker Mode
+
+Here, the Auto Upgrader also checks GitHub every **SUBVORTEX_CHECK_INTERVAL** seconds. When a new release is found:
+
+1. It pulls the floating tag that matches your desired release type (**SUBVORTEX_PRERELEASE_TYPE**)
+2. It starts the updated container
+
+Note: In Docker mode, the Auto Upgrader only runs if the neuron isn’t installed or during rollback to version 2.3.3. Outside of that, upgrade responsibilities are delegated to Watchtower for seamless updates.
+
+<br />
+
+# 📈 Monitoring & Logs <a id="monitoring-and-logs"></a>
+
+You can monitor the Auto Upgrader's behavior through logs, which vary depending on the `SUBVORTEX_EXECUTION_METHOD` you chose during setup:
+
+- **🔧 `service` mode**  
+  Logs are stored in:
+
+  ```
+  /var/log/subvortex-auto-upgrader/
+  ```
+
+  View logs in real time with:
+
+  ```bash
+  tail -f /var/log/subvortex-auto-upgrader/subvortex-auto-upgrader.log
+  ```
+
+- **🧩 `process` mode (PM2)**  
+  Logs are managed by PM2 and located at:
+
+  ```
+  /root/.pm2/logs/
+  ```
+
+  To follow logs:
+
+  ```bash
+  pm2 log subvortex-auto-upgrader
+  ```
+
+- **🐳 `container` mode (Docker)**  
+  Logs are available via Docker:
+  ```bash
+  docker logs subvortex-auto-upgrader -f
+  ```
+  Or for specific components (e.g., miner neuron):
+  ```bash
+  docker logs subvortex-auto-upgrader -f
+  ```
+
+### 🔍 Tips
+
+- Add `| grep ERROR` or `| grep WARN` to quickly identify issues.
+- For persistent monitoring, consider integrating with systemd journal, a log aggregator, or Prometheus log exporters.
+- Always ensure your logs are rotated or cleared periodically to avoid storage bloat.
 
 <br />
 
@@ -257,6 +274,20 @@ Use `-h` to see the options
 
 <br />
 
+# 🛑 Quick Stop <a id="quick-stop"></a>
+
+To stop the Auto Upgrader in a quick way, you can run
+
+```bash
+./scripts/quick_stop.sh --execution <EXECUTION_METHOD>
+```
+
+It will stop and teardown the Auto Upgrader using the `EXECUTION_METHOD`, which defaults to `service`.
+
+Use `-h` to see the options
+
+<br />
+
 # 🧹 Quick Clean <a id="quick-clean"></a>
 
 To clean the Auto Upgrader workspace and/or dumps. Optionally to remove the current version.
@@ -266,6 +297,25 @@ To clean the Auto Upgrader workspace and/or dumps. Optionally to remove the curr
 ```
 
 Use `-h` to see the options
+
+<br />
+
+# 🔑 Personal Access Token <a id="personal-access-token"></a>
+
+To allow the system to pull Docker images and release assets from GitHub, you need to generate a GitHub Personal Access Token (PAT).
+
+1. Go to [GitHub Settings → Developer Settings → Personal Access Tokens](https://github.com/settings/tokens).
+2. Choose **Fine-grained tokens** (recommended) or **Classic** (still supported).
+3. Create a new token with at least the following permissions:
+
+   - **read:packages**
+   - **read:org** (required if the repository is under an organization)
+   - **public_repo** (sometimes required for public repositories)
+
+4. Set the token to **read-only access** where possible.
+5. Copy and save the token securely.
+
+Then, copy that token as value of `SUBVORTEX_GITHUB_TOKEN` in the main Auto Upgrader `.env` file.
 
 <br />
 
@@ -302,7 +352,7 @@ For each of them, the same structure applies:
 
 <br />
 
-# Tools <a id="tools"></a>
+# 🛠️ Tools <a id="tools"></a>
 
 ## Wandb <a id="tool-wandb"></a>
 
@@ -396,6 +446,34 @@ subvortex/
 ```
 
 📘 You can find more details and actions in the [SubVortex Repo](https://github.com/eclipsevortex/SubVortex.git).
+
+<br />
+
+# 🤝 Support Scope <a id="support-scope"></a>
+
+SubVortex only provides support for components related to SubVortex mining and validating activities.
+
+This includes:
+
+- Auto Upgrader installation and usage
+- SubVortex Miner and Validator management
+- Logging, upgrades, and troubleshooting SubVortex-specific services
+
+⚠️ Node Support Disclaimer
+We do not offer support for general Subtensor node operations. SubVortex is designed to scale nodes, not maintain them. As such, we cannot guarantee reliability or provide assistance with node-specific issues like syncing, peering, or Subtensor registration.
+
+If you need help with Subtensor nodes, try one of the following resources:
+
+- Bittensor [`#general`](https://discord.com/channels/799672011265015819/799672011814862902) channel on Discord
+- Bittensor [`#faq`](https://discord.com/channels/799672011265015819/1215386737661055056) channel on Discord
+- Church of Rao [`#subtensor`](https://discord.com/channels/1120750674595024897/1245487232928714863) channel on Discord
+
+If new user, join us first
+
+- Bittensor - [Join us](https://discord.gg/eRPTJqPa)
+- Church of Rao - [Join us](https://discord.gg/TVCKjNmR)
+
+Thank you for understanding!
 
 <br />
 
