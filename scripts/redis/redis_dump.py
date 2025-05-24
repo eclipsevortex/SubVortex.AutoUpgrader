@@ -2,180 +2,181 @@ import os
 import json
 import asyncio
 import argparse
-import bittensor.utils.btlogging as btul
+import traceback
+from dotenv import load_dotenv
 from redis import asyncio as aioredis
+
+import bittensor.core.config as btcc
+import bittensor.utils.btlogging as btul
+
+SV_EXECUTION_DIR = os.path.abspath(os.path.expanduser("~/subvortex"))
+
+
+def _load_env_var():
+    # TEMP parse to get --neuron before loading env
+    temp_args, _ = parser.parse_known_args()
+    env_path = f"{SV_EXECUTION_DIR}/subvortex/{temp_args.neuron}/redis/.env"
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+        btul.logging.info(f"📄 Loaded environment from {env_path}")
+    else:
+        btul.logging.warning(
+            f"⚠️ Env file '{env_path}' not found. Proceeding with defaults and system env."
+        )
 
 
 async def _remove_prune_keys(database: aioredis.Redis):
-    # Get all keys
+    btul.logging.debug("🧹 Fetching all keys for pruning...")
     all_keys = await database.keys("*")
 
-    # Filter keys: exclude "version" and keys that start with "migration:"
     keys_to_delete = [
         key
         for key in all_keys
         if key != b"version" and not key.startswith(b"migration_mode:")
     ]
 
-    # Delete them
+    btul.logging.info(f"🗑️ Deleting {len(keys_to_delete)} keys from Redis...")
     if keys_to_delete:
         await database.delete(*keys_to_delete)
+    btul.logging.success("✅ Pruning complete.")
 
 
-async def create_dump(path: str, database: aioredis.Redis):
-    """
-    Create a dump from the database
-    """
-    # Get all keys in the database
-    keys = await database.keys(f"*")
+def _create_redis_instace():
+    return aioredis.StrictRedis(
+        host=os.environ.get("SUBVORTEX_REDIS_HOST", "127.0.0.1"),
+        port=int(os.environ.get("SUBVORTEX_REDIS_PORT", 6379)),
+        db=int(os.environ.get("SUBVORTEX_REDIS_INDEX", 0)),
+        password=os.environ.get("SUBVORTEX_REDIS_PASSWORD", ""),
+    )
 
+
+async def _create_dump(path: str, database: aioredis.Redis):
+    btul.logging.info(f"📦 Starting Redis dump to '{path}'...")
+    keys = await database.keys("*")
     dump = {}
 
-    # Use a pipeline to batch key type queries
     async with database.pipeline() as pipe:
         for key in keys:
-            # Query key type in the pipeline
             pipe.type(key)
-
-        # Execute the pipeline
         key_types = await pipe.execute()
 
-    # Process key-value pairs based on key types
     for key, key_type in zip(keys, key_types):
         key_str = key.decode("utf-8")
         if key_type == b"string":
             value = await database.get(key)
-            dump[key_str] = value.decode("utf-8") if value is not None else None
+            dump[key_str] = value.decode("utf-8") if value else None
         elif key_type == b"hash":
             hash_data = await database.hgetall(key)
-            dump[key_str] = {
-                field.decode("utf-8"): value.decode("utf-8")
-                for field, value in hash_data.items()
-            }
+            dump[key_str] = {f.decode(): v.decode() for f, v in hash_data.items()}
         elif key_type == b"list":
-            list_data = await database.lrange(key, 0, -1)
-            dump[key_str] = [item.decode("utf-8") for item in list_data]
-        elif key_type == b"set":
-            set_data = await database.smembers(key)
-            dump[key_str] = {member.decode("utf-8") for member in set_data}
-        elif key_type == b"zset":
-            zset_data = await database.zrange(key, 0, -1, withscores=True)
             dump[key_str] = [
-                (member.decode("utf-8"), score) for member, score in zset_data
+                item.decode() for item in await database.lrange(key, 0, -1)
+            ]
+        elif key_type == b"set":
+            dump[key_str] = {item.decode() for item in await database.smembers(key)}
+        elif key_type == b"zset":
+            dump[key_str] = [
+                (item.decode(), score)
+                for item, score in await database.zrange(key, 0, -1, withscores=True)
             ]
 
-    # Get the directory path
-    directory, _ = os.path.split(path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    # Ensure the directory exists, create it if it doesn't
-    os.makedirs(directory, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(dump, f)
 
-    # Save dump file
-    with open(path, "w") as file:
-        json.dump(dump, file)
+    btul.logging.success(f"✅ Redis dump saved to '{path}' with {len(dump)} keys.")
 
 
-async def restore_dump(path: str, database: aioredis.StrictRedis):
-    """
-    Restore the dump into the database
-    """
-    # Remove concerned key
-    await _remove_prune_keys(database=database)
+async def _restore_dump(path: str, database: aioredis.StrictRedis):
+    btul.logging.info(f"♻️ Restoring Redis dump from '{path}'...")
 
-    # Load the dump
+    await _remove_prune_keys(database)
+
     with open(path, "r") as file:
-        json_data = file.read()
-
-    dump = json.loads(json_data)
+        dump = json.load(file)
 
     for key, value in dump.items():
-        # Determine the data type of the key-value pair
         if isinstance(value, str):
-            # String key
             await database.set(key, value)
         elif isinstance(value, bytes):
-            # For string keys, set the value
             await database.set(key, value)
         elif isinstance(value, dict):
-            # For hash keys, sesut all fields and values
             await database.hset(key, mapping=value)
+        elif isinstance(value, list) and all(
+            isinstance(v, tuple) and len(v) == 2 for v in value
+        ):
+            await database.zadd(key, dict(value))
         elif isinstance(value, list):
-            # For list keys, push all elements
             await database.lpush(key, *value)
         elif isinstance(value, set):
-            # For database keys, add all members
             await database.sadd(key, *value)
-        elif isinstance(value, list) and all(
-            isinstance(item, tuple) and len(item) == 2 for item in value
-        ):
-            # For sorted set keys, add all members with scores
-            await database.zadd(key, dict(value))
+
+    btul.logging.success(f"✅ Redis restore complete. {len(dump)} keys loaded.")
 
 
 async def create(args):
     try:
-        btul.logging.info(f"Loading database from {args.redis_host}:{args.redis_port}")
-        database = aioredis.StrictRedis(
-            host=args.redis_host,
-            port=args.redis_port,
-            db=args.redis_index,
-            password=args.redis_password,
+        btul.logging.info(
+            f"🔌 Connecting to Redis at {args.redis_host}:{args.redis_port}, DB {args.redis_index}"
         )
+        database = _create_redis_instace()
 
-        btul.logging.info("Create dump starting")
+        await _create_dump(args.redis_dump_path, database)
 
-        await create_dump(args.redis_dump_path, database)
-
-        btul.logging.success("Create dump successful")
     except Exception as e:
-        btul.logging.error(f"Error during rollout: {e}")
+        btul.logging.error(f"❌ Dump creation failed: {e}")
 
 
 async def restore(args):
     try:
-        btul.logging.info(f"Loading database from {args.redis_host}:{args.redis_port}")
-        database = aioredis.StrictRedis(
-            host=args.redis_host,
-            port=args.redis_port,
-            db=args.redis_index,
-            password=args.redis_password,
+        btul.logging.info(
+            f"🔌 Connecting to Redis at {args.redis_host}:{args.redis_port}, DB {args.redis_index}"
         )
+        database = _create_redis_instace()
 
-        btul.logging.info("Restore dump starting")
-
-        await restore_dump(args.redis_dump_path, database)
-
-        btul.logging.success("Restore dump successful")
+        await _restore_dump(args.redis_dump_path, database)
 
     except Exception as e:
-        btul.logging.error(f"Error during rollback: {e}")
+        btul.logging.error(f"❌ Restore failed: {e}")
 
 
-async def main(args):
-    if args.run_type == "create":
-        await create(args)
-    else:
-        await restore(args)
+async def main(config):
+    btul.logging.info(
+        f"🚀 Starting {'dump creation' if config.run_type == 'create' else 'restore'} process..."
+    )
+
+    # Load the env variable from the env file
+    _load_env_var()
+
+    # Create or restore the dump
+    await create(config) if config.run_type == "create" else await restore(config)
+
+    # Process successful
+    btul.logging.success("🎉 Process complete.")
 
 
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser()
+        btul.logging.add_args(parser)
+
+        parser.add_argument(
+            "--neuron",
+            type=str,
+            required=True,
+            choices=["miner", "validator"],
+            help="Neuron type (miner or validator)",
+        )
+
         parser.add_argument(
             "--run_type",
             type=str,
             default="create",
-            help="Type of migration you want too execute. Options: create or restore. Default: create",
+            choices=["create", "restore"],
+            help="Operation type: create or restore",
         )
-        parser.add_argument("--redis_host", type=str, default="localhost")
-        parser.add_argument("--redis_port", type=int, default=6379)
-        parser.add_argument("--redis_index", type=int, default=1)
-        parser.add_argument(
-            "--redis_password",
-            type=str,
-            default=None,
-            help="password for the redis database",
-        )
+
         parser.add_argument(
             "--redis_dump_path",
             type=str,
@@ -183,10 +184,17 @@ if __name__ == "__main__":
             help="Dump file (with path) to create or restore",
         )
 
-        args = parser.parse_args()
+        config = btcc.Config(parser)
 
-        asyncio.run(main(args))
+        btul.logging(config=config, debug=True)
+        btul.logging.set_trace(config.logging.trace)
+        btul.logging._stream_formatter.set_trace(config.logging.trace)
+
+        asyncio.run(main(config=config))
+
     except KeyboardInterrupt:
-        print("KeyboardInterrupt")
-    except ValueError as e:
-        print(f"ValueError: {e}")
+        btul.logging.warning("⚠️ Interrupted by user.")
+        
+    except Exception as e:
+        btul.logging.error(f"🔥 Unexpected error: {e}")
+        btul.logging.debug(traceback.format_exc())
