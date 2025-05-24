@@ -20,9 +20,9 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 ## 📑 Contents
 
 - [About `--execution <EXECUTION_METHOD>`](#about-execution-method)
-- [Log Locations](#log-locations)
 - [Quick Start](#quick-start)
 - [Quick Stop](#quick-stop)
+- [Monitoring & Logs](#monitoring-and-logs)
 - [Quick Restart](#quick-restart)
 - [Per-Component](#per-component)
   - [Redis](#redis)
@@ -32,7 +32,7 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 <br />
 <br />
 
-## ⚙️ About `--execution <EXECUTION_METHOD>` <a id="about-execution-method"></a>
+# ⚙️ About `--execution <EXECUTION_METHOD>` <a id="about-execution-method"></a>
 
 Most scripts require an `--execution` option to define how the Miner components should be managed:
 
@@ -41,16 +41,6 @@ Most scripts require an `--execution` option to define how the Miner components 
 - `container`: runs the component in a **Docker** container
 
 If not specified, the default method is usually `service`.
-
-<br />
-
-# 📁 Log Locations <a id="log-locations"></a>
-
-You can monitor the Miner using logs. Their location depends on the `SUBVORTEX_EXECUTION_METHOD`:
-
-- **`service`**: logs are in `/var/log/subvortex-miner/` and accessible via `tail -f <SERVICE_PATH>` e.v `tail -f /var/log/subvortex-miner/subvortex-miner-neuron.log`
-- **`process`**: logs are in `/root/.pm2/logs/` and accessible via `pm2 log <PROCESS_NAME>` e.g `pm2 log subvortex-miner-neuron`
-- **`container`**: use `docker logs subvortex-miner` (add `-f` to follow in real time) and accessible via `docker logs <CONTAINER_NAME>` e.g `docker logs subortex-miner-neuron`
 
 <br />
 
@@ -79,6 +69,74 @@ To stop the Miner in a quick way, you can run
 It will stop and teardown the Miner's components using the `EXECUTION_METHOD`, which defaults to `service`.
 
 💡 Use `-h` with any script to see available options.
+
+<br />
+
+# 📈 Monitoring & Logs <a id="monitoring-and-logs"></a>
+
+You can monitor the Miner and its components through logs. The log behavior depends on the `SUBVORTEX_EXECUTION_METHOD`.
+
+Each component writes logs using the following filename format:
+
+```bash
+subvortex-miner-<component>.log
+```
+
+### 🔧 `service` mode
+
+Logs are stored in:
+
+```bash
+/var/log/subvortex-miner/
+```
+
+Each log file inside that directory corresponds to a specific component. To view logs in real time, use:
+
+```bash
+tail -f /var/log/subvortex-miner/subvortex-miner-neuron.log
+```
+
+(Replace `neuron` with the actual component name such as `redis`, `scorer`, etc.)
+
+---
+
+### 🧩 `process` mode (PM2)
+
+Logs are managed by PM2 and stored in:
+
+```bash
+/root/.pm2/logs/
+```
+
+To follow logs:
+
+```bash
+pm2 log subvortex-miner-<component>
+```
+
+---
+
+### 🐳 `container` mode (Docker)
+
+Logs are available via Docker:
+
+```bash
+docker logs subvortex-miner-<component> -f
+```
+
+Example:
+
+```bash
+docker logs subvortex-miner-neuron -f
+```
+
+---
+
+### 🔍 Tips
+
+- Add `| grep ERROR` or `| grep WARN` to quickly identify issues.
+- For persistent monitoring, consider integrating with systemd journal, a log aggregator, or Prometheus log exporters.
+- Always ensure your logs are rotated or cleared periodically to avoid storage bloat.
 
 <br />
 
