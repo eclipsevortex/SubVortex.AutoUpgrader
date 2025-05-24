@@ -258,6 +258,18 @@ To install Metagraph for the Validator:
 
 💡 Use `-h` with any script to see available options.
 
+### Consistency Check <a id="metagraph-consistency"></a>
+
+You can run a consistency check between the Metagraph and Redis storage to ensure synchronization:
+
+```bash
+python3 /root/subvortex/subvortex/miner/metagraph/src/checker.py
+```
+
+This script will compare the current state of neurons in Redis with the active entries in the Metagraph and report any discrepancies (e.g., missing or outdated entries).
+
+💡 Run this periodically or after major updates to verify data integrity.
+
 ### Uninstallation <a id="metagraph-uninstallation"></a>
 
 ⚠️ Note: Make sure Neuron is stopped before stopping Metagraph.
