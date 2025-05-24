@@ -25,6 +25,7 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 - [Available Components](#available-components)
 - [Monitoring & Logs](#monitoring-and-logs)
 - [Quick Restart](#quick-restart)
+- [View Scores on Wandb](#neuron-wandb-scores)
 - [Per-Component](#per-component)
   - [Redis](#redis)
   - [Metagraph](#metagraph)
@@ -162,6 +163,25 @@ It will restart the Miner's components using the `EXECUTION_METHOD`, which defau
 💡 Use `-h` with any script to see available options.
 
 <br />
+
+# 🔬 View Scores on Wandb <a id="neuron-wandb-scores"></a>
+
+In addition to checking local logs, you can also view your Neuron’s challenge scores and activity in the **Wandb dashboards** maintained by the validators.
+
+## 🛰️ Validator Dashboard Table
+
+Browse the full list of validators and their submissions here:  
+👉 [SubVortex Validator Table on Wandb](https://wandb.ai/eclipsevortext/subvortex-team/table?nw=nwusereclipsevortext)
+
+## 🔍 View Detailed Validator Run
+
+To dive into individual challenge sessions, open a specific validator’s run:  
+👉 [Example Validator Run](https://wandb.ai/eclipsevortext/subvortex-team/runs/ewiaytb4?nw=nwuser0xtkd)
+
+> 💡 Scores in Wandb are updated when validators successfully receive, evaluate, and upload challenge results.  
+> If your UID doesn't appear, make sure your node is reachable and correctly emitting events.
+
+ <br />
 
 # Per-Component <a id="per-component"></a>
 
