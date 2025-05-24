@@ -22,6 +22,7 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 - [About `--execution <EXECUTION_METHOD>`](#about-execution-method)
 - [Quick Start](#quick-start)
 - [Quick Stop](#quick-stop)
+- [Available Components](#available-components)
 - [Monitoring & Logs](#monitoring-and-logs)
 - [Quick Restart](#quick-restart)
 - [Per-Component](#per-component)
@@ -72,6 +73,16 @@ It will stop and teardown the Miner's components using the `EXECUTION_METHOD`, w
 
 <br />
 
+# 📦 Available Components <a id="available-components"></a>
+
+Valid <component> values used across scripts and logs include:
+
+- **redis** – Handles key-value data storage for the miner.
+- **metagraph** – Maintains a local snapshot of the network graph.
+- **neuron** – Executes the miner logic and interacts with the network.
+
+<br />
+
 # 📈 Monitoring & Logs <a id="monitoring-and-logs"></a>
 
 You can monitor the Miner and its components through logs. The log behavior depends on the `SUBVORTEX_EXECUTION_METHOD`.
@@ -95,8 +106,6 @@ Each log file inside that directory corresponds to a specific component. To view
 ```bash
 tail -f /var/log/subvortex-miner/subvortex-miner-neuron.log
 ```
-
-(Replace `neuron` with the actual component name such as `redis`, `scorer`, etc.)
 
 ---
 
@@ -173,6 +182,37 @@ To install Redis for the Miner:
 ```bash
 ./scripts/miner/redis/redis_start.sh --execution <EXECUTION_METHOD>
 ```
+
+💡 Use `-h` with any script to see available options.
+
+### Data Dumps & Migrations <a id="dumpa-and-migrations"></a>
+
+In addition to start/stop operations, Redis includes scripts to **create and restore a dump**, as well as to **rollout or rollback a migration** between versions or configurations.
+
+- Dump Redis data:
+
+  ```bash
+  python3 ./scripts/redis/redis_dump.py --neuron miner --run_type create
+  ```
+
+- Restore Redis data:
+
+  ```bash
+  python3 ./scripts/redis/redis_dump.py --neuron miner --run_type restore
+  ```
+
+- Run a Redis migration (rollout):
+
+  ```bash
+  python3 ./scripts/redis/redis_migration.py --neuron miner --direction rollout
+  ```
+
+- Rollback a Redis migration:
+  ```bash
+  python3 ./scripts/redis/redis_migration.py --neuron miner --direction rollback
+  ```
+
+> ⚠️ These scripts must be used **at the correct point in your setup or upgrade process** to avoid **data loss** or **inconsistent state**. Always ensure other dependent components (like Metagraph and Neuron) are **stopped or aligned** when performing restore or migration steps.
 
 💡 Use `-h` with any script to see available options.
 
