@@ -235,6 +235,13 @@ class RedisMigrations(Migration):
 
         finally:
             if database:
+                # Clean up migration_mode keys
+                for rev in self.applied_revisions:
+                    await database.delete(f"migration_mode:{rev}")
+                    parent = self.graph.get(rev)
+                    if parent:
+                        await database.delete(f"migration_mode:{parent}")
+
                 await database.close()
 
     async def _upgrade(self, database, revisions, current_version):

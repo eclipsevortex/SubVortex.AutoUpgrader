@@ -79,6 +79,7 @@ def orchestrator():
     # Mock internal steps in run_plan
     # orch._get_current_version = mock.MagicMock()
     # orch._get_latest_version = mock.MagicMock()
+    orch._switch_services = mock.MagicMock()
     orch._pull_current_assets = mock.MagicMock()
     orch._pull_latest_assets = mock.MagicMock()
     orch._load_current_services = mock.MagicMock()
