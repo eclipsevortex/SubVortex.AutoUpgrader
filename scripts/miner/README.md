@@ -25,6 +25,7 @@ This guide explains how to **install** and **uninstall** manually the Miner.
 - [Available Components](#available-components)
 - [Monitoring & Logs](#monitoring-and-logs)
 - [Quick Restart](#quick-restart)
+- [View Scores on Wandb](#neuron-wandb-scores)
 - [Per-Component](#per-component)
   - [Redis](#redis)
   - [Metagraph](#metagraph)
@@ -162,6 +163,25 @@ It will restart the Miner's components using the `EXECUTION_METHOD`, which defau
 💡 Use `-h` with any script to see available options.
 
 <br />
+
+# 🔬 View Scores on Wandb <a id="neuron-wandb-scores"></a>
+
+In addition to checking local logs, you can also view your Neuron’s challenge scores and activity in the **Wandb dashboards** maintained by the validators.
+
+## 🛰️ Validator Dashboard Table
+
+Browse the full list of validators and their submissions here:  
+👉 [SubVortex Validator Table on Wandb](https://wandb.ai/eclipsevortext/subvortex-team/table?nw=nwusereclipsevortext)
+
+## 🔍 View Detailed Validator Run
+
+To dive into individual challenge sessions, open a specific validator’s run:  
+👉 [Example Validator Run](https://wandb.ai/eclipsevortext/subvortex-team/runs/ewiaytb4?nw=nwuser0xtkd)
+
+> 💡 Scores in Wandb are updated when validators successfully receive, evaluate, and upload challenge results.  
+> If your UID doesn't appear, make sure your node is reachable and correctly emitting events.
+
+ <br />
 
 # Per-Component <a id="per-component"></a>
 
@@ -334,3 +354,96 @@ To uninstall Neuron for the Miner:
 
 Need help or want to chat with other SubVortex users?  
 Join us on [Discord](https://discord.gg/bittensor)!
+
+### ✅ Connectivity Checklist <a id="neuron-connectivity-check"></a>
+
+After installing and starting the Neuron, it's essential to verify that your Miner is **externally reachable**. Validators need to connect to both your **Miner** and your **Subtensor** node to send challenges and record results.
+
+#### 🔌 1. Check Miner Port Accessibility
+
+Verify that port `8091` (used for challenge handling) is accessible from the public internet.
+
+From a **remote machine** (not the miner host), run:
+
+```bash
+nc -zv <YOUR_MINER_PUBLIC_IP> 8091
+```
+
+✅ Expected output:
+
+```
+Connection to <YOUR_MINER_PUBLIC_IP> port 8091 [tcp/*] succeeded!
+```
+
+> ⚠️ If this fails, check for:
+>
+> - Blocked ports in `ufw`, `iptables`, or cloud security groups
+> - NAT/router not forwarding the port correctly
+> - Misconfigured HAProxy or service not running
+
+---
+
+#### 🔌 2. Check Subtensor Node WebSocket Accessibility
+
+Make sure your Subtensor node exposes a WebSocket at port `9944`.
+
+Run this from an external machine:
+
+```bash
+wscat -c ws://<YOUR_SUBTENSOR_PUBLIC_IP>:9944
+```
+
+✅ Expected output:
+
+```
+Connected (press CTRL+C to quit)
+>
+```
+
+> 📦 You can install `wscat` via:
+>
+> ```bash
+> npm install -g wscat
+> ```
+
+---
+
+#### 📡 3. Confirm the Neuron is Receiving Challenges
+
+After startup, check your logs to confirm that scores are reaching your neuron:
+
+- `service` (systemd)
+
+```bash
+tail -f /var/log/subvortex-miner/subvortex-miner-neuron.log | grep Score
+```
+
+- `process` (PM2)
+
+```bash
+pm2 log subvortex-miner-neuron | grep Score
+```
+
+- `container` (Docker)
+
+```bash
+docker logs subvortex-miner-neuron -f | grep Score
+```
+
+Look for lines like:
+
+```
+247|subvortex-miner-neuron  | 2025-05-24 21:36:12.185 |       INFO       | [20] Availability score 1.0
+247|subvortex-miner-neuron  | 2025-05-24 21:36:12.185 |       INFO       | [20] Latency score 1.0
+247|subvortex-miner-neuron  | 2025-05-24 21:36:12.185 |       INFO       | [20] Reliability score 0.8558733500690666
+247|subvortex-miner-neuron  | 2025-05-24 21:36:12.185 |       INFO       | [20] Distribution score 1.0
+247|subvortex-miner-neuron  | 2025-05-24 21:36:12.185 |     SUCCESS      | [20] Score 0.9711746700138133
+```
+
+---
+
+If you're not receiving challenges:
+
+- ✅ Double-check that Metagraph and Redis are correctly synced.
+- ✅ Confirm your neuron is registered and emitting correctly on-chain.
+- ✅ Verify your challenge port and WebSocket endpoint are **publicly reachable**.

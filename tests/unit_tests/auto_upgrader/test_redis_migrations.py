@@ -100,7 +100,7 @@ def assert_version_calls(mocked_db, expected_versions):
 
 
 @pytest.mark.asyncio
-async def test_apply_all_migrations(redis_service):
+async def test_rollout_upgrade_migrations(redis_service):
     # Arrange
     new_redis_service = copy.deepcopy(redis_service)
     new_redis_service.migration = tempfile.mkdtemp()
@@ -114,7 +114,7 @@ async def test_apply_all_migrations(redis_service):
     redis.old_migration_path = redis_service.migration
 
     mocked_db = AsyncMock()
-    mocked_db.get.return_value = b"0.0.0"
+    mocked_db.get.side_effect = [b"0.0.0", b"0.0.3"]
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
@@ -122,10 +122,15 @@ async def test_apply_all_migrations(redis_service):
 
     # Assert
     assert_version_calls(mocked_db, ["0.0.1", "0.0.2", "0.0.3"])
+    mocked_db.set.assert_any_call("migration_mode:0.0.3", "new")
+    assert mocked_db.delete.call_count == 3
+    mocked_db.delete.assert_any_call("migration_mode:0.0.0")
+    mocked_db.delete.assert_any_call("migration_mode:0.0.1")
+    mocked_db.delete.assert_any_call("migration_mode:0.0.2")
 
 
 @pytest.mark.asyncio
-async def test_rollout_migration(redis_service):
+async def test_rollout_upgrade_migration(redis_service):
     # Arrange
     create_migration_file(redis_service.migration, "0.0.1", None)
     create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
@@ -142,18 +147,21 @@ async def test_rollout_migration(redis_service):
     redis.old_migration_path = redis_service.migration
 
     mocked_db = AsyncMock()
-    mocked_db.get.return_value = b"0.0.2"
+    mocked_db.get.side_effect = [b"0.0.2", b"0.0.3"]
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
         await redis.apply()
 
     # Assert
-    mocked_db.set.assert_any_call("version", "0.0.3")
+    assert_version_calls(mocked_db, ["0.0.3"])
+    mocked_db.set.assert_any_call("migration_mode:0.0.3", "new")
+    assert mocked_db.delete.call_count == 1
+    mocked_db.delete.assert_any_call("migration_mode:0.0.2")
 
 
 @pytest.mark.asyncio
-async def test_rollback_all_migration(redis_service):
+async def test_rollback_migrations(redis_service):
     # Arrange
     create_migration_file(redis_service.migration, "0.0.1", None)
     create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
@@ -176,7 +184,12 @@ async def test_rollback_all_migration(redis_service):
         await redis.rollback()
 
     # Assert
-    assert_version_calls(mocked_db, ["0.0.2", "0.0.1", "0.0.0"])
+    assert_version_calls(mocked_db, ["0.0.0"])
+    mocked_db.set.assert_any_call("migration_mode:0.0.0", "new")
+    assert mocked_db.delete.call_count == 3
+    mocked_db.delete.assert_any_call("migration_mode:0.0.1")
+    mocked_db.delete.assert_any_call("migration_mode:0.0.2")
+    mocked_db.delete.assert_any_call("migration_mode:0.0.3")
 
 
 @pytest.mark.asyncio
@@ -196,7 +209,7 @@ async def test_rollback_migration(redis_service):
     redis.new_migration_path = new_redis_service.migration
     redis.old_migration_path = redis_service.migration
     redis._load_migrations_from_path(redis.old_migration_path)
-    redis.applied_revisions = ["0.0.1", "0.0.2", "0.0.3"]
+    redis.applied_revisions = ["0.0.3"]
 
     mocked_db = AsyncMock()
     mocked_db.get.return_value = b"0.0.3"
@@ -206,11 +219,14 @@ async def test_rollback_migration(redis_service):
         await redis.rollback()
 
     # Assert
-    mocked_db.set.assert_any_call("version", "0.0.2")
+    assert_version_calls(mocked_db, ["0.0.2"])
+    mocked_db.set.assert_any_call("migration_mode:0.0.2", "new")
+    assert mocked_db.delete.call_count == 1
+    mocked_db.delete.assert_any_call("migration_mode:0.0.3")
 
 
 @pytest.mark.asyncio
-async def test_apply_all_downgrade(redis_service):
+async def test_rollout_downgrade_migrations2(redis_service):
     # Arrange
     create_migration_file(redis_service.migration, "0.0.1", None)
     create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
@@ -226,7 +242,7 @@ async def test_apply_all_downgrade(redis_service):
     redis.old_migration_path = redis_service.migration
 
     mocked_db = AsyncMock()
-    mocked_db.get.return_value = b"0.0.3"
+    mocked_db.get.side_effect = [b"0.0.3", b"0.0.0"]
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
@@ -234,10 +250,15 @@ async def test_apply_all_downgrade(redis_service):
 
     # Assert
     assert_version_calls(mocked_db, ["0.0.2", "0.0.1", "0.0.0"])
+    mocked_db.set.assert_any_call("migration_mode:0.0.0", "new")
+    assert mocked_db.delete.call_count == 3
+    mocked_db.delete.assert_any_call("migration_mode:0.0.1")
+    mocked_db.delete.assert_any_call("migration_mode:0.0.2")
+    mocked_db.delete.assert_any_call("migration_mode:0.0.3")
 
 
 @pytest.mark.asyncio
-async def test_apply_downgrade(redis_service):
+async def test_rollout_downgrade_migration(redis_service):
     # Arrange
     create_migration_file(redis_service.migration, "0.0.1", None)
     create_migration_file(redis_service.migration, "0.0.2", "0.0.1")
@@ -256,7 +277,7 @@ async def test_apply_downgrade(redis_service):
     redis.old_migration_path = redis_service.migration
 
     mocked_db = AsyncMock()
-    mocked_db.get.return_value = b"0.0.3"
+    mocked_db.get.side_effect = [b"0.0.3", b"0.0.2"]
 
     # Action
     with patch.object(redis, "_create_redis_instance", return_value=mocked_db):
@@ -264,6 +285,9 @@ async def test_apply_downgrade(redis_service):
 
     # Assert
     assert_version_calls(mocked_db, ["0.0.2"])
+    mocked_db.set.assert_any_call("migration_mode:0.0.2", "new")
+    assert mocked_db.delete.call_count == 1
+    mocked_db.delete.assert_any_call("migration_mode:0.0.3")
 
 
 @pytest.mark.asyncio
