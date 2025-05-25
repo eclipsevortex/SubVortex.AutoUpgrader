@@ -139,25 +139,25 @@ class RedisMigrations(Migration):
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
-            # Determine the highest revions
-            highest_revision = (
+            # Determine the highest revision
+            next_revision = (
                 sorted(new_revisions, key=lambda v: Version(v))[-1]
-                if len(new_revisions) > 0
+                if new_revisions
                 else "0.0.0"
             )
 
             revision = current_version
-            if Version(current_version) < Version(highest_revision):
+            if Version(current_version) < Version(next_revision):
                 revision = await self._upgrade(
                     database=database,
                     revisions=new_revisions,
                     current_version=current_version,
                 )
-            elif Version(current_version) > Version(highest_revision):
+            elif Version(current_version) > Version(next_revision):
                 revision = await self._downgrade(
                     database=database,
                     revisions=old_revisions,
-                    current_version=highest_revision,
+                    next_version=next_revision,
                 )
             else:
                 btul.logging.info(
@@ -198,6 +198,9 @@ class RedisMigrations(Migration):
             prefix=sauc.SV_LOGGER_NAME,
         )
 
+        # Final rollback target is the down_revision of the last applied revision
+        final_version = self.graph.get(self.applied_revisions[0]) or "0.0.0"
+
         try:
             # Rollback in reverse order
             for rev in reversed(self.applied_revisions):
@@ -213,28 +216,24 @@ class RedisMigrations(Migration):
                 await database.set(f"migration_mode:{rev}", "dual")
 
                 btul.logging.trace(
-                    f"[Rev {rev}] Executing rollback step", prefix=sauc.SV_LOGGER_NAME
+                    f"[Rev {rev}] Executing rollback step",
+                    prefix=sauc.SV_LOGGER_NAME,
                 )
                 await self.modules[rev].rollback(database)
 
-                # Get the parent revision
-                parent_version = self.graph.get(rev) or "0.0.0"
-
                 btul.logging.trace(
-                    f"[Rev {rev}] Finalizing migration — setting mode to 'new' and version to '{parent_version}'",
+                    f"[Rev {rev}] Deleting migration_mode:{rev}",
                     prefix=sauc.SV_LOGGER_NAME,
                 )
-                if parent_version:
-                    await database.set("version", parent_version)
-                    await database.set(f"migration_mode:{parent_version}", "legacy")
-                else:
-                    await database.set("version", parent_version)
+                await database.delete(f"migration_mode:{rev}")
 
-            # Clear applied revisions after rollback
             self.applied_revisions.clear()
 
         finally:
             if database:
+                # Set final rollback version and its migration_mode
+                await database.set("version", final_version)
+                await database.set(f"migration_mode:{final_version}", "new")
                 await database.close()
 
     async def _upgrade(self, database, revisions, current_version):
@@ -244,30 +243,34 @@ class RedisMigrations(Migration):
         )
 
         # Sort correctly
-        started = current_version == "0.0.0"
+        skip = current_version == "0.0.0"
+        previous_rev = current_version
         for rev in sorted(revisions, key=lambda v: Version(v)):
-            if not started:
-                if rev == current_version:
-                    started = True
+            if not skip:
+                if Version(rev) <= Version(current_version):
+                    continue
 
-                continue  # skip until current_version is reached
+                skip = False
 
             btul.logging.info(
                 f"⬆️  Applying migration for {self.service_name}: {rev}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
 
+            # Flag the version as dual
             btul.logging.trace(
                 f"[Rev {rev}] Setting migration mode: dual",
                 prefix=sauc.SV_LOGGER_NAME,
             )
             await database.set(f"migration_mode:{rev}", "dual")
 
+            # Rollout the version
             btul.logging.trace(
                 f"[Rev {rev}] Executing rollout step", prefix=sauc.SV_LOGGER_NAME
             )
             await self.modules[rev].rollout(database)
 
+            # Flag the version as new
             btul.logging.trace(
                 f"[Rev {rev}] Finalizing migration — setting mode to 'new' and version to '{rev}'",
                 prefix=sauc.SV_LOGGER_NAME,
@@ -275,35 +278,50 @@ class RedisMigrations(Migration):
             await database.set("version", rev)
             await database.set(f"migration_mode:{rev}", "new")
 
+            # Remove the previous version
+            if previous_rev:
+                await database.delete(f"migration_mode:{previous_rev}")
+
+            previous_rev = rev
             self.applied_revisions.append(rev)
 
         return rev or "0.0.0"
 
-    async def _downgrade(self, database, revisions, current_version):
+    async def _downgrade(self, database, revisions, next_version):
         btul.logging.info(
             f"⬇️  Running downgrade migrations for {self.service_name}...",
             prefix=sauc.SV_LOGGER_NAME,
         )
 
-        parent_version = "0.0.0"
         for rev in sorted(revisions, key=lambda v: Version(v), reverse=True):
-            if Version(rev) <= Version(current_version):
+            if Version(rev) <= Version(next_version):
                 break
-
             btul.logging.info(
                 f"⬇️  Rolling back migration for {self.service_name}: {rev}",
                 prefix=sauc.SV_LOGGER_NAME,
             )
+
+            # Flag the version as dual before rollback
+            btul.logging.trace(
+                f"[Rev {rev}] Setting migration mode: dual",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             await database.set(f"migration_mode:{rev}", "dual")
+
+            # Execute the rollback step
+            btul.logging.trace(
+                f"[Rev {rev}] Executing rollback step",
+                prefix=sauc.SV_LOGGER_NAME,
+            )
             await self.modules[rev].rollback(database)
 
-            parent_version = self.graph.get(rev)
-            if parent_version:
-                await database.set("version", parent_version)
-                await database.set(f"migration_mode:{parent_version}", "legacy")
-            else:
-                await database.set("version", "0.0.0")
+            # Set parent version if available
+            parent_version = self.graph.get(rev, "0.0.0") or "0.0.0"
+            await database.set("version", parent_version)
+            await database.set(f"migration_mode:{parent_version}", "new")
+            await database.delete(f"migration_mode:{rev}")
 
+            # Track successful rollback
             self.applied_revisions.append(rev)
 
         return parent_version

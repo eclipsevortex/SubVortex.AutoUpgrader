@@ -79,6 +79,7 @@ def orchestrator():
     # Mock internal steps in run_plan
     # orch._get_current_version = mock.MagicMock()
     # orch._get_latest_version = mock.MagicMock()
+    orch._switch_services = mock.MagicMock()
     orch._pull_current_assets = mock.MagicMock()
     orch._pull_latest_assets = mock.MagicMock()
     orch._load_current_services = mock.MagicMock()
@@ -442,7 +443,7 @@ async def test_run_plan_when_no_new_version_should_execute_until_check_versions_
 
 
 @pytest.mark.asyncio
-async def test_run_plan_when_migrate_for_the_first_time_after_releasing_auto_upragder(
+async def test_run_plan_when_migrate_for_the_first_time_after_releasing_auto_upragder2(
     orchestrator,
 ):
     # Arrange
