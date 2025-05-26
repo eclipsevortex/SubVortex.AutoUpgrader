@@ -286,6 +286,13 @@ You can run a consistency check between the Metagraph and Redis storage to ensur
 python3 /root/subvortex/subvortex/miner/metagraph/src/checker.py
 ```
 
+The script accepts the following optional arguments:
+
+- `--with_country`: Re-checks the country of each neuron using the country API.
+  Use this if you suspect some neurons have incorrect or outdated country information.
+- `--uid <UID>`: Runs the consistency check for a specific neuron UID only.
+  Useful for targeted validation instead of scanning the entire metagraph.
+
 This script will compare the current state of neurons in Redis with the active entries in the Metagraph and report any discrepancies (e.g., missing or outdated entries).
 
 💡 Run this periodically or after major updates to verify data integrity.

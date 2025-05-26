@@ -65,6 +65,9 @@ Whether you're managing a single node or an entire fleet, the Auto Upgrader prov
 
 Simple to set up. Easy to monitor. Zero stress upgrades.
 
+⚠️ Note: The Auto Upgrader does not manage or upgrade Subtensor nodes themselves.
+It is the responsibility of each miner to install, upgrade, and maintain their own Subtensor node to ensure proper functionality and synchronization with the network.
+
 <br />
 
 # ⚙️ Prerequisites <a id="prerequisites"></a>
