@@ -388,4 +388,4 @@ start_components
 # TODO: implement the migration
 
 # Clean prune version
-./scripts/cleaner/clean_worspace.sh --remove
+./scripts/quick_clean.sh --workspace
