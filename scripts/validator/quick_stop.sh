@@ -56,11 +56,6 @@ done
 # Check maandatory args
 check_required_args EXECUTION
 
-# Load from .env if exists
-if [ -f ./subvortex/auto_upgrader/.env ]; then
-    export $(grep -v '^#' ./subvortex/auto_upgrader/.env | xargs)
-fi
-
 # Determinate flag and expose it as env var
 export SUBVORTEX_FLOATTING_FLAG=$(get_tag)
 export SUBVORTEX_WORKING_DIR="$HOME/subvortex"
